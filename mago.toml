@@ -1,0 +1,38 @@
+# The CI matrix runs 8.4 and 8.5; analysis targets the lower bound so that
+# anything accepted here is also accepted on 8.5.
+php-version = "8.4"
+
+[source]
+paths = ["src", "tests"]
+includes = ["vendor"]
+
+[linter]
+# Fail on anything the linter reports, down to notes. `composer lint` runs with
+# --pedantic, which turns on every rule including the off-by-default ones.
+minimum-fail-level = "note"
+
+[analyzer]
+minimum-fail-level = "note"
+analyze-dead-code = true
+find-overly-wide-return-types = true
+check-throws = true
+# PHPUnit signals a failed assertion by throwing; every assertion in every test
+# would otherwise need a @throws tag for the framework's own control flow.
+unchecked-exceptions = ["PHPUnit\\Framework\\Exception"]
+check-missing-type-hints = true
+check-closure-missing-type-hints = true
+check-arrow-function-missing-type-hints = true
+allow-implicit-pipe-callable-types = false
+check-missing-override = true
+check-property-initialization = true
+check-use-statements = true
+check-experimental = true
+check-name-casing = true
+find-unused-parameters = true
+enforce-class-finality = true
+require-api-or-internal = true
+strict-list-index-checks = true
+strict-array-index-existence = true
+allow-array-truthy-operand = false
+allow-side-effects-in-conditions = false
+no-boolean-literal-comparison = true

@@ -1,0 +1,45 @@
+{
+    "name": "naoki-tsuchiya/agent-bridge",
+    "description": "Bridge between chat frontends and Claude Code sessions",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": "~8.4.0 || ~8.5.0",
+        "ext-swoole": "*",
+        "be-framework/be": "0.x-dev",
+        "bear/resource": "^1.33",
+        "naoki-tsuchiya/ray-di-context": "^0.2",
+        "ray/di": "^2.22"
+    },
+    "require-dev": {
+        "carthage-software/mago": "^1.46",
+        "phpunit/phpunit": "^13.3"
+    },
+    "autoload": {
+        "psr-4": {
+            "NaokiTsuchiya\\AgentBridge\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "NaokiTsuchiya\\AgentBridge\\Tests\\": "tests/"
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "config": {
+        "sort-packages": true
+    },
+    "scripts": {
+        "test": [
+            "@test:unit",
+            "@test:integration"
+        ],
+        "test:unit": "phpunit --exclude-group integration --testdox",
+        "test:integration": "phpunit --group integration --testdox",
+        "lint": "mago lint --pedantic",
+        "analyze": "mago analyze",
+        "fmt": "mago format",
+        "fmt-check": "mago format --check"
+    }
+}

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         cacheDirectory="var/phpunit"
+         colors="true"
+         failOnEmptyTestSuite="false"
+         failOnWarning="true"
+         failOnRisky="true"
+         failOnNotice="true"
+         failOnDeprecation="true"
+         beStrictAboutOutputDuringTests="true"
+         displayDetailsOnTestsThatTriggerWarnings="true">
+    <!-- failOnEmptyTestSuite="false" is required, not decorative: with no explicit
+         setting PHPUnit derives the value from whether the CLI selects tests, so
+         any run passing a group filter (both `composer test:unit` and
+         `composer test:integration` do) would exit 1 on an empty suite.
+         See vendor/phpunit/phpunit/src/TextUI/Configuration/Merger.php. -->
+    <testsuites>
+        <testsuite name="agent-bridge">
+            <directory>tests</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>src</directory>
+        </include>
+    </source>
+</phpunit>
