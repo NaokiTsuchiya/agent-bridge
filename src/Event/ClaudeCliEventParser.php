@@ -20,12 +20,6 @@ use function json_decode;
  * down a long-running session.
  *
  * Two events are deliberately never produced here — see {@see ToolCompleted} and {@see AgentError}.
- *
- * `composer lint` runs `mago lint --pedantic`, which force-enables mago's Psl integration whatever
- * mago.toml says. This project does not depend on azjezz/psl, so the rewrite it suggests for the
- * plain array functions below is expected away for the whole class (same reasoning as ThreadId).
- *
- * @mago-expect lint:psl-array-functions
  */
 final class ClaudeCliEventParser
 {

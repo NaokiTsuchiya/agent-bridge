@@ -15,6 +15,7 @@ namespace NaokiTsuchiya\AgentBridge\Event;
  */
 final readonly class AgentError implements AgentEvent
 {
+    /** @param string $message what to show the user in place of a reply */
     public function __construct(
         public string $message,
     ) {}

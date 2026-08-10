@@ -14,6 +14,7 @@ namespace NaokiTsuchiya\AgentBridge\Event;
  */
 final readonly class ToolCompleted implements AgentEvent
 {
+    /** @param string $id the identifier of the {@see ToolStarted} this completes */
     public function __construct(
         public string $id,
         public bool $success,

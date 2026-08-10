@@ -12,6 +12,7 @@ use NaokiTsuchiya\AgentBridge\Event\ToolCompleted;
 use NaokiTsuchiya\AgentBridge\Event\ToolStarted;
 use NaokiTsuchiya\AgentBridge\Event\TurnCompleted;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 use function array_values;
@@ -40,20 +41,22 @@ use const FILE_IGNORE_NEW_LINES;
  *
  * @mago-expect lint:kan-defect
  * @mago-expect lint:too-many-methods
- * @mago-expect lint:psl-array-functions
- * @mago-expect lint:psl-string-functions
  */
 final class ClaudeCliEventParserTest extends TestCase
 {
-    public function testTextDeltaLineYieldsOneTextDeltaCarryingTheDifference(): void
+    /** The one line shape that carries reply text: everything else in a turn is noise to a chat frontend. */
+    #[Test]
+    public function textDeltaLineYieldsOneTextDeltaCarryingTheDifference(): void
     {
-        static::assertSame(['text:h'], self::parse(self::observedLine('"type":"text_delta"')));
+        self::assertSame(['text:h'], self::parse(self::observedLine('"type":"text_delta"')));
     }
 
+    /** Only text_delta carries reply text; the other delta types must not leak into the stream. */
     #[DataProvider('deltaTypesThatCarryNoText')]
-    public function testDeltaTypesOtherThanTextDeltaYieldNothing(string $marker): void
+    #[Test]
+    public function deltaTypesOtherThanTextDeltaYieldNothing(string $marker): void
     {
-        static::assertSame([], self::parse(self::observedLine($marker)));
+        self::assertSame([], self::parse(self::observedLine($marker)));
     }
 
     /** @return iterable<string, array{string}> */
@@ -66,10 +69,12 @@ final class ClaudeCliEventParserTest extends TestCase
         yield 'input_json_delta' => ['"type":"input_json_delta"'];
     }
 
+    /** Envelope events around the deltas carry no content of their own. */
     #[DataProvider('streamEventsThatAreNotContentBlockDeltas')]
-    public function testStreamEventsOtherThanContentBlockDeltaYieldNothing(string $marker): void
+    #[Test]
+    public function streamEventsOtherThanContentBlockDeltaYieldNothing(string $marker): void
     {
-        static::assertSame([], self::parse(self::observedLine($marker)));
+        self::assertSame([], self::parse(self::observedLine($marker)));
     }
 
     /** @return iterable<string, array{string}> */
@@ -85,18 +90,22 @@ final class ClaudeCliEventParserTest extends TestCase
         yield 'message_stop' => ['"event":{"type":"message_stop"'];
     }
 
-    public function testAssistantToolUseYieldsToolStartedWithBothNameAndId(): void
+    /** The identifier matters as much as the name: a later tool completion refers back to it. */
+    #[Test]
+    public function assistantToolUseYieldsToolStartedWithBothNameAndId(): void
     {
-        static::assertSame(
+        self::assertSame(
             ['tool started:Bash:toolu_01VjzN7p8DfsYF7jjfwxSkV4'],
             self::parse(self::observedLine('"content":[{"type":"tool_use"')),
         );
     }
 
+    /** Reply text and thinking already arrive as deltas, so the assistant line must not duplicate them. */
     #[DataProvider('assistantBlocksThatAreNotToolCalls')]
-    public function testAssistantLinesWithoutAToolCallYieldNothing(string $marker): void
+    #[Test]
+    public function assistantLinesWithoutAToolCallYieldNothing(string $marker): void
     {
-        static::assertSame([], self::parse(self::observedLine($marker)));
+        self::assertSame([], self::parse(self::observedLine($marker)));
     }
 
     /** @return iterable<string, array{string}> */
@@ -106,10 +115,12 @@ final class ClaudeCliEventParserTest extends TestCase
         yield 'thinking block' => ['"content":[{"type":"thinking"'];
     }
 
+    /** A tool call missing either half of its identity is unusable, and must not abort the stream. */
     #[DataProvider('malformedAssistantLines')]
-    public function testMalformedAssistantLinesYieldNothingWithoutThrowing(string $line): void
+    #[Test]
+    public function malformedAssistantLinesYieldNothingWithoutThrowing(string $line): void
     {
-        static::assertSame([], self::parse($line));
+        self::assertSame([], self::parse($line));
     }
 
     /** @return iterable<string, array{string}> */
@@ -134,10 +145,12 @@ final class ClaudeCliEventParserTest extends TestCase
         ];
     }
 
+    /** A delta whose text is absent or not a string is unusable, and must not abort the stream. */
     #[DataProvider('malformedStreamEventLines')]
-    public function testMalformedStreamEventsYieldNothingWithoutThrowing(string $line): void
+    #[Test]
+    public function malformedStreamEventsYieldNothingWithoutThrowing(string $line): void
     {
-        static::assertSame([], self::parse($line));
+        self::assertSame([], self::parse($line));
     }
 
     /** @return iterable<string, array{string}> */
@@ -160,26 +173,32 @@ final class ClaudeCliEventParserTest extends TestCase
         ];
     }
 
-    public function testSuccessfulResultYieldsASuccessfulTurnCompletedCarryingTheSessionId(): void
+    /** The session id is what lets the next turn resume the same conversation. */
+    #[Test]
+    public function successfulResultYieldsASuccessfulTurnCompletedCarryingTheSessionId(): void
     {
-        static::assertSame(
+        self::assertSame(
             ['turn ok:4c880ba7-f788-4501-9ef5-54f486e1a165'],
             self::parse(self::observedLine('"type":"result"')),
         );
     }
 
-    public function testErroredResultYieldsAFailedTurnCompleted(): void
+    /** A failed turn still ends the turn: the caller is waiting for exactly one completion. */
+    #[Test]
+    public function erroredResultYieldsAFailedTurnCompleted(): void
     {
-        static::assertSame(
+        self::assertSame(
             ['turn failed:4c880ba7-f788-4501-9ef5-54f486e1a165'],
             self::parse(self::fixtureLine('synthetic-result-error.jsonl')),
         );
     }
 
+    /** A result that cannot be read in full still ends the turn, and is never upgraded to a success. */
     #[DataProvider('resultLinesThatCannotBeReadInFull')]
-    public function testResultLinesThatCannotBeReadInFullStillCompleteTheTurn(string $line, string $expected): void
+    #[Test]
+    public function resultLinesThatCannotBeReadInFullStillCompleteTheTurn(string $line, string $expected): void
     {
-        static::assertSame([$expected], self::parse($line));
+        self::assertSame([$expected], self::parse($line));
     }
 
     /** @return iterable<string, array{string, string}> */
@@ -196,10 +215,12 @@ final class ClaudeCliEventParserTest extends TestCase
         yield 'session_id is numeric' => ['{"type":"result","is_error":false,"session_id":7}', 'turn ok:'];
     }
 
+    /** Line types the parser does not translate, each taken from the captured turn. */
     #[DataProvider('observedLinesThatCarryNoEvent')]
-    public function testLineTypesOutsideTheThreeHandledOnesYieldNothing(string $marker): void
+    #[Test]
+    public function lineTypesOutsideTheThreeHandledOnesYieldNothing(string $marker): void
     {
-        static::assertSame([], self::parse(self::observedLine($marker)));
+        self::assertSame([], self::parse(self::observedLine($marker)));
     }
 
     /** @return iterable<string, array{string}> */
@@ -217,10 +238,12 @@ final class ClaudeCliEventParserTest extends TestCase
         yield 'user with a tool_result' => ['"type":"tool_result"'];
     }
 
+    /** Whatever else lands on the stream, a single line can never take the session down. */
     #[DataProvider('linesThatAreNotEvents')]
-    public function testUnreadableLinesYieldNothingWithoutThrowing(string $line): void
+    #[Test]
+    public function unreadableLinesYieldNothingWithoutThrowing(string $line): void
     {
-        static::assertSame([], self::parse($line));
+        self::assertSame([], self::parse($line));
     }
 
     /** @return iterable<string, array{string}> */
@@ -242,16 +265,19 @@ final class ClaudeCliEventParserTest extends TestCase
      * one: all eight assistant lines captured carried exactly one block. This synthetic line pins
      * down what the loop does should the CLI ever emit one; it is not evidence that it does.
      */
-    public function testAnAssistantLineWithTwoToolCallsYieldsTwoToolStarted(): void
+    #[Test]
+    public function anAssistantLineWithTwoToolCallsYieldsTwoToolStarted(): void
     {
-        static::assertSame(['tool started:Bash:toolu_1', 'tool started:Read:toolu_2'], self::parse(
+        self::assertSame(['tool started:Bash:toolu_1', 'tool started:Read:toolu_2'], self::parse(
             '{"type":"assistant","message":{"content":['
             . '{"type":"tool_use","id":"toolu_1","name":"Bash"},'
             . '{"type":"tool_use","id":"toolu_2","name":"Read"}]}}',
         ));
     }
 
-    public function testParsingTheWholeCapturedTurnYieldsTheExpectedEventSequence(): void
+    /** A whole captured turn, which also pins the order the events come out in. */
+    #[Test]
+    public function parsingTheWholeCapturedTurnYieldsTheExpectedEventSequence(): void
     {
         $parser = new ClaudeCliEventParser();
 
@@ -262,7 +288,7 @@ final class ClaudeCliEventParserTest extends TestCase
             }
         }
 
-        static::assertSame(
+        self::assertSame(
             [
                 'tool started:Bash:toolu_01VjzN7p8DfsYF7jjfwxSkV4',
                 'text:h',
@@ -274,7 +300,8 @@ final class ClaudeCliEventParserTest extends TestCase
     }
 
     /** All five event types are reachable from a single `match` on the event's class. */
-    public function testEveryEventTypeCanBeDispatchedByMatchingOnItsClass(): void
+    #[Test]
+    public function everyEventTypeCanBeDispatchedByMatchingOnItsClass(): void
     {
         $names = [];
         foreach ([
@@ -293,7 +320,7 @@ final class ClaudeCliEventParserTest extends TestCase
             };
         }
 
-        static::assertSame('text delta, tool started, tool completed, turn completed, error', implode(', ', $names));
+        self::assertSame('text delta, tool started, tool completed, turn completed, error', implode(', ', $names));
     }
 
     /** @return list<string> one string per event, so that a whole parse is one assertion */
@@ -307,6 +334,7 @@ final class ClaudeCliEventParserTest extends TestCase
         return $described;
     }
 
+    /** Renders one event as a string, so that a whole parse is compared in a single assertion. */
     private static function describe(AgentEvent $event): string
     {
         if ($event instanceof TextDelta) {
@@ -341,13 +369,14 @@ final class ClaudeCliEventParserTest extends TestCase
             }
         }
 
-        static::fail("No line of observed-turn.jsonl contains {$marker}");
+        self::fail("No line of observed-turn.jsonl contains {$marker}");
     }
 
+    /** Reads a fixture that is expected to hold exactly one line. */
     private static function fixtureLine(string $name): string
     {
         $lines = self::readFixture($name);
-        static::assertCount(1, $lines, "Expected exactly one line in {$name}");
+        self::assertCount(1, $lines, "Expected exactly one line in {$name}");
 
         return implode('', $lines);
     }
@@ -356,7 +385,7 @@ final class ClaudeCliEventParserTest extends TestCase
     private static function readFixture(string $name): array
     {
         $lines = file(__DIR__ . '/fixtures/' . $name, FILE_IGNORE_NEW_LINES);
-        static::assertIsArray($lines, "Missing fixture: {$name}");
+        self::assertIsArray($lines, "Missing fixture: {$name}");
 
         return array_values($lines);
     }
