@@ -1,0 +1,7 @@
+# The CI matrix runs 8.4 and 8.5; analysis targets the lower bound so that
+# anything accepted here is also accepted on 8.5.
+php-version = "8.4"
+
+[source]
+paths = ["src", "tests"]
+includes = ["vendor"]
