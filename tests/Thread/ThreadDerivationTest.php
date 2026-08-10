@@ -8,18 +8,22 @@ use InvalidArgumentException;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadDerivation;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 final class ThreadDerivationTest extends TestCase
 {
-    public function testNamespaceUuidIsTheAgreedConstant(): void
+    /** The one value that must never drift; see the constant's own docblock. */
+    #[Test]
+    public function namespaceUuidIsTheAgreedConstant(): void
     {
         self::assertSame('33adc75c-ded9-51f3-b48f-fe0eebd1fcbf', ThreadDerivation::NAMESPACE_UUID);
     }
 
     /** @throws InvalidArgumentException */
     #[DataProvider('knownVectors')]
-    public function testMatchesKnownVector(string $value, string $sessionId, string $slug): void
+    #[Test]
+    public function matchesKnownVector(string $value, string $sessionId, string $slug): void
     {
         $thread = new ThreadId($value);
 
@@ -40,7 +44,8 @@ final class ThreadDerivationTest extends TestCase
     }
 
     /** @throws InvalidArgumentException */
-    public function testDerivesWorktreePathAndBranchName(): void
+    #[Test]
+    public function derivesWorktreePathAndBranchName(): void
     {
         $thread = new ThreadId('slack:1700000001.123456');
 
@@ -49,7 +54,8 @@ final class ThreadDerivationTest extends TestCase
     }
 
     /** @throws InvalidArgumentException */
-    public function testReplacesEveryColonNotJustTheFirst(): void
+    #[Test]
+    public function replacesEveryColonNotJustTheFirst(): void
     {
         $thread = new ThreadId('slack:C123:456');
 
@@ -59,14 +65,16 @@ final class ThreadDerivationTest extends TestCase
     }
 
     /** @throws InvalidArgumentException */
-    public function testReplacesDotsOnThePlatformSideToo(): void
+    #[Test]
+    public function replacesDotsOnThePlatformSideToo(): void
     {
         self::assertSame('a-b-x', ThreadDerivation::slug(new ThreadId('a.b:x')));
         self::assertSame('a--b-x', ThreadDerivation::slug(new ThreadId('a..b:x')));
     }
 
     /** @throws InvalidArgumentException */
-    public function testDerivingTwiceReturnsTheSameValues(): void
+    #[Test]
+    public function derivingTwiceReturnsTheSameValues(): void
     {
         $thread = new ThreadId('slack:1700000001.123456');
 

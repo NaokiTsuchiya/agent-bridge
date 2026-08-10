@@ -53,7 +53,6 @@ property-name = { enabled = true }
 require-namespace = { enabled = true }
 sorted-integer-keys = { enabled = true }
 string-style = { enabled = true }
-yoda-conditions = { enabled = true }
 no-literal-namespace-string = { enabled = true }
 no-short-bool-cast = { enabled = true }
 no-alternative-syntax = { enabled = true }
@@ -63,15 +62,12 @@ no-null-property-init = { enabled = true }
 prefer-explode-over-preg-split = { enabled = true }
 disallowed-type-instantiation = { enabled = true }
 
-# `missing-docs` stays off: it wants a docblock on every method, property and
-# constant, which in practice produces restatements of the signature. Comments
-# here carry what the code cannot say, so they are written where that applies.
-missing-docs = { enabled = false }
+missing-docs = { enabled = true }
+prefer-test-attribute = { enabled = true }
 
-# `prefer-test-attribute` stays off: the test suite names tests with the `test`
-# prefix, which PHPUnit supports on equal footing with `#[Test]`. Turning it on
-# would rename every existing test method without changing what is tested.
-prefer-test-attribute = { enabled = false }
+# `yoda-conditions` is the one rule left off: comparisons are written in reading
+# order (`$x === ''`), which this rule would invert.
+yoda-conditions = { enabled = false }
 
 [analyzer]
 minimum-fail-level = "note"

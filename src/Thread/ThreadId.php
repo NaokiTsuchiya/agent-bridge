@@ -11,7 +11,10 @@ use function str_contains;
 
 final class ThreadId
 {
+    /** The chat platform the thread lives on, e.g. `slack`. */
     public string $platform;
+
+    /** The thread's identifier on that platform, which may itself contain colons. */
     public string $nativeId;
 
     /** @throws InvalidArgumentException */
@@ -28,11 +31,11 @@ final class ThreadId
         // analyzer types `explode` as a non-empty list without knowing the limit.
         $nativeId = $parts[1] ?? '';
 
-        if ('' === $platform) {
+        if ($platform === '') {
             throw new InvalidArgumentException("ThreadId must have a non-empty PLATFORM, got \"{$value}\".");
         }
 
-        if ('' === $nativeId) {
+        if ($nativeId === '') {
             throw new InvalidArgumentException("ThreadId must have a non-empty NATIVE_ID, got \"{$value}\".");
         }
 

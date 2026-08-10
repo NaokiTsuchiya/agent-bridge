@@ -7,12 +7,14 @@ namespace NaokiTsuchiya\AgentBridge\Tests\Thread;
 use InvalidArgumentException;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 final class ThreadIdTest extends TestCase
 {
     /** @throws InvalidArgumentException */
-    public function testExposesPlatformAndNativeIdSeparately(): void
+    #[Test]
+    public function exposesPlatformAndNativeIdSeparately(): void
     {
         $thread = new ThreadId('cli:my-experiment');
 
@@ -22,7 +24,8 @@ final class ThreadIdTest extends TestCase
     }
 
     /** @throws InvalidArgumentException */
-    public function testSplitsOnTheFirstColonOnly(): void
+    #[Test]
+    public function splitsOnTheFirstColonOnly(): void
     {
         $thread = new ThreadId('slack:C123:456');
 
@@ -31,7 +34,8 @@ final class ThreadIdTest extends TestCase
     }
 
     /** @throws InvalidArgumentException */
-    public function testAcceptsDotDotInPlatformBecauseSlashIsAlreadyRejected(): void
+    #[Test]
+    public function acceptsDotDotInPlatformBecauseSlashIsAlreadyRejected(): void
     {
         $thread = new ThreadId('a..b:x');
 
@@ -41,7 +45,8 @@ final class ThreadIdTest extends TestCase
 
     /** @throws InvalidArgumentException */
     #[DataProvider('invalidThreadIds')]
-    public function testRejectsInvalidThreadId(string $value): void
+    #[Test]
+    public function rejectsInvalidThreadId(string $value): void
     {
         $this->expectException(InvalidArgumentException::class);
 

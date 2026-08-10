@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NaokiTsuchiya\AgentBridge\Tests\Integration;
 
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 use function exec;
@@ -12,7 +13,9 @@ use function exec;
 #[Group('integration')]
 final class ClaudeCliTest extends TestCase
 {
-    public function testClaudeCliReportsItsVersion(): void
+    /** Guards the precondition of the integration group: a usable `claude` on PATH. */
+    #[Test]
+    public function claudeCliReportsItsVersion(): void
     {
         $output = [];
         $exitCode = 1;
