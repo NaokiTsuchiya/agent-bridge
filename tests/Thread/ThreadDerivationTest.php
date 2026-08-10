@@ -14,7 +14,7 @@ final class ThreadDerivationTest extends TestCase
 {
     public function testNamespaceUuidIsTheAgreedConstant(): void
     {
-        static::assertSame('33adc75c-ded9-51f3-b48f-fe0eebd1fcbf', ThreadDerivation::NAMESPACE_UUID);
+        self::assertSame('33adc75c-ded9-51f3-b48f-fe0eebd1fcbf', ThreadDerivation::NAMESPACE_UUID);
     }
 
     /** @throws InvalidArgumentException */
@@ -23,8 +23,8 @@ final class ThreadDerivationTest extends TestCase
     {
         $thread = new ThreadId($value);
 
-        static::assertSame($sessionId, ThreadDerivation::sessionId($thread));
-        static::assertSame($slug, ThreadDerivation::slug($thread));
+        self::assertSame($sessionId, ThreadDerivation::sessionId($thread));
+        self::assertSame($slug, ThreadDerivation::slug($thread));
     }
 
     /** @return iterable<string, array{string, string, string}> */
@@ -44,8 +44,8 @@ final class ThreadDerivationTest extends TestCase
     {
         $thread = new ThreadId('slack:1700000001.123456');
 
-        static::assertSame('.worktrees/slack-1700000001-123456', ThreadDerivation::worktreePath($thread));
-        static::assertSame('agent/slack-1700000001-123456', ThreadDerivation::branchName($thread));
+        self::assertSame('.worktrees/slack-1700000001-123456', ThreadDerivation::worktreePath($thread));
+        self::assertSame('agent/slack-1700000001-123456', ThreadDerivation::branchName($thread));
     }
 
     /** @throws InvalidArgumentException */
@@ -53,16 +53,16 @@ final class ThreadDerivationTest extends TestCase
     {
         $thread = new ThreadId('slack:C123:456');
 
-        static::assertSame('slack-C123-456', ThreadDerivation::slug($thread));
-        static::assertSame('.worktrees/slack-C123-456', ThreadDerivation::worktreePath($thread));
-        static::assertSame('agent/slack-C123-456', ThreadDerivation::branchName($thread));
+        self::assertSame('slack-C123-456', ThreadDerivation::slug($thread));
+        self::assertSame('.worktrees/slack-C123-456', ThreadDerivation::worktreePath($thread));
+        self::assertSame('agent/slack-C123-456', ThreadDerivation::branchName($thread));
     }
 
     /** @throws InvalidArgumentException */
     public function testReplacesDotsOnThePlatformSideToo(): void
     {
-        static::assertSame('a-b-x', ThreadDerivation::slug(new ThreadId('a.b:x')));
-        static::assertSame('a--b-x', ThreadDerivation::slug(new ThreadId('a..b:x')));
+        self::assertSame('a-b-x', ThreadDerivation::slug(new ThreadId('a.b:x')));
+        self::assertSame('a--b-x', ThreadDerivation::slug(new ThreadId('a..b:x')));
     }
 
     /** @throws InvalidArgumentException */
@@ -70,14 +70,14 @@ final class ThreadDerivationTest extends TestCase
     {
         $thread = new ThreadId('slack:1700000001.123456');
 
-        static::assertSame(ThreadDerivation::sessionId($thread), ThreadDerivation::sessionId($thread));
-        static::assertSame(ThreadDerivation::slug($thread), ThreadDerivation::slug($thread));
-        static::assertSame(ThreadDerivation::worktreePath($thread), ThreadDerivation::worktreePath($thread));
-        static::assertSame(ThreadDerivation::branchName($thread), ThreadDerivation::branchName($thread));
+        self::assertSame(ThreadDerivation::sessionId($thread), ThreadDerivation::sessionId($thread));
+        self::assertSame(ThreadDerivation::slug($thread), ThreadDerivation::slug($thread));
+        self::assertSame(ThreadDerivation::worktreePath($thread), ThreadDerivation::worktreePath($thread));
+        self::assertSame(ThreadDerivation::branchName($thread), ThreadDerivation::branchName($thread));
 
         $again = new ThreadId('slack:1700000001.123456');
 
-        static::assertSame(ThreadDerivation::sessionId($thread), ThreadDerivation::sessionId($again));
-        static::assertSame(ThreadDerivation::branchName($thread), ThreadDerivation::branchName($again));
+        self::assertSame(ThreadDerivation::sessionId($thread), ThreadDerivation::sessionId($again));
+        self::assertSame(ThreadDerivation::branchName($thread), ThreadDerivation::branchName($again));
     }
 }

@@ -9,14 +9,6 @@ use InvalidArgumentException;
 use function explode;
 use function str_contains;
 
-/**
- * `composer lint` runs `mago lint --pedantic`, which force-enables mago's Psl
- * integration whatever mago.toml says (the flag overrides the config). This
- * project does not depend on azjezz/psl, so the rewrite it suggests for the
- * plain string functions below is expected away for the whole class.
- *
- * @mago-expect lint:psl-string-functions
- */
 final class ThreadId
 {
     public string $platform;
@@ -36,11 +28,11 @@ final class ThreadId
         // analyzer types `explode` as a non-empty list without knowing the limit.
         $nativeId = $parts[1] ?? '';
 
-        if ($platform === '') {
+        if ('' === $platform) {
             throw new InvalidArgumentException("ThreadId must have a non-empty PLATFORM, got \"{$value}\".");
         }
 
-        if ($nativeId === '') {
+        if ('' === $nativeId) {
             throw new InvalidArgumentException("ThreadId must have a non-empty NATIVE_ID, got \"{$value}\".");
         }
 

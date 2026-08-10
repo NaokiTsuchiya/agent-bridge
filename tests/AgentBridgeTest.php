@@ -18,10 +18,10 @@ final class AgentBridgeTest extends TestCase
     public function testPackageNameMatchesComposerJson(): void
     {
         $json = file_get_contents(dirname(__DIR__) . '/composer.json');
-        static::assertIsString($json);
+        self::assertIsString($json);
 
         /** @var array<string, mixed> $composer */
         $composer = json_decode($json, associative: true, flags: JSON_THROW_ON_ERROR);
-        static::assertSame(AgentBridge::PACKAGE, $composer['name'] ?? null);
+        self::assertSame(AgentBridge::PACKAGE, $composer['name'] ?? null);
     }
 }

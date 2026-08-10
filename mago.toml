@@ -7,9 +7,71 @@ paths = ["src", "tests"]
 includes = ["vendor"]
 
 [linter]
-# Fail on anything the linter reports, down to notes. `composer lint` runs with
-# --pedantic, which turns on every rule including the off-by-default ones.
+# Fail on anything the linter reports, down to notes.
 minimum-fail-level = "note"
+# Integrations add rules for a specific library, so they are enabled per
+# dependency. PHPUnit is in require-dev and drives everything under tests/;
+# the framework integrations mago also ships (Psl, Symfony, Laravel, ...)
+# target libraries this project does not use, and enabling one of those would
+# demand rewriting plain PHP calls into an API that is not installed.
+integrations = ["phpunit"]
+
+# Every rule mago ships with off by default is turned on here one by one, so the
+# strictness lives in this file rather than in a `--pedantic` flag (which ignores
+# this file wholesale, including minimum-fail-level and the integration list).
+# The two exceptions are at the bottom, each with its reason.
+[linter.rules]
+# `redundant-static` (below) rejects `static::` inside a final class, so the
+# PHPUnit assertion style is pinned to `self::` to match it.
+assertion-style = { enabled = true, style = "self" }
+ambiguous-constant-access = { enabled = true }
+ambiguous-function-call = { enabled = true }
+method-name = { enabled = true }
+prefer-datetimeimmutable-create-from-timestamp = { enabled = true }
+no-redundant-else = { enabled = true }
+no-redundant-variable = { enabled = true }
+no-dead-store = { enabled = true }
+no-unused-static = { enabled = true }
+no-unused-global = { enabled = true }
+no-unused-closure-capture = { enabled = true }
+redundant-static = { enabled = true }
+no-negated-ternary = { enabled = true }
+no-is-null = { enabled = true }
+no-iterator-to-array-in-foreach = { enabled = true }
+no-assign-in-argument = { enabled = true }
+no-fully-qualified-global-class-like = { enabled = true }
+no-fully-qualified-global-constant = { enabled = true }
+no-fully-qualified-global-function = { enabled = true }
+prefer-early-return = { enabled = true }
+variable-name = { enabled = true }
+no-array-accumulation-in-loop = { enabled = true }
+prefer-array-spread = { enabled = true }
+no-parameter-shadowing = { enabled = true }
+no-inline = { enabled = true }
+no-side-effects-with-declarations = { enabled = true }
+property-name = { enabled = true }
+require-namespace = { enabled = true }
+sorted-integer-keys = { enabled = true }
+string-style = { enabled = true }
+yoda-conditions = { enabled = true }
+no-literal-namespace-string = { enabled = true }
+no-short-bool-cast = { enabled = true }
+no-alternative-syntax = { enabled = true }
+prefer-self-return-type = { enabled = true }
+switch-continue-to-break = { enabled = true }
+no-null-property-init = { enabled = true }
+prefer-explode-over-preg-split = { enabled = true }
+disallowed-type-instantiation = { enabled = true }
+
+# `missing-docs` stays off: it wants a docblock on every method, property and
+# constant, which in practice produces restatements of the signature. Comments
+# here carry what the code cannot say, so they are written where that applies.
+missing-docs = { enabled = false }
+
+# `prefer-test-attribute` stays off: the test suite names tests with the `test`
+# prefix, which PHPUnit supports on equal footing with `#[Test]`. Turning it on
+# would rename every existing test method without changing what is tested.
+prefer-test-attribute = { enabled = false }
 
 [analyzer]
 minimum-fail-level = "note"

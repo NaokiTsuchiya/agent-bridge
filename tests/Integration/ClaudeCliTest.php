@@ -18,8 +18,8 @@ final class ClaudeCliTest extends TestCase
         $exitCode = 1;
         $lastLine = exec('claude --version 2>/dev/null', $output, $exitCode);
 
-        static::assertSame(0, $exitCode, 'A logged-in Claude Code CLI must be on PATH for the integration group.');
-        static::assertIsString($lastLine);
-        static::assertMatchesRegularExpression('/\d+\.\d+\.\d+/', $lastLine);
+        self::assertSame(0, $exitCode, 'A logged-in Claude Code CLI must be on PATH for the integration group.');
+        self::assertIsString($lastLine);
+        self::assertMatchesRegularExpression('/\d+\.\d+\.\d+/', $lastLine);
     }
 }

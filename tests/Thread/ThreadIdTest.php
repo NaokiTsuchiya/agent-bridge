@@ -16,9 +16,9 @@ final class ThreadIdTest extends TestCase
     {
         $thread = new ThreadId('cli:my-experiment');
 
-        static::assertSame('cli', $thread->platform);
-        static::assertSame('my-experiment', $thread->nativeId);
-        static::assertSame('cli:my-experiment', $thread->value);
+        self::assertSame('cli', $thread->platform);
+        self::assertSame('my-experiment', $thread->nativeId);
+        self::assertSame('cli:my-experiment', $thread->value);
     }
 
     /** @throws InvalidArgumentException */
@@ -26,8 +26,8 @@ final class ThreadIdTest extends TestCase
     {
         $thread = new ThreadId('slack:C123:456');
 
-        static::assertSame('slack', $thread->platform);
-        static::assertSame('C123:456', $thread->nativeId);
+        self::assertSame('slack', $thread->platform);
+        self::assertSame('C123:456', $thread->nativeId);
     }
 
     /** @throws InvalidArgumentException */
@@ -35,8 +35,8 @@ final class ThreadIdTest extends TestCase
     {
         $thread = new ThreadId('a..b:x');
 
-        static::assertSame('a..b', $thread->platform);
-        static::assertSame('x', $thread->nativeId);
+        self::assertSame('a..b', $thread->platform);
+        self::assertSame('x', $thread->nativeId);
     }
 
     /** @throws InvalidArgumentException */

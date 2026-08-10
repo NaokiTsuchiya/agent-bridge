@@ -13,11 +13,6 @@ use function sha1;
 use function strtr;
 use function substr;
 
-/**
- * See the note on {@see ThreadId} for why the Psl rewrite is expected away here.
- *
- * @mago-expect lint:psl-string-functions
- */
 final class ThreadDerivation
 {
     // Changing this cuts every existing thread off from its Claude Code session.
@@ -46,7 +41,7 @@ final class ThreadDerivation
     private static function uuidV5(string $name): string
     {
         $namespaceBytes = hex2bin(strtr(self::NAMESPACE_UUID, ['-' => '']));
-        assert($namespaceBytes !== false, description: 'NAMESPACE_UUID must be 32 hexadecimal digits plus dashes.');
+        assert(false !== $namespaceBytes, description: 'NAMESPACE_UUID must be 32 hexadecimal digits plus dashes.');
 
         $hash = sha1($namespaceBytes . $name, binary: true);
 
