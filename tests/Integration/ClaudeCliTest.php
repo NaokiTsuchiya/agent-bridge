@@ -8,7 +8,6 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 use function exec;
-use function implode;
 
 #[Group('integration')]
 final class ClaudeCliTest extends TestCase
@@ -17,9 +16,10 @@ final class ClaudeCliTest extends TestCase
     {
         $output = [];
         $exitCode = 1;
-        exec('claude --version 2>/dev/null', $output, $exitCode);
+        $lastLine = exec('claude --version 2>/dev/null', $output, $exitCode);
 
-        self::assertSame(0, $exitCode, 'A logged-in Claude Code CLI must be on PATH for the integration group.');
-        self::assertMatchesRegularExpression('/\d+\.\d+\.\d+/', implode("\n", $output));
+        static::assertSame(0, $exitCode, 'A logged-in Claude Code CLI must be on PATH for the integration group.');
+        static::assertIsString($lastLine);
+        static::assertMatchesRegularExpression('/\d+\.\d+\.\d+/', $lastLine);
     }
 }

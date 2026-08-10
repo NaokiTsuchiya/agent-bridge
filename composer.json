@@ -37,7 +37,7 @@
         ],
         "test:unit": "phpunit --exclude-group integration --testdox",
         "test:integration": "phpunit --group integration --testdox",
-        "lint": "mago lint",
+        "lint": "mago lint --pedantic",
         "analyze": "mago analyze",
         "fmt": "mago format",
         "fmt-check": "mago format --check"
