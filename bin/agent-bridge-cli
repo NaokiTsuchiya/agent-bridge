@@ -1,0 +1,23 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * The command line front end: `agent-bridge-cli THREAD_ID`, one message per line of input.
+ *
+ * See docs/cli-adapter.md. The context mapping comes from bootstrap.php — the same one the
+ * compile CLI is given, so that this process resolves from what that compile wrote.
+ */
+
+use NaokiTsuchiya\AgentBridge\Cli\CliCommand;
+use NaokiTsuchiya\RayDiContext\ContextProviderInterface;
+
+$root = dirname(__DIR__);
+
+require $root . '/vendor/autoload.php';
+
+$contexts = require $root . '/bootstrap.php';
+assert($contexts instanceof ContextProviderInterface, 'bootstrap.php must return a context provider.');
+
+exit(new CliCommand($contexts, $root, STDIN, STDERR)->run($argv));

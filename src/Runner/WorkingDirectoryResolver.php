@@ -11,8 +11,7 @@ use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
  *
  * Kept apart from {@see AgentRunner} on purpose: a runner has to know the directory to start a
  * process in, but a caller must not have to, or every caller would need to know how this project
- * lays out worktrees. Issue #11 replaces the stand-in implementations with one built on
- * {@see \NaokiTsuchiya\AgentBridge\Worktree\WorktreeManager}.
+ * lays out worktrees.
  *
  * @api
  */

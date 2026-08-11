@@ -20,7 +20,7 @@ interface StreamHandle { public function append(string $delta): void; public fun
 
 **宣言に特定のフロントエンド固有の語彙 (`thread_ts` / `channel` / `slack`) を書かない。** `tests/Chat/PortDeclarationTest.php` がこの 3 語をポートのソースから探し、見つかったら落ちる。
 
-実装はまだ無い。最初のアダプタは CLI で、それが `poc-design.md` の実装順 10 にあたる。
+最初の実装は CLI アダプタ (`poc-design.md` の実装順 10、issue #11)。[`cli-adapter.md`](cli-adapter.md) を参照。
 
 ## 2. チェーン
 
@@ -73,11 +73,10 @@ Be は `#[Input]` 引数の名前から `NaokiTsuchiya\AgentBridge\Semantic\<Pas
 | チェーンが `#[Inject]` する型 (`ThreadIdFactory` / `WorktreeManager`) が同じ Injector から解決できる | 同 `resolvesWhatThePipelineInjects` / `resolvesWorktreeManagement` |
 | チェーンが端まで完走する | `tests/Pipeline/BecomingChainTest`、素の `Injector` + `BeModule` |
 
-**3 段目だけコンパイル済み Injector で回していない理由は 2 つあり、どちらもテスト基盤の都合ではなく構造的なものである。**
+**3 段目を素の `Injector` でも回しているのは、テストが使うフェイク CLI のパスや使い捨てリポジトリが実行時のパスで、`BakedPathGuard` があるためコンパイル時に焼けないからである** (`src/Di/BaseRepositoryProvider.php` の docblock)。
 
-1. `CompletedTurn` は `ChatEgress` を注入するが、実装はアダプタの issue のもので、まだ束縛できる実体が無い。コンパイル済み Injector には後から束縛を足せない。
-2. テストが使うフェイク CLI のパスや使い捨てリポジトリは実行時のパスで、`BakedPathGuard` があるためコンパイル時に焼けない (`src/Di/BaseRepositoryProvider.php` の docblock)。
+`CompletedTurn` が注入する `ChatEgress` は #11 で `Di\AppModule` に束縛された (CLI アダプタ)。コンパイル済み Injector からチェーンを端まで回す経路は `tests/Cli/WarmupIsolationTest`、束縛そのものは `tests/Cli/ProductionWiringTest` にある。
 
-**未検証のまま残っているもの:** Swoole の常駐プロセス上で `Becoming` を長時間回したときの挙動 (`BecomingChainTest` はコルーチンの中で回すが、常駐はしない)。実際に常駐へ載るのは CLI / Slack アダプタの issue で、そこで初めて確かめられる。
+**未検証のまま残っているもの:** Swoole の常駐プロセス上で `Becoming` を長時間回したときの挙動 (CLI アダプタはメッセージを流し終えると終了する)。実際に常駐へ載るのは Slack アダプタの issue で、そこで初めて確かめられる。
 
 なお `AppModule` は `ThreadIdFactory` を明示的に束縛している。コンパイル済み Injector は**束縛されていない具象クラスを解決しない**ので (`ClaudeCliSettings` などが同じ理由で束縛されている)、Be がリフレクション経由で頼む型はすべて束縛が要る。
