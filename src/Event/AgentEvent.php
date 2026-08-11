@@ -13,7 +13,7 @@ namespace NaokiTsuchiya\AgentBridge\Event;
  * consumer forgot — so adding a sixth implementation breaks consumers loudly rather than
  * silently dropping its events.
  *
- * `ToolCompleted` and `AgentError` have no producer yet; see their own docblocks.
+ * `ToolCompleted` has no producer yet; see its own docblock.
  *
  * @api
  */
