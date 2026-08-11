@@ -51,7 +51,7 @@ require __DIR__ . '/path/to/agent-bridge/vendor/autoload.php';
 
 use NaokiTsuchiya\AgentBridge\Slack\{Backoff, EnvelopeLog, CoroutineSleeper, FrameRouter,
     MtRandomSource, ReconnectDelay, SlackAppTokenFactory, SocketModeClient, StderrSocketModeLogger,
-    SwooleSocketModeConnector};
+    SwooleHttpClientFactory, SwooleSocketModeConnector};
 use Swoole\Coroutine\Channel;
 
 use function Swoole\Coroutine\run;
@@ -68,7 +68,7 @@ run(static function (): void {
     });
 
     new SocketModeClient(
-        new SwooleSocketModeConnector(SlackAppTokenFactory::fromEnvironment()),
+        new SwooleSocketModeConnector(SlackAppTokenFactory::fromEnvironment(), new SwooleHttpClientFactory()),
         new FrameRouter($envelopes, new EnvelopeLog(), $logger),
         new ReconnectDelay(new Backoff(new MtRandomSource()), new CoroutineSleeper()),
         $logger,

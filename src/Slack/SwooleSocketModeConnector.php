@@ -6,33 +6,33 @@ namespace NaokiTsuchiya\AgentBridge\Slack;
 
 use Override;
 use SensitiveParameter;
-use Swoole\Coroutine\Http\Client;
-use Swoole\Coroutine\Http\Client\Exception as ClientException;
 
 /**
  * Opens a Socket Mode connection the way Slack documents it: `apps.connections.open`, then upgrade.
  *
  * The class holds no judgement of its own — the body of the response is read by
- * {@see ConnectionOpenResponse} and split by {@see WebsocketEndpoint} — so that what cannot be
- * tested without a workspace is only the two calls themselves.
+ * {@see ConnectionOpenResponse}, split by {@see WebsocketEndpoint}, and the clients come from
+ * {@see HttpClientFactoryInterface} — so that what cannot be tested without a workspace is only the
+ * two calls themselves.
  *
  * @api
  */
 final class SwooleSocketModeConnector implements SocketModeConnectorInterface
 {
-    /** Where the WSS URL is asked for. */
-    private const string API_HOST = 'slack.com';
-
-    /** The one path this connector posts to. */
+    /** The API method this connector exists to call; not a setting, but the thing it does. */
     private const string OPEN_PATH = '/api/apps.connections.open';
 
-    /** TLS, for both the API call and the WebSocket. */
-    private const int HTTPS_PORT = 443;
-
-    /** The token is kept as the value object, which is the only thing that can render the header. */
+    /**
+     * @param SlackAppToken $token   the only thing that carries the secret; read once, into a header
+     * @param string        $apiHost where `apps.connections.open` is asked for
+     * @param int           $apiPort the port that host is reached on
+     */
     public function __construct(
         #[SensitiveParameter]
         private SlackAppToken $token,
+        private HttpClientFactoryInterface $clients,
+        private string $apiHost = 'slack.com',
+        private int $apiPort = 443,
     ) {}
 
     /** @throws SocketModeException */
@@ -40,12 +40,7 @@ final class SwooleSocketModeConnector implements SocketModeConnectorInterface
     public function connect(): SocketModeConnectionInterface
     {
         $endpoint = WebsocketEndpoint::fromUrl(ConnectionOpenResponse::websocketUrl($this->open()));
-        $socket = self::client($endpoint->host, $endpoint->port);
-
-        // A minute is Slack's own connection refresh cycle; the read deadline per frame is the
-        // recv loop's business, and it passes its own timeout to every receive().
-        $socket->set(['timeout' => 60.0]);
-
+        $socket = $this->clients->create($endpoint->host, $endpoint->port);
         $upgraded = $socket->upgrade($endpoint->path);
 
         if (!$upgraded) {
@@ -66,7 +61,7 @@ final class SwooleSocketModeConnector implements SocketModeConnectorInterface
      */
     private function open(): string
     {
-        $api = self::client(self::API_HOST, self::HTTPS_PORT);
+        $api = $this->clients->create($this->apiHost, $this->apiPort);
         $api->setHeaders([
             'Authorization' => "Bearer {$this->token->value}",
             'Content-Type' => 'application/x-www-form-urlencoded',
@@ -82,15 +77,5 @@ final class SwooleSocketModeConnector implements SocketModeConnectorInterface
         }
 
         return $body;
-    }
-
-    /** @throws SocketModeException when the client cannot even be created */
-    private static function client(string $host, int $port): Client
-    {
-        try {
-            return new Client($host, $port, ssl: true);
-        } catch (ClientException $exception) {
-            throw new SocketModeException("Cannot open a client for {$host}: {$exception->getMessage()}");
-        }
     }
 }
