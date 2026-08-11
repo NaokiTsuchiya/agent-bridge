@@ -13,6 +13,7 @@ use NaokiTsuchiya\AgentBridge\Di\ServeContext;
 use NaokiTsuchiya\AgentBridge\Runner\AgentRunner;
 use NaokiTsuchiya\AgentBridge\Runner\LifecycleSettings;
 use NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner;
+use NaokiTsuchiya\AgentBridge\Thread\ThreadIdFactory;
 use NaokiTsuchiya\AgentBridge\Worktree\WorktreeManager;
 use NaokiTsuchiya\RayDiContext\Exception\CompileDirUnavailable;
 use NaokiTsuchiya\RayDiContext\Exception\InvalidAppMeta;
@@ -101,6 +102,24 @@ final class CompiledInjectorTest extends TestCase
         $limits = self::injector()->getInstance(LifecycleSettings::class);
 
         self::assertInstanceOf(LifecycleSettings::class, $limits);
+    }
+
+    /**
+     * What the pipeline asks for while a message is being resolved.
+     *
+     * Be resolves a stage's `#[Inject]` parameters by type at the moment that stage is built, so a
+     * type nobody bound goes missing in the middle of somebody's turn rather than at boot. Together
+     * with the worktree manager above, this is what the middle stage of the chain needs.
+     *
+     * @throws CompileDirUnavailable
+     * @throws InvalidAppMeta
+     */
+    #[Test]
+    public function resolvesWhatThePipelineInjects(): void
+    {
+        $threads = self::injector()->getInstance(ThreadIdFactory::class);
+
+        self::assertInstanceOf(ThreadIdFactory::class, $threads);
     }
 
     /**
