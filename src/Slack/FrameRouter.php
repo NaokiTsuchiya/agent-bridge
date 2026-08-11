@@ -42,10 +42,9 @@ final class FrameRouter
      */
     public function route(string $frame, SocketModeConnectionInterface $connection): bool
     {
-        /** @var array<array-key, mixed>|bool|float|int|string|null $decoded */
-        $decoded = json_decode($frame, associative: true);
+        $decoded = self::asObject(json_decode($frame, associative: true));
 
-        if (!is_array($decoded)) {
+        if ($decoded === null) {
             $this->log->log('discarded a frame that is not a JSON object');
 
             return true;
@@ -151,6 +150,21 @@ final class FrameRouter
         }
 
         return true;
+    }
+
+    /**
+     * Whatever `json_decode` answered with, as an object, or null when it is anything else.
+     *
+     * Taking the decoded value as an argument rather than a variable is what keeps its type off a
+     * `mixed` assignment, which is the whole reason the decode is not written inline.
+     *
+     * @return array<array-key, mixed>|null
+     *
+     * @pure
+     */
+    private static function asObject(mixed $decoded): ?array
+    {
+        return is_array($decoded) ? $decoded : null;
     }
 
     /**
