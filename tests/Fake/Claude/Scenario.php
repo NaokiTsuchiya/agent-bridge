@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Fake;
+namespace NaokiTsuchiya\AgentBridge\Tests\Fake\Claude;
 
 use NaokiTsuchiya\AgentBridge\Tests\Support\Json;
 

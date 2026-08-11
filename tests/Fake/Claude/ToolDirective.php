@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Fake;
+namespace NaokiTsuchiya\AgentBridge\Tests\Fake\Claude;
 
 /** The tool call a scenario asks a turn to make, and the result to hand back for it. */
 final readonly class ToolDirective

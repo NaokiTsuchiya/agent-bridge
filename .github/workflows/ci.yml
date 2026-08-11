@@ -52,7 +52,7 @@ jobs:
       - name: Integration group against the fake CLI
         run: composer test:integration
         env:
-          AGENT_BRIDGE_CLAUDE_BIN: ${{ github.workspace }}/tests/Fake/bin/claude
+          AGENT_BRIDGE_CLAUDE_BIN: ${{ github.workspace }}/tests/Fake/Claude/bin/claude
 
       - run: composer lint
 

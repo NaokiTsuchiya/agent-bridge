@@ -1,7 +1,7 @@
 # フェイク Claude CLI と契約テスト
 
 **ステータス:** 実装済み (issue #5)
-**対象:** `tests/Fake/bin/claude` / `tests/Contract/` / `tests/Integration/RealClaudeCliContractTest.php`
+**対象:** `tests/Fake/Claude/bin/claude` / `tests/Contract/` / `tests/Integration/RealClaudeCliContractTest.php`
 
 ---
 
@@ -20,15 +20,22 @@
 
 ## 2. 起動のしかた
 
-`tests/Fake/bin/claude` は実行ビット付きの実行可能ファイルで、リポジトリ内のパスをそのまま指定して起動できる。
+`tests/Fake/Claude/bin/claude` は実行ビット付きの実行可能ファイルで、リポジトリ内のパスをそのまま指定して起動できる。
 
 ```bash
-FAKE_CLAUDE_HOME=/tmp/fake-home tests/Fake/bin/claude \
+FAKE_CLAUDE_HOME=/tmp/fake-home tests/Fake/Claude/bin/claude \
   -p --output-format stream-json --verbose --include-partial-messages \
   --session-id 11111111-1111-4111-8111-111111111111 "hello"
 ```
 
-拡張子を持たないのは意図的で、`mago.toml` の `[source] paths` は `tests` 配下を走査するが拡張子なしのファイルは対象外になる。ロジックは名前空間付きの `tests/Fake/*.php` に置き、この 1 本は autoload して `FakeClaudeCli::main()` を呼ぶだけの shim に留めている (そちらは lint / analyze の網に載る)。
+フェイクに属するものは `tests/Fake/Claude/` に閉じている:
+
+```
+tests/Fake/Claude/bin/claude   実行可能な shim (4 行)
+tests/Fake/Claude/*.php        名前空間 NaokiTsuchiya\AgentBridge\Tests\Fake\Claude の実体
+```
+
+`bin/claude` が拡張子を持たないのは意図的で、`mago.toml` の `[source] paths` は `tests` 配下を走査するが拡張子なしのファイルは対象外になる。ロジックは同じディレクトリの名前空間付き `*.php` に置き、この 1 本は autoload して `FakeClaudeCli::main()` を呼ぶだけの shim に留めている (そちらは lint / analyze の網に載る)。フェイクを別の CLI にも用意するなら `tests/Fake/<名前>/` を隣に並べる。
 
 ### 再現している挙動
 
@@ -46,7 +53,7 @@ FAKE_CLAUDE_HOME=/tmp/fake-home tests/Fake/bin/claude \
 
 ターンの出力順は `system/init` (毎ターン再送) → (`stream_event` 群) → (`tool_use` と `tool_result`) → `assistant` (本文) → **`result`** (ターンの最終行)。
 
-**値を取るフラグの一覧は `tests/Fake/FakeArgs.php` にある。** 未知のフラグを真偽フラグとして無視する以上、値を取るフラグを知らないとその値がプロンプトに混入する (`--allowedTools Bash` の `Bash` がプロンプトになる)。新しく値付きフラグを渡すときはこの一覧に足すこと。
+**値を取るフラグの一覧は `tests/Fake/Claude/FakeArgs.php` にある。** 未知のフラグを真偽フラグとして無視する以上、値を取るフラグを知らないとその値がプロンプトに混入する (`--allowedTools Bash` の `Bash` がプロンプトになる)。新しく値付きフラグを渡すときはこの一覧に足すこと。
 
 ## 3. 環境変数
 
@@ -108,7 +115,7 @@ turns.jsonl                        ターンの開始/終了 1 件につき 1 �
 | ファイル | 群 | バイナリ |
 |---|---|---|
 | `tests/Contract/ClaudeCliContractTestCase.php` | (抽象・収集されない) | 本体 |
-| `tests/Contract/FakeClaudeCliContractTest.php` | unit | `tests/Fake/bin/claude` |
+| `tests/Contract/FakeClaudeCliContractTest.php` | unit | `tests/Fake/Claude/bin/claude` |
 | `tests/Integration/RealClaudeCliContractTest.php` | integration | `AGENT_BRIDGE_CLAUDE_BIN` が指すもの (既定は `claude`) |
 
 確かめているのは 7 項目:
@@ -144,7 +151,7 @@ composer test:unit         # フェイク側を含む。ログイン済み Claud
 composer test:integration
 
 # 同じ integration 群をフェイクに対して回す (ログイン不要、1 秒未満)
-AGENT_BRIDGE_CLAUDE_BIN="$PWD/tests/Fake/bin/claude" composer test:integration
+AGENT_BRIDGE_CLAUDE_BIN="$PWD/tests/Fake/Claude/bin/claude" composer test:integration
 ```
 
 CI (`.github/workflows/ci.yml`) は unit 群に加えて、**integration 群をフェイクに対して**回している (`AGENT_BRIDGE_CLAUDE_BIN` にフェイクのパスを渡す step)。実 `claude` に対する実行は課金とログインが要るので CI では行わない — **手元で定期的に回すもの**で、落ちたらフェイクを実 CLI に合わせて直す (2 章の原則)。

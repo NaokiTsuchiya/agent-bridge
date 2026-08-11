@@ -26,7 +26,7 @@ final class ClaudeBinary
     /** @return string the fake in this repository, by a path any caller can hand to a shell */
     public static function fake(): string
     {
-        return dirname(__DIR__, levels: 2) . '/tests/Fake/bin/claude';
+        return dirname(__DIR__, levels: 2) . '/tests/Fake/Claude/bin/claude';
     }
 
     /** @return string what `AGENT_BRIDGE_CLAUDE_BIN` names, or the real `claude` on PATH */
