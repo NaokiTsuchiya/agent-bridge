@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace NaokiTsuchiya\AgentBridge\Worktree;
 
+use NaokiTsuchiya\AgentBridge\Git\GitInterface;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadDerivation;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
 
-use function array_map;
 use function basename;
 use function dirname;
-use function escapeshellarg;
-use function exec;
 use function implode;
 use function is_dir;
 use function realpath;
@@ -30,6 +28,7 @@ final class WorktreeManager
     /** The repository the worktrees are cut from; which one it is stays the caller's decision. */
     public function __construct(
         private string $baseRepository,
+        private GitInterface $git,
     ) {}
 
     /**
@@ -57,16 +56,21 @@ final class WorktreeManager
 
         // A directory that is gone may still be registered as a worktree, and git
         // refuses to add over a stale registration (it names prune in the refusal).
-        $this->git(['worktree', 'prune']);
+        $this->git->run($this->baseRepository, ['worktree', 'prune']);
 
         $branch = ThreadDerivation::branchName($thread);
-        [$branchExitCode] = $this->git(['show-ref', '--verify', '--quiet', self::LOCAL_BRANCH_PREFIX . $branch]);
+        [$branchExitCode] = $this->git->run($this->baseRepository, [
+            'show-ref',
+            '--verify',
+            '--quiet',
+            self::LOCAL_BRANCH_PREFIX . $branch,
+        ]);
 
         $arguments = $branchExitCode === 0
             ? ['worktree', 'add', $path, $branch]
             : ['worktree', 'add', '-b', $branch, $path, $this->defaultBranch()];
 
-        [$exitCode, $output] = $this->git($arguments);
+        [$exitCode, $output] = $this->git->run($this->baseRepository, $arguments);
 
         if ($exitCode !== 0) {
             $command = implode(' ', $arguments);
@@ -84,14 +88,17 @@ final class WorktreeManager
      */
     private function defaultBranch(): string
     {
-        [$originExitCode, $originRef] = $this->git(['symbolic-ref', self::ORIGIN_HEAD_PREFIX . 'HEAD']);
+        [$originExitCode, $originRef] = $this->git->run(
+            $this->baseRepository,
+            ['symbolic-ref', self::ORIGIN_HEAD_PREFIX . 'HEAD'],
+        );
         $fromOrigin = $originExitCode === 0 ? self::branchIn($originRef, self::ORIGIN_HEAD_PREFIX) : null;
 
         if ($fromOrigin !== null) {
             return $fromOrigin;
         }
 
-        [$headExitCode, $headRef] = $this->git(['symbolic-ref', 'HEAD']);
+        [$headExitCode, $headRef] = $this->git->run($this->baseRepository, ['symbolic-ref', 'HEAD']);
         $fromHead = $headExitCode === 0 ? self::branchIn($headRef, self::LOCAL_BRANCH_PREFIX) : null;
 
         if ($fromHead !== null) {
@@ -115,25 +122,6 @@ final class WorktreeManager
         $name = substr($ref, strlen($prefix));
 
         return $name === '' ? null : $name;
-    }
-
-    /**
-     * Runs git inside the base repository.
-     *
-     * @param list<string> $arguments
-     *
-     * @return array{int, string} exit code and the combined output, stderr included
-     */
-    private function git(array $arguments): array
-    {
-        $directory = escapeshellarg($this->baseRepository);
-        $quoted = implode(' ', array_map(escapeshellarg(...), $arguments));
-
-        $output = [];
-        $exitCode = 0;
-        exec("git -C {$directory} {$quoted} 2>&1", $output, $exitCode);
-
-        return [$exitCode, implode("\n", $output)];
     }
 
     /**
