@@ -12,7 +12,7 @@ use NaokiTsuchiya\AgentBridge\Event\ToolCompleted;
 use NaokiTsuchiya\AgentBridge\Event\ToolStarted;
 use NaokiTsuchiya\AgentBridge\Event\TurnCompleted;
 use NaokiTsuchiya\AgentBridge\Runner\AgentRunner;
-use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
+use NaokiTsuchiya\AgentBridge\Thread\ThreadWorkspace;
 use Ray\Di\Di\Inject;
 use Ray\InputQuery\Attribute\Input;
 use UnhandledMatchError;
@@ -50,21 +50,11 @@ final readonly class CompletedTurn
     /**
      * Answers the turn, sending it out as it comes.
      *
-     * The parameter list is long because it is not really a list: the first four are the previous
-     * stage's state, handed over by name, and the last two are what this stage needs to do its
-     * work. Folding either group into an object would hide from Be what it resolves one by one.
-     *
      * @throws UnhandledMatchError When the execution layer emits an event no arm below handles.
-     *
-     * @mago-expect lint:excessive-parameter-list
      */
     public function __construct(
         #[Input]
-        public ThreadId $thread,
-        #[Input]
-        public string $sessionId,
-        #[Input]
-        public string $worktree,
+        public ThreadWorkspace $workspace,
         #[Input]
         string $text,
         #[Inject]
@@ -72,6 +62,7 @@ final readonly class CompletedTurn
         #[Inject]
         ChatEgress $egress,
     ) {
+        $thread = $workspace->thread;
         $egress->status($thread, self::ACCEPTED);
         $stream = $egress->open($thread);
 

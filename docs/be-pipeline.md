@@ -37,7 +37,9 @@ $turn = $becoming(new IncomingMessage('cli', 'my-experiment', 'what does this re
 
 呼び出しは 1 回で、途中の遷移はどこにも書かれていない。`Becoming` が `#[Be]` を辿り、最終型に着いたら止まる。
 
-`ResolvedThread` のコンストラクタは順に ThreadId の生成 → session_id の導出 → worktree の生成を行う。**どれかが失敗すればオブジェクトは存在しない** ので、「まだ検証されていない ThreadId」「まだ存在しない worktree」を持つ状態を型として表現できない。導出は #3 (`ThreadDerivation`) と #6 (`WorktreeManager`) のもので、ここでは再実装していない。
+`ResolvedThread` のコンストラクタは順に ThreadId の生成 → session_id の導出 → worktree の生成を行い、3 つを `Thread\ThreadWorkspace` 1 つにまとめて持つ。**どれかが失敗すればオブジェクトは存在しない** ので、「まだ検証されていない ThreadId」「まだ存在しない worktree」を持つ状態を型として表現できない。導出は #3 (`ThreadDerivation`) と #6 (`WorktreeManager`) のもので、ここでは再実装していない。
+
+`ThreadWorkspace` は「この PoC が ThreadId から導出するもの」の全部であり、3 つが常に同じスレッドのものであることを型で担保する (session だけ別スレッドのもの、という状態を作れない)。段階の受け渡しもこれ 1 つ + 本文で済むので、`CompletedTurn` のコンストラクタは `#[Input]` 2 つ + `#[Inject]` 2 つになる。
 
 `CompletedTurn` は `AgentRunner` のイベントを `StreamHandle` へ流す。本文 (`TextDelta`) はそのまま append し、ツール開始 (`ToolStarted`) は本文と混ざらないよう `> 名前` の 1 行として別に append する。`ToolCompleted` は producer がまだ無く、何もしない。
 
@@ -55,7 +57,7 @@ $turn = $becoming(new IncomingMessage('cli', 'my-experiment', 'what does this re
 
 Be は `#[Input]` 引数の名前から `NaokiTsuchiya\AgentBridge\Semantic\<PascalCase>` を探し、**無ければ `E_USER_NOTICE` を出す** (`vendor/be-framework/be/src/SemanticVariable/SemanticValidator.php`)。`phpunit.xml.dist` は `failOnNotice="true"` なので、登録が無いとチェーンを回すテストが落ちる。
 
-そこで `Platform` / `NativeId` / `Text` / `Thread` / `SessionId` / `Worktree` を置いてある。**検証メソッドは持たない** — 書式の正は `ThreadId` にあり、二重に持つと片方だけ直る日が来る。
+そこで `Platform` / `NativeId` / `Text` / `Workspace` を置いてある (= `ResolvedThread` と `CompletedTurn` の `#[Input]` 引数名の集合)。**検証メソッドは持たない** — 書式の正は `ThreadId` にあり、二重に持つと片方だけ直る日が来る。
 
 > **`ResolvedThread` / `CompletedTurn` に `#[Input]` 引数を足したら、同じ名前のクラスをここに足すこと。** 忘れると通知が出て、テストが落ちて分かる。
 

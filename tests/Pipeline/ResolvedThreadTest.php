@@ -52,8 +52,8 @@ final class ResolvedThreadTest extends TestCase
     {
         $resolved = $this->resolve('cli', 'my-experiment');
 
-        self::assertSame("{$this->repository}/.worktrees/cli-my-experiment", $resolved->worktree);
-        self::assertDirectoryExists($resolved->worktree);
+        self::assertSame("{$this->repository}/.worktrees/cli-my-experiment", $resolved->workspace->worktree);
+        self::assertDirectoryExists($resolved->workspace->worktree);
     }
 
     /**
@@ -70,7 +70,7 @@ final class ResolvedThreadTest extends TestCase
     {
         $resolved = $this->resolve($platform, $nativeId);
 
-        self::assertSame($sessionId, $resolved->sessionId);
+        self::assertSame($sessionId, $resolved->workspace->sessionId);
     }
 
     /** @return iterable<string, array{string, string, string}> */
@@ -93,8 +93,8 @@ final class ResolvedThreadTest extends TestCase
         $first = $this->resolve('cli', 'my-experiment');
         $second = $this->resolve('cli', 'my-experiment');
 
-        self::assertSame($first->worktree, $second->worktree);
-        self::assertDirectoryExists($second->worktree);
+        self::assertSame($first->workspace->worktree, $second->workspace->worktree);
+        self::assertDirectoryExists($second->workspace->worktree);
     }
 
     /**
@@ -109,7 +109,7 @@ final class ResolvedThreadTest extends TestCase
         $resolved = $this->resolve('cli', 'my-experiment', 'what does this repository do?');
 
         self::assertSame('what does this repository do?', $resolved->text);
-        self::assertSame('cli:my-experiment', $resolved->thread->value);
+        self::assertSame('cli:my-experiment', $resolved->workspace->thread->value);
     }
 
     /**

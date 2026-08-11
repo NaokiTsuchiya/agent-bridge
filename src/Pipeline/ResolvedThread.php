@@ -7,8 +7,8 @@ namespace NaokiTsuchiya\AgentBridge\Pipeline;
 use Be\Framework\Attribute\Be;
 use InvalidArgumentException;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadDerivation;
-use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadIdFactory;
+use NaokiTsuchiya\AgentBridge\Thread\ThreadWorkspace;
 use NaokiTsuchiya\AgentBridge\Worktree\WorktreeException;
 use NaokiTsuchiya\AgentBridge\Worktree\WorktreeManager;
 use Ray\Di\Di\Inject;
@@ -28,14 +28,8 @@ use Ray\InputQuery\Attribute\Input;
 #[Be(CompletedTurn::class)]
 final readonly class ResolvedThread
 {
-    /** The thread this message belongs to, in the form the rest of the application speaks. */
-    public ThreadId $thread;
-
-    /** The Claude Code session the turn continues. */
-    public string $sessionId;
-
-    /** The absolute path of the worktree the turn runs in, which exists by the time this returns. */
-    public string $worktree;
+    /** The thread, its session and its directory, which exist by the time this returns. */
+    public ThreadWorkspace $workspace;
 
     /**
      * @throws InvalidArgumentException When the message does not name a valid thread.
@@ -53,8 +47,12 @@ final readonly class ResolvedThread
         #[Inject]
         WorktreeManager $worktrees,
     ) {
-        $this->thread = $threads->fromParts($platform, $nativeId);
-        $this->sessionId = ThreadDerivation::sessionId($this->thread);
-        $this->worktree = $worktrees->worktreeFor($this->thread);
+        $thread = $threads->fromParts($platform, $nativeId);
+
+        $this->workspace = new ThreadWorkspace(
+            $thread,
+            ThreadDerivation::sessionId($thread),
+            $worktrees->worktreeFor($thread),
+        );
     }
 }

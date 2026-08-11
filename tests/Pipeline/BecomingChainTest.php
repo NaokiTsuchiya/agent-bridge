@@ -122,7 +122,7 @@ final class BecomingChainTest extends TestCase
 
         self::assertTrue($completed->success);
         self::assertStringContainsString('fake reply to: what is the weather', $completed->reply);
-        self::assertSame(self::PLATFORM . ':' . self::NATIVE_ID, $completed->thread->value);
+        self::assertSame(self::PLATFORM . ':' . self::NATIVE_ID, $completed->workspace->thread->value);
     }
 
     /**
@@ -135,7 +135,7 @@ final class BecomingChainTest extends TestCase
     {
         $completed = $this->answer('hello');
 
-        self::assertSame('959a94a6-5395-5d07-bc71-0a0c7d800476', $completed->sessionId);
+        self::assertSame('959a94a6-5395-5d07-bc71-0a0c7d800476', $completed->workspace->sessionId);
     }
 
     /**
@@ -151,9 +151,9 @@ final class BecomingChainTest extends TestCase
     {
         $completed = $this->answer('hello');
 
-        self::assertSame("{$this->repository}/.worktrees/slack-1700000001-123456", $completed->worktree);
-        self::assertDirectoryExists($completed->worktree);
-        self::assertSame($completed->worktree, Json::text($this->records()->starts()[0] ?? [], 'cwd'));
+        self::assertSame("{$this->repository}/.worktrees/slack-1700000001-123456", $completed->workspace->worktree);
+        self::assertDirectoryExists($completed->workspace->worktree);
+        self::assertSame($completed->workspace->worktree, Json::text($this->records()->starts()[0] ?? [], 'cwd'));
     }
 
     /**
@@ -166,9 +166,9 @@ final class BecomingChainTest extends TestCase
     {
         $completed = $this->answer('hello', nativeId: 'C123:456');
 
-        self::assertSame('C123:456', $completed->thread->nativeId);
-        self::assertTrue(str_ends_with($completed->worktree, '/.worktrees/slack-C123-456'));
-        self::assertDirectoryExists($completed->worktree);
+        self::assertSame('C123:456', $completed->workspace->thread->nativeId);
+        self::assertTrue(str_ends_with($completed->workspace->worktree, '/.worktrees/slack-C123-456'));
+        self::assertDirectoryExists($completed->workspace->worktree);
     }
 
     /**
@@ -182,8 +182,8 @@ final class BecomingChainTest extends TestCase
     {
         $completed = $this->answer('hello', platform: 'a..b', nativeId: 'x');
 
-        self::assertTrue(str_ends_with($completed->worktree, '/.worktrees/a--b-x'));
-        self::assertDirectoryExists($completed->worktree);
+        self::assertTrue(str_ends_with($completed->workspace->worktree, '/.worktrees/a--b-x'));
+        self::assertDirectoryExists($completed->workspace->worktree);
     }
 
     /**
@@ -251,8 +251,8 @@ final class BecomingChainTest extends TestCase
         $first = self::nth($turns, index: 0);
         $second = self::nth($turns, index: 1);
 
-        self::assertSame($first->worktree, $second->worktree);
-        self::assertSame([$first->worktree], self::directoriesIn("{$this->repository}/.worktrees"));
+        self::assertSame($first->workspace->worktree, $second->workspace->worktree);
+        self::assertSame([$first->workspace->worktree], self::directoriesIn("{$this->repository}/.worktrees"));
     }
 
     /**
@@ -269,7 +269,7 @@ final class BecomingChainTest extends TestCase
         self::assertGreaterThan(1, count($stream->appends), 'The reply must arrive in pieces, not in one go.');
         self::assertSame($completed->reply, $stream->joined());
         self::assertSame(1, $stream->closes);
-        self::assertSame([[$completed->thread->value, 'Working on it.']], $this->egress()->statuses);
+        self::assertSame([[$completed->workspace->thread->value, 'Working on it.']], $this->egress()->statuses);
     }
 
     /**
@@ -397,7 +397,7 @@ final class BecomingChainTest extends TestCase
 
             $last = $completed[count($completed) - 1] ?? null;
             if ($last instanceof CompletedTurn) {
-                $runner->close($last->thread);
+                $runner->close($last->workspace->thread);
             }
         });
 
