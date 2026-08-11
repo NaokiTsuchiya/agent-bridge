@@ -4,6 +4,10 @@ php-version = "8.4"
 
 [source]
 paths = ["src", "tests"]
+# `includes` is also how mago learns about ext-swoole: it resolves classes from source, not from
+# loaded extensions, so `Swoole\Coroutine\Channel` and friends are "not found" without stubs. That
+# is what `swoole/ide-helper` is in require-dev for — it ships nothing but stub sources and has no
+# autoload section, so it is never loaded at runtime and cannot shadow the real extension.
 includes = ["vendor"]
 
 [linter]

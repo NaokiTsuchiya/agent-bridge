@@ -13,7 +13,8 @@
     },
     "require-dev": {
         "carthage-software/mago": "^1.46",
-        "phpunit/phpunit": "^13.3"
+        "phpunit/phpunit": "^13.3",
+        "swoole/ide-helper": "^6.2"
     },
     "autoload": {
         "psr-4": {
