@@ -17,6 +17,7 @@ use NaokiTsuchiya\AgentBridge\Runner\LifecycleSettings;
 use NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner;
 use NaokiTsuchiya\AgentBridge\Runner\WorkingDirectoryResolver;
 use NaokiTsuchiya\AgentBridge\Runner\WorktreeWorkingDirectory;
+use NaokiTsuchiya\AgentBridge\Thread\ThreadIdFactory;
 use NaokiTsuchiya\AgentBridge\Worktree\WorktreeManager;
 use Override;
 use Ray\Di\AbstractModule;
@@ -63,6 +64,10 @@ final class AppModule extends AbstractModule
             'baseRepository' => self::BASE_REPOSITORY,
         ]);
         $this->bind(WorkingDirectoryResolver::class)->to(WorktreeWorkingDirectory::class);
+        // Bound although no constructor in this module names it: the pipeline receives it through
+        // Be, which asks the injector for it while a message is being resolved, and a compiled
+        // injector answers only for what was bound when it was compiled.
+        $this->bind(ThreadIdFactory::class);
         $this->bind(ClaudeCliSettings::class);
         $this->bind(LifecycleSettings::class);
         // Singleton because the runner is the pool: a second one would hold its own children and
