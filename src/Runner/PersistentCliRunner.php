@@ -16,8 +16,10 @@ use Swoole\Runtime;
 
 use function implode;
 use function json_encode;
+use function microtime;
 
 use const SWOOLE_HOOK_PROC;
+use const SWOOLE_HOOK_STREAM_FUNCTION;
 
 /**
  * An {@see AgentRunner} that keeps one `claude` process per thread and talks to it over stdin.
@@ -34,7 +36,16 @@ use const SWOOLE_HOOK_PROC;
  * to a second one started with `--session-id`. A session that has aged out therefore turns into
  * a new one without anybody having to notice.
  *
+ * **A thread answers one turn at a time** ({@see TurnLocks}), which is also what keeps two turns
+ * out of one worktree; different threads run at the same time and are meant to. Interrupting a
+ * turn in flight is not offered at all.
+ *
+ * Only usable from inside a coroutine: both the waiting for a thread's turn and the waiting for
+ * room in the pool are done with channels.
+ *
  * @mago-expect lint:cyclomatic-complexity
+ * @mago-expect lint:kan-defect
+ * @mago-expect lint:too-many-methods
  *
  * @api
  */
@@ -55,68 +66,97 @@ final class PersistentCliRunner implements AgentRunner
      */
     private const float EXIT_GRACE = 2.0;
 
-    /** How long a terminated process is given to disappear before it is left to the system. */
-    private const float TERMINATION_GRACE = 2.0;
+    /** The processes, and the rules by which they are reclaimed. */
+    private ProcessPool $pool;
 
-    /** @var array<string, AgentProcess> the live process of each thread, by thread id */
-    private array $processes = [];
+    /** One mutex per thread, held for as long as that thread's turn lasts. */
+    private TurnLocks $locks;
+
+    /** @var array<string, Turn> the turn each thread is in the middle of, by thread id */
+    private array $turns = [];
+
+    /** How long a turn may go without reaching its completion event. */
+    private float $turnSeconds;
 
     /**
      * @param WorkingDirectoryResolver $directories where each thread's process is started
      * @param ClaudeCliSettings        $settings    which binary to run, and with which permissions
      * @param ClaudeCliEventParser     $parser      turns the binary's output into events
+     * @param LifecycleSettings        $limits      how long a process may live and how many there
+     *                                              may be
      */
     public function __construct(
         private WorkingDirectoryResolver $directories,
         private ClaudeCliSettings $settings = new ClaudeCliSettings(),
         private ClaudeCliEventParser $parser = new ClaudeCliEventParser(),
+        LifecycleSettings $limits = new LifecycleSettings(),
     ) {
-        // Without this hook `proc_open` and its pipes block the whole event loop instead of the
+        // Without these hooks `proc_open` and its pipes block the whole event loop instead of the
         // one coroutine waiting on them. `Swoole\Process` is not an option: starting one inside
         // a coroutine throws `must be forked outside the coroutine` (Swoole 6.2.0). Added to the
         // flags already in place rather than replacing them, since an application may have asked
         // for more.
-        Runtime::setHookFlags(Runtime::getHookFlags() | SWOOLE_HOOK_PROC);
+        //
+        // `SWOOLE_HOOK_STREAM_FUNCTION` is what makes `stream_select` — the one call every turn
+        // waits in ({@see ProcessOutput}) — give up the processor. Measured on Swoole 6.2.0 with
+        // only `SWOOLE_HOOK_PROC`: a coroutine that slept 0.2s next to a one-second `stream_select`
+        // ran after 1.008s, i.e. one thread's wait froze every other thread. With this flag the
+        // same sleeper ran at 0.203s. Threads are meant to run at the same time, so this is not
+        // an optimization.
+        Runtime::setHookFlags(Runtime::getHookFlags() | SWOOLE_HOOK_PROC | SWOOLE_HOOK_STREAM_FUNCTION);
+
+        $this->pool = new ProcessPool($limits, $settings->closeGraceSeconds);
+        $this->locks = new TurnLocks();
+        $this->turnSeconds = $limits->turnSeconds;
     }
 
     /** @return iterable<AgentEvent> */
     #[Override]
     public function send(ThreadId $thread, string $prompt): iterable
     {
+        // Taken before anything is started, and given back by whoever ends the turn: a second
+        // send on this thread parks right here until the first turn is over.
+        $this->locks->acquire($thread->value);
+        $turn = new Turn($thread, microtime(true) + $this->turnSeconds);
+        $this->turns[$thread->value] = $turn;
+
         $process = $this->processFor($thread);
         if ($process === null) {
+            $this->settle($turn);
+
             return self::failure("The agent could not be started for \"{$thread->value}\".");
         }
+
+        $this->pool->beginTurn($thread);
 
         // Written here rather than inside the generator below: a caller that abandons the events
         // still asked a question, and the turn has to be under way for `close()` to have anything
         // to wait for.
         $process->write(self::promptLine($prompt));
 
-        return $this->turn($thread, $process, $prompt);
+        return $this->turn($turn, $process, $prompt);
     }
 
     /** Ends the thread's process; the thread's history stays where it is. */
     #[Override]
     public function close(ThreadId $thread): void
     {
-        $process = $this->processes[$thread->value] ?? null;
-        if ($process === null) {
+        // The process goes first and the turn is settled after it: releasing the lock earlier
+        // would let a next turn start a process for this thread while this one is still going.
+        $this->pool->drop($thread);
+
+        $turn = $this->turns[$thread->value] ?? null;
+        if ($turn === null) {
             return;
         }
 
-        unset($this->processes[$thread->value]);
+        $this->settle($turn);
+    }
 
-        // End of input is what makes the process stop; without it, it waits for a next turn
-        // forever and the grace below would be spent on nothing.
-        $process->closeInput();
-        $ended = $process->awaitExit($this->settings->closeGraceSeconds);
-        if (!$ended) {
-            $process->terminate();
-            $process->awaitExit(self::TERMINATION_GRACE);
-        }
-
-        $process->release();
+    /** @return int how many child processes are being held right now, at most the configured limit */
+    public function liveProcesses(): int
+    {
+        return $this->pool->count();
     }
 
     /**
@@ -124,14 +164,27 @@ final class PersistentCliRunner implements AgentRunner
      *
      * @return Generator<int, AgentEvent>
      */
-    private function turn(ThreadId $thread, AgentProcess $process, string $prompt): Generator
+    private function turn(Turn $turn, AgentProcess $process, string $prompt): Generator
     {
         $restarted = false;
         while (true) {
-            $line = $process->nextLine();
+            // Set by close(), which took the process away while this generator was suspended.
+            // Reading from it now would be reading from a handle that has been collected.
+            if ($turn->isFinished()) {
+                return;
+            }
+
+            $line = $process->nextLine($this->left($turn));
+            $silent = $line === null && !$process->outputEnded();
+            if ($silent) {
+                yield $this->timeOut($turn);
+
+                return;
+            }
+
             $endedEarly = $line === null && !$restarted && self::fallbackWanted($process, null);
             if ($line === null && !$endedEarly) {
-                yield new AgentError($process->failureMessage());
+                yield $this->died($turn, $process);
 
                 return;
             }
@@ -148,11 +201,18 @@ final class PersistentCliRunner implements AgentRunner
 
                     $process->emitted = true;
 
-                    yield $event;
-
                     if ($completed !== null) {
+                        // Settled before the event leaves, not after: a caller is free to stop
+                        // reading once it has the boundary, and the code after a `yield` it never
+                        // comes back to does not run.
+                        $this->settle($turn, $process);
+
+                        yield $event;
+
                         return;
                     }
+
+                    yield $event;
                 }
             }
 
@@ -160,9 +220,11 @@ final class PersistentCliRunner implements AgentRunner
                 continue;
             }
 
-            $next = $this->restart($thread, $prompt);
+            $next = $this->restart($turn->thread, $prompt);
             if ($next === null) {
-                yield new AgentError("The agent could not be started for \"{$thread->value}\".");
+                $this->settle($turn);
+
+                yield new AgentError("The agent could not be started for \"{$turn->thread->value}\".");
 
                 return;
             }
@@ -170,6 +232,65 @@ final class PersistentCliRunner implements AgentRunner
             $process = $next;
             $restarted = true;
         }
+    }
+
+    /** @return AgentError what the caller is told when the turn ran out of time */
+    private function timeOut(Turn $turn): AgentError
+    {
+        // Killed rather than asked to stop: what makes this a timeout is that it is not answering.
+        $this->pool->discard($turn->thread);
+        $this->settle($turn);
+
+        return new AgentError(
+            "The agent did not finish the turn for \"{$turn->thread->value}\" within {$this->turnSeconds} seconds.",
+        );
+    }
+
+    /** @return AgentError what the caller is told when the process ended in the middle of the turn */
+    private function died(Turn $turn, AgentProcess $process): AgentError
+    {
+        // Asked before the process is let go of: afterwards its exit code and diagnostics are gone.
+        $error = new AgentError($process->failureMessage());
+        $this->pool->discard($turn->thread);
+        $this->settle($turn);
+
+        return $error;
+    }
+
+    /**
+     * Ends the turn once, whichever side of it got here first.
+     *
+     * @param AgentProcess|null $process the process that answered it, when there is one still to
+     *                                   be given up on failure
+     */
+    private function settle(Turn $turn, ?AgentProcess $process = null): void
+    {
+        $first = $turn->finish();
+        if (!$first) {
+            return;
+        }
+
+        $key = $turn->thread->value;
+        $current = $this->turns[$key] ?? null;
+        if ($current === $turn) {
+            unset($this->turns[$key]);
+        }
+
+        $ended = $process !== null && !$process->isRunning();
+        if ($ended) {
+            $this->pool->discard($turn->thread);
+        }
+
+        $this->pool->endTurn($turn->thread);
+        $this->locks->release($key);
+    }
+
+    /** @return float how long the turn still has, never below zero */
+    private function left(Turn $turn): float
+    {
+        $left = $turn->deadline - microtime(true);
+
+        return $left > 0.0 ? $left : 0.0;
     }
 
     /**
@@ -197,13 +318,10 @@ final class PersistentCliRunner implements AgentRunner
     /** @return AgentProcess|null null when no process could be started */
     private function processFor(ThreadId $thread): ?AgentProcess
     {
-        $existing = $this->processes[$thread->value] ?? null;
-        $alive = $existing !== null && $existing->isRunning();
-        if ($alive) {
+        $existing = $this->pool->live($thread);
+        if ($existing !== null) {
             return $existing;
         }
-
-        $existing?->release();
 
         return $this->launch($thread, HistoryStart::Continuing);
     }
@@ -211,12 +329,15 @@ final class PersistentCliRunner implements AgentRunner
     /** Starts the second process of a turn and gives it the prompt the first one never answered. */
     private function restart(ThreadId $thread, string $prompt): ?AgentProcess
     {
-        $previous = $this->processes[$thread->value] ?? null;
-        $previous?->release();
-        unset($this->processes[$thread->value]);
+        $this->pool->discard($thread);
 
         $process = $this->launch($thread, HistoryStart::Beginning);
-        $process?->write(self::promptLine($prompt));
+        if ($process === null) {
+            return null;
+        }
+
+        $this->pool->beginTurn($thread);
+        $process->write(self::promptLine($prompt));
 
         return $process;
     }
@@ -239,17 +360,9 @@ final class PersistentCliRunner implements AgentRunner
             $start->value,
             ThreadDerivation::sessionId($thread),
         ];
+        $cwd = $this->directories->resolve($thread);
 
-        $process = AgentProcess::start($command, $this->directories->resolve($thread), $start);
-        if ($process === null) {
-            unset($this->processes[$thread->value]);
-
-            return null;
-        }
-
-        $this->processes[$thread->value] = $process;
-
-        return $process;
+        return $this->pool->admit($thread, static fn(): ?AgentProcess => AgentProcess::start($command, $cwd, $start));
     }
 
     /** @return Generator<int, AgentEvent> */
