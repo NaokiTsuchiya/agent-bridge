@@ -44,6 +44,19 @@ jobs:
           path: vendor/carthage-software/mago/composer/bin
           key: mago-${{ runner.os }}-${{ hashFiles('composer.lock') }}
 
+      # No logged-in Claude Code and no secrets are involved, so the compile belongs here rather
+      # than in a deploy job. It runs before the tests because those resolve from what it writes.
+      - run: composer compile
+
+      - name: Compiled scripts stay out of git
+        run: |
+          changed="$(git status --porcelain)"
+          printf '%s\n' "$changed"
+          if printf '%s\n' "$changed" | grep -qE '^.. var/'; then
+            echo 'The compile wrote something git can see; var/ must be ignored.' >&2
+            exit 1
+          fi
+
       - run: composer test:unit
 
       # The integration group needs a binary that speaks the CLI's protocol, not a logged-in one.
