@@ -46,6 +46,14 @@ jobs:
 
       - run: composer test:unit
 
+      # The integration group needs a binary that speaks the CLI's protocol, not a logged-in one.
+      # Aimed at the fake it runs here, where no Claude Code exists; the same command without the
+      # variable is what a developer runs locally to check the fake against the real CLI.
+      - name: Integration group against the fake CLI
+        run: composer test:integration
+        env:
+          AGENT_BRIDGE_CLAUDE_BIN: ${{ github.workspace }}/tests/Fake/Claude/bin/claude
+
       - run: composer lint
 
       - run: composer analyze
