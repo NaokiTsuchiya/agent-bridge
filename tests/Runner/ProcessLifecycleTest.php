@@ -28,6 +28,7 @@ use Swoole\Coroutine;
 use Swoole\Coroutine\Channel;
 use Throwable;
 
+use function chmod;
 use function file_put_contents;
 use function in_array;
 use function json_encode;
@@ -335,6 +336,67 @@ final class ProcessLifecycleTest extends TestCase
             self::assertCount(1, $this->records()->starts(), 'The turn was served by a second process.');
 
             $runner->close($thread);
+        });
+    }
+
+    /**
+     * A turn that begins while the watch is part-way through reclaiming is not reclaimed with it.
+     *
+     * The watch draws up a list of what has gone unused and then lets go of one entry at a time,
+     * and letting go of one yields — long enough for a whole turn to begin on a thread further
+     * down that list. What is asserted here is that such a turn survives: the list is a statement
+     * about the past, and acting on it without asking again kills turns nobody could see start.
+     *
+     * The binary is one that ignores end of input and lingers, which is what holds the watch
+     * inside a single reclaim long enough for the interleaving to be arranged rather than raced
+     * for: the moment the count drops to one is the moment the watch is inside letting go of the
+     * second-to-last process, with the last one already on its list.
+     *
+     * @throws InvalidArgumentException
+     * @throws Throwable
+     */
+    #[Test]
+    public function keepsATurnThatBeginsWhileTheWatchIsReclaiming(): void
+    {
+        $runner = $this->runner(
+            new LifecycleSettings(idleSeconds: 0.6, turnSeconds: 20.0, maxProcesses: 4),
+            binary: $this->lingeringBinary(),
+            grace: 1.5,
+        );
+        $first = $this->thread('slack:1800000022.000100');
+        $second = $this->thread('slack:1800000022.000200');
+        $third = $this->thread('slack:1800000022.000300');
+
+        Coro::run(static function () use ($runner, $first, $second, $third): void {
+            Events::collect($runner->send($first, 'hello'));
+            // Staggered so that the first deadline to pass is on its own, and the watch is still
+            // inside letting that one go when the other two fall out of use.
+            Coroutine::sleep(0.2);
+            Events::collect($runner->send($second, 'hello'));
+            Coroutine::sleep(0.2);
+            Events::collect($runner->send($third, 'hello'));
+
+            self::assertSame(3, $runner->liveProcesses());
+
+            $spins = 0;
+            $held = 3;
+            while ($held > 1 && $spins < 1_000) {
+                Coroutine::sleep(0.01);
+                $held = $runner->liveProcesses();
+                $spins++;
+            }
+
+            self::assertSame(1, $held, 'The watch never got as far as reclaiming.');
+
+            // The watch is now inside letting go of the second process, and the third is the one
+            // it walks to next.
+            $events = Events::collect($runner->send($third, 'take your time'));
+            $last = Events::last($events);
+            self::assertSame(0, Events::tally($events, AgentError::class), 'The turn was cut short.');
+            self::assertInstanceOf(TurnCompleted::class, $last, 'The turn was reclaimed out from under itself.');
+            self::assertTrue($last->success);
+
+            $runner->close($third);
         });
     }
 
@@ -815,14 +877,51 @@ final class ProcessLifecycleTest extends TestCase
         self::assertSame([], ChildProcesses::all(), 'A child process outlived the runner.');
     }
 
-    /** @return PersistentCliRunner pointed at the fake, with the limits under test */
-    private function runner(?LifecycleSettings $limits = null): PersistentCliRunner
-    {
+    /**
+     * @param string|null $binary something other than the fake, for a case that needs a child
+     *                            the fake cannot be made into
+     * @param float       $grace  how long a child is given to end by itself when it is let go of
+     *
+     * @return PersistentCliRunner pointed at the fake, with the limits under test
+     */
+    private function runner(
+        ?LifecycleSettings $limits = null,
+        ?string $binary = null,
+        float $grace = 2.0,
+    ): PersistentCliRunner {
         return new PersistentCliRunner(
             new FixedWorkingDirectory($this->cwd),
-            new ClaudeCliSettings(binary: ClaudeBinary::fake(), closeGraceSeconds: 2.0),
+            new ClaudeCliSettings(binary: $binary ?? ClaudeBinary::fake(), closeGraceSeconds: $grace),
             limits: $limits ?? new LifecycleSettings(),
         );
+    }
+
+    /**
+     * A `claude`-shaped binary that answers turns and then refuses to take the hint.
+     *
+     * Two things the fake cannot do, both of them needed to hold the idle watch still: it ignores
+     * end of input, so letting go of it takes the whole grace rather than a moment, and every turn
+     * after the first outlasts that grace — so a turn reclaimed by mistake is killed in the middle
+     * rather than quietly finishing anyway, which is what makes the mistake visible at all.
+     *
+     * @return string the path to the binary
+     */
+    private function lingeringBinary(): string
+    {
+        $path = "{$this->home}/lingering-claude";
+        file_put_contents($path, <<<'SH'
+            #!/bin/sh
+            turn=0
+            while IFS= read -r line; do
+              turn=$((turn + 1))
+              if [ "$turn" -gt 1 ]; then sleep 4; fi
+              printf '{"type":"result","subtype":"success","is_error":false,"session_id":"x","result":"ok"}\n'
+            done
+            sleep 5
+            SH);
+        chmod($path, permissions: 0o755);
+
+        return $path;
     }
 
     /**

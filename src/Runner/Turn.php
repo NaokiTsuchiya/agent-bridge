@@ -6,6 +6,8 @@ namespace NaokiTsuchiya\AgentBridge\Runner;
 
 use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
 
+use function microtime;
+
 /**
  * One turn in flight, and the single place that says whether it is over.
  *
@@ -21,15 +23,21 @@ final class Turn
     /** Whether this turn has already been settled, by whichever side got there first. */
     private bool $finished = false;
 
+    /** When the turn must have reached its completion event, as an absolute microtime value. */
+    private float $deadline;
+
     /**
-     * @param ThreadId $thread   whose turn this is
-     * @param float    $deadline when the turn must have reached its completion event, as an
-     *                           absolute {@see microtime} value
+     * @param ThreadId $thread    whose turn this is
+     * @param float    $allowance how long the turn may go without reaching its completion event.
+     *                            Kept as given, not only as a deadline, because it is what the
+     *                            caller is told when the turn runs out of it
      */
     public function __construct(
         public ThreadId $thread,
-        public float $deadline,
-    ) {}
+        public float $allowance,
+    ) {
+        $this->deadline = microtime(true) + $allowance;
+    }
 
     /** @return bool true for the caller that ended the turn, false for every later one */
     public function finish(): bool
@@ -51,5 +59,18 @@ final class Turn
     public function isFinished(): bool
     {
         return $this->finished;
+    }
+
+    /**
+     * @return float how long the turn has left, never below zero — which is how a read is told
+     *               how long it may wait
+     *
+     * @mutation-free
+     */
+    public function left(): float
+    {
+        $left = $this->deadline - microtime(true);
+
+        return $left > 0.0 ? $left : 0.0;
     }
 }
