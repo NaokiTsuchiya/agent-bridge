@@ -55,6 +55,8 @@ FAKE_CLAUDE_HOME=/tmp/fake-home tests/Fake/bin/claude \
 | `FAKE_CLAUDE_HOME` | `sys_get_temp_dir()/fake-claude-cli` | セッションと記録の保存先。**テストごとに別ディレクトリにする** (同じ根を共有すると、他のテストのセッションが「already in use」として見える) |
 | `FAKE_CLAUDE_SCENARIO` | なし | シナリオファイル (JSON) のパス。**設定されているのに読めない / JSON でない場合は exit 2** で止まる (typo が黙って既定動作に落ちないため) |
 
+テスト側がどちらの CLI を起動するかを決める `AGENT_BRIDGE_CLAUDE_BIN` は 5 章にある (フェイク自身は読まない)。
+
 `FAKE_CLAUDE_HOME` 配下:
 
 ```
@@ -107,7 +109,7 @@ turns.jsonl                        ターンの開始/終了 1 件につき 1 �
 |---|---|---|
 | `tests/Contract/ClaudeCliContractTestCase.php` | (抽象・収集されない) | 本体 |
 | `tests/Contract/FakeClaudeCliContractTest.php` | unit | `tests/Fake/bin/claude` |
-| `tests/Integration/RealClaudeCliContractTest.php` | integration | `claude` |
+| `tests/Integration/RealClaudeCliContractTest.php` | integration | `AGENT_BRIDGE_CLAUDE_BIN` が指すもの (既定は `claude`) |
 
 確かめているのは 7 項目:
 
@@ -121,11 +123,28 @@ turns.jsonl                        ターンの開始/終了 1 件につき 1 �
 
 **表明に応答テキストの厳密一致は含めない。** 実 `claude` は非決定的な応答を返すので、終了コード / イベント種別の系列 / 指示したキーワードの含有だけで判定する。
 
+### 起動するバイナリの切り替え
+
+**どちらの CLI を叩くかは環境変数で決まる** (`tests/Support/ClaudeBinary.php`)。
+
+| 変数 | 既定 | 効果 |
+|---|---|---|
+| `AGENT_BRIDGE_CLAUDE_BIN` | `claude` (PATH 上の実 CLI) | **integration 群**が起動するバイナリ。フェイクのパスを指せば、ログイン済み Claude Code の無い環境でも同じテスト本体が回る |
+
+unit 群 (`FakeClaudeCliContractTest`) は**この変数を見ない**。見ると `composer test:unit` がログイン済み Claude Code を要求しうる構成になり、「CI で回せる」という性質そのものが失われるため、フェイク固定にしてある。
+
+フェイクは `--version` に答える (`0.0.0 (Fake Claude Code)`)。integration 群の前提ガード (`ClaudeCliTest`) がバージョンを引けることを条件にしているので、フェイクを指したときもガードが通る。
+
 ### 回し方
 
 ```bash
 composer test:unit         # フェイク側を含む。ログイン済み Claude Code は不要
-composer test:integration  # 実 claude 側。ログインと課金が要る。CI では回さない
+
+# 実 claude に対して契約を確かめる (ログインと課金が要る。約 35 秒)
+composer test:integration
+
+# 同じ integration 群をフェイクに対して回す (ログイン不要、1 秒未満)
+AGENT_BRIDGE_CLAUDE_BIN="$PWD/tests/Fake/bin/claude" composer test:integration
 ```
 
-CI (`.github/workflows/ci.yml`) は unit だけを回す。**integration 側は手元で定期的に回すもの**で、落ちたらフェイクを実 CLI に合わせて直す (2 章の原則)。
+CI (`.github/workflows/ci.yml`) は unit 群に加えて、**integration 群をフェイクに対して**回している (`AGENT_BRIDGE_CLAUDE_BIN` にフェイクのパスを渡す step)。実 `claude` に対する実行は課金とログインが要るので CI では行わない — **手元で定期的に回すもの**で、落ちたらフェイクを実 CLI に合わせて直す (2 章の原則)。

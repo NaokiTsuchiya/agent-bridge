@@ -38,12 +38,17 @@ final readonly class FakeArgs
         '--settings',
     ];
 
-    /** @param string $prompt the positional arguments joined, i.e. the one-shot prompt */
+    /**
+     * @param string $prompt the positional arguments joined, i.e. the one-shot prompt
+     *
+     * @mago-expect lint:excessive-parameter-list
+     */
     private function __construct(
         public ?string $sessionId,
         public ?string $resumeId,
         public ?string $inputFormat,
         public bool $includePartialMessages,
+        public bool $wantsVersion,
         public string $prompt,
     ) {}
 
@@ -80,6 +85,7 @@ final readonly class FakeArgs
             $values['--resume'] ?? null,
             $values['--input-format'] ?? null,
             array_key_exists('--include-partial-messages', $values),
+            array_key_exists('--version', $values),
             implode(' ', $positional),
         );
     }

@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace NaokiTsuchiya\AgentBridge\Tests\Contract;
 
+use NaokiTsuchiya\AgentBridge\Tests\Support\ClaudeBinary;
 use NaokiTsuchiya\AgentBridge\Tests\Support\TempDir;
 use Override;
-
-use function dirname;
 
 /**
  * The contract, run against the fake — the side that runs in CI.
@@ -40,7 +39,7 @@ final class FakeClaudeCliContractTest extends ClaudeCliContractTestCase
     #[Override]
     protected function binary(): array
     {
-        return [dirname(__DIR__, levels: 2) . '/tests/Fake/bin/claude'];
+        return [ClaudeBinary::fake()];
     }
 
     /** @return array<string, string> */

@@ -8,6 +8,7 @@ use NaokiTsuchiya\AgentBridge\Event\ClaudeCliEventParser;
 use NaokiTsuchiya\AgentBridge\Event\TextDelta;
 use NaokiTsuchiya\AgentBridge\Event\ToolStarted;
 use NaokiTsuchiya\AgentBridge\Event\TurnCompleted;
+use NaokiTsuchiya\AgentBridge\Tests\Support\ClaudeBinary;
 use NaokiTsuchiya\AgentBridge\Tests\Support\CliProcess;
 use NaokiTsuchiya\AgentBridge\Tests\Support\Json;
 use NaokiTsuchiya\AgentBridge\Tests\Support\TempDir;
@@ -18,7 +19,6 @@ use PHPUnit\Framework\TestCase;
 
 use function array_filter;
 use function count;
-use function dirname;
 use function explode;
 use function file_get_contents;
 use function file_put_contents;
@@ -78,7 +78,7 @@ final class FakeClaudeCliTest extends TestCase
     #[Test]
     public function theBinaryCanBeRunFromItsPathInTheRepository(): void
     {
-        $binary = self::binary();
+        $binary = ClaudeBinary::fake();
 
         self::assertTrue(is_executable($binary), "{$binary} must be executable.");
     }
@@ -103,6 +103,22 @@ final class FakeClaudeCliTest extends TestCase
 
         self::assertSame(0, $process->waitForExit(30.0), $process->stderr());
         self::assertSame('fake reply to: PING', $this->assistantText($process));
+    }
+
+    /**
+     * `--version` answers, so that a suite guarded by a version check can be aimed at the fake.
+     *
+     * The integration group refuses to run unless its binary reports a version; without this the
+     * fake could never stand in for the real CLI there, which is the whole point of the switch in
+     * {@see ClaudeBinary}.
+     */
+    #[Test]
+    public function theFakeReportsAVersion(): void
+    {
+        $process = $this->start(['--version']);
+
+        self::assertSame(0, $process->waitForExit(30.0), $process->stderr());
+        self::assertMatchesRegularExpression('/\d+\.\d+\.\d+/', implode("\n", $process->lines()));
     }
 
     /** Only `stream-json` means "stay and read stdin"; anything else is a single shot that ends. */
@@ -353,7 +369,7 @@ final class FakeClaudeCliTest extends TestCase
     {
         $temp = TempDir::make('fake-tmpdir');
         $process = CliProcess::start(
-            [self::binary(), '--session-id', Uuid::random(), '-p', '--output-format', 'stream-json', 'PING'],
+            [ClaudeBinary::fake(), '--session-id', Uuid::random(), '-p', '--output-format', 'stream-json', 'PING'],
             $this->cwd,
             ['TMPDIR' => $temp],
         );
@@ -494,12 +510,6 @@ final class FakeClaudeCliTest extends TestCase
         );
     }
 
-    /** @return string the path a test names to start the fake, as any caller would */
-    private static function binary(): string
-    {
-        return dirname(__DIR__, levels: 2) . '/tests/Fake/bin/claude';
-    }
-
     /**
      * @param list<string> $arguments
      * @param string|null  $scenario the scenario file to point the run at, if any
@@ -537,7 +547,7 @@ final class FakeClaudeCliTest extends TestCase
      */
     private function startIn(string $cwd, array $arguments, array $env = []): CliProcess
     {
-        $process = CliProcess::start([self::binary(), ...$arguments], $cwd, [
+        $process = CliProcess::start([ClaudeBinary::fake(), ...$arguments], $cwd, [
             'FAKE_CLAUDE_HOME' => $this->home,
             ...$env,
         ]);

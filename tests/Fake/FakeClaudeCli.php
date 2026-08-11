@@ -23,6 +23,7 @@ use function usleep;
 
 use const STDERR;
 use const STDIN;
+use const STDOUT;
 
 /**
  * A stand-in for `claude` that speaks the same wire protocol, without login, network or billing.
@@ -72,6 +73,14 @@ final class FakeClaudeCli
         }
 
         $args = FakeArgs::parse($argv);
+        if ($args->wantsVersion) {
+            // Answered because the integration group guards itself with `claude --version`, and
+            // that guard has to be able to run against whichever binary the environment selected.
+            fwrite(STDOUT, data: "0.0.0 (Fake Claude Code)\n");
+
+            return 0;
+        }
+
         $sessionId = $args->resumeId ?? $args->sessionId ?? self::uuid();
         $cli = new self(
             $args,
