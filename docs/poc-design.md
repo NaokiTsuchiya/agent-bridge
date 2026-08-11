@@ -185,7 +185,12 @@ session_id = UUIDv5(名前空間 UUID, ThreadId)
 **採用する手順:**
 
 1. `--resume SESSION_ID` で起動する
-2. **最初のイベント行を受信する前にプロセスが終了したら**、`--session-id SESSION_ID` で起動し直し、保留中のプロンプトを送る
+2. **そのプロセスが 1 件もイベントを返さないまま終了したら**、`--session-id SESSION_ID` で起動し直し、保留中のプロンプトを送る
+
+> **実装時の補正 (issue #7):** 初版のこの手順は「最初のイベント行を受信する前に終了したら」だったが、不存在セッションの `--resume` は**終了する前に `result` 行を 1 行出す** (`is_error: true` / `num_turns: 0`) ので、そのままでは判定にならない。実装は次の 2 点で読み替えている。
+>
+> - 判定は「**呼び出し側へ 1 件も渡していないうちにプロセスが終了したか**」。テキスト差分などを 1 件でも渡した後の死は、フォールバックではなくエラーとして扱う (渡した内容を別プロセスで繰り返さないため)。
+> - 失敗 `result` を受けた時点ではまだ確定しないので、**プロセスの終了を待ってから**フォールバックするか通すかを決める。実在するセッションの 1 ターン目がたまたま失敗しただけのときに `--session-id` へ落ちると、`Error: Session ID ... is already in use.` で確実に失敗するため。待ち時間は実測に基づく (Claude Code 2.1.223 で、失敗 `result` の 0.62 秒後に終了)。
 
 これで得られるもの:
 
@@ -271,7 +276,7 @@ claude -p
 ```
 
 - cwd はそのスレッドに割り当てられた worktree (4.3.1)
-- スレッドごとに 1 プロセス。`Swoole\Process` (coroutine 有効) で起動し、stdin/stdout を保持する
+- スレッドごとに 1 プロセス。`SWOOLE_HOOK_PROC` でフックした `proc_open` で起動し、stdin/stdout を保持する
 - 送信は stdin に JSONL を 1 行。`{"type":"user","message":{"role":"user","content":[{"type":"text","text":"..."}]}}`
 - 受信は stdout を行単位で読み、`AgentEvent` に変換して yield する
 - **ターン境界は `{"type":"result",...}`**。result 後もプロセスは生存する
@@ -305,7 +310,8 @@ Claude Code が `.jsonl` に書き続けているため、プロセスを殺し�
 **ハマりどころ**
 
 - stdin を閉じ忘れるとプロセスが終了しない。`close()` で明示的に閉じる
-- **`close()` で blocking な `Swoole\Process::wait(true)` を使わない。** `Coroutine\run()` 内で他のコルーチンが全部止まる
+- **`Swoole\Process` は `Coroutine\run()` の内側では起動できない** (実測、Swoole 6.2.0 / PHP 8.5.5): `Swoole\Process::start()` は `enable_coroutine` の値や `Runtime::enableCoroutine()` の有無にかかわらず `Swoole\Error: must be forked outside the coroutine` で失敗する。実装 (issue #7) は代わりに `Swoole\Runtime::setHookFlags(... | SWOOLE_HOOK_PROC)` を立てた `proc_open` を使う — フック済みのパイプは読み書きでコルーチンを譲るので、blocking wait を避けるという下の要件はそのまま満たせる
+- **`close()` で blocking な待ちを使わない。** `Coroutine\run()` 内で他のコルーチンが全部止まる (`Swoole\Process::wait(true)` 相当。`proc_open` でも `proc_close()` は終了までブロックするので、終了は非ブロッキングにポーリングしてから刈り取る)
 - パイプのバッファリングでストリーミングが詰まる。行の組み立ては自前で行う
 - ゾンビ化。回収は kill 後に必ず wait で刈り取る。SIGCHLD ハンドラと明示 wait の併用は二重回収で衝突するので避ける
 - transcript の `.jsonl` は内部形式のため直接読まない

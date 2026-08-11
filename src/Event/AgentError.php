@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace NaokiTsuchiya\AgentBridge\Event;
 
 /**
- * No producer emits this yet, on purpose.
+ * A turn that ends with nothing more to come, for a reason the caller has to be told.
  *
- * {@see ClaudeCliEventParser} answers every unreadable line with zero events rather than an
- * error event, because a single line carries too little context to say a turn has failed.
- * Deciding which failures deserve an error event belongs to the execution layer that owns
- * the process, and is issue #5's job. Until then a consumer's `match` arm for this class is
- * unreachable — that is expected, not a defect.
+ * {@see ClaudeCliEventParser} still never emits one: a single line carries too little context
+ * to say that a turn has failed, so an unreadable line answers with zero events. The judgement
+ * belongs to whoever owns the process and sees the whole turn — today
+ * {@see \NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner}, which emits this when a process
+ * ends in the middle of a turn, or cannot be started at all.
  */
 final readonly class AgentError implements AgentEvent
 {
