@@ -9,6 +9,7 @@ use function array_values;
 use function fclose;
 use function fread;
 use function is_resource;
+use function microtime;
 use function stream_select;
 use function substr;
 
@@ -42,6 +43,9 @@ final class ProcessOutput
     /** The tail of what the child said about itself, kept for a failure message. */
     private string $errorText = '';
 
+    /** Whether the child's output has reached its end, which a deadline running out is not. */
+    private bool $finished = false;
+
     /**
      * @param resource|null $output what the child answers with
      * @param resource|null $errors what the child complains with
@@ -53,22 +57,34 @@ final class ProcessOutput
         $this->buffer = new LineBuffer();
     }
 
-    /** @return string|null the next whole line, or null once the child's output has ended */
-    public function nextLine(): ?string
+    /**
+     * @param float|null $seconds how long to wait for one, or null to wait for as long as it takes
+     *
+     * @return string|null the next whole line, or null when the wait ran out or the output ended.
+     *                     {@see ended()} is what tells the two apart
+     */
+    public function nextLine(?float $seconds = null): ?string
     {
+        $deadline = $seconds === null ? null : microtime(true) + $seconds;
         while (true) {
             $line = array_shift($this->lines);
             if ($line !== null) {
                 return $line;
             }
 
-            $chunk = $this->read();
+            $chunk = $this->read($deadline);
             if ($chunk === null) {
                 return null;
             }
 
             $this->lines = $this->buffer->append($chunk);
         }
+    }
+
+    /** @return bool true once the child's output has ended, which no deadline can cause */
+    public function ended(): bool
+    {
+        return $this->finished;
     }
 
     /** @return string at most {@see self::ERROR_TAIL} bytes of what the child complained about */
@@ -92,19 +108,36 @@ final class ProcessOutput
         $this->errors = null;
     }
 
-    /** @return string|null what the child answered, or null once it will answer nothing more */
-    private function read(): ?string
+    /**
+     * @param float|null $deadline when to give up, as an absolute {@see microtime} value
+     *
+     * @return string|null what the child answered, or null when the deadline passed or it will
+     *                     answer nothing more
+     */
+    private function read(?float $deadline): ?string
     {
         while (true) {
             $streams = $this->open();
             if ($streams === []) {
+                $this->finished = true;
+
                 return null;
             }
 
             $write = null;
             $except = null;
-            $ready = stream_select($streams, $write, $except, seconds: null);
+            $budget = self::budget($deadline);
+            $ready = stream_select($streams, $write, $except, $budget[0], $budget[1]);
             if ($ready === false) {
+                $this->finished = true;
+
+                return null;
+            }
+
+            // Nothing was ready before the deadline. Measured: a child that is merely slow shows
+            // up here, while one whose output has ended shows up as a readable stream that reads
+            // empty — so this return leaves `finished` alone and the caller can tell them apart.
+            if ($ready === 0) {
                 return null;
             }
 
@@ -116,9 +149,34 @@ final class ProcessOutput
             }
 
             if (!is_resource($this->output)) {
+                $this->finished = true;
+
                 return null;
             }
         }
+    }
+
+    /**
+     * @param float|null $deadline as an absolute {@see microtime} value, or null for no deadline
+     *
+     * @return array{0: int|null, 1: int} what is left of the wait, in the two units
+     *                                    {@see stream_select} takes it in. A null first element
+     *                                    is how that function is told to wait indefinitely
+     */
+    private static function budget(?float $deadline): array
+    {
+        if ($deadline === null) {
+            return [null, 0];
+        }
+
+        $left = $deadline - microtime(true);
+        if ($left <= 0.0) {
+            return [0, 0];
+        }
+
+        $seconds = (int) $left;
+
+        return [$seconds, (int) (($left - $seconds) * 1_000_000)];
     }
 
     /**

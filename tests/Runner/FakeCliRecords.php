@@ -72,6 +72,27 @@ final readonly class FakeCliRecords
     }
 
     /**
+     * The turn records paired into intervals, in the order the turns began.
+     *
+     * A turn that was never answered — killed by a timeout, or still running when this was read —
+     * keeps its beginning and has no end, which is exactly what a test about a timeout looks for.
+     *
+     * @return list<TurnSpan>
+     */
+    public function spans(): array
+    {
+        /** @var array<string, TurnSpan> $spans */
+        $spans = [];
+        foreach ($this->turns() as $entry) {
+            $span = TurnSpan::fromRecord($entry);
+            $begun = $spans[$span->key()] ?? null;
+            $spans[$span->key()] = $begun?->answeredAt($span->startedAt) ?? $span;
+        }
+
+        return array_values($spans);
+    }
+
+    /**
      * @param string|null $event the `event` value to keep, or null to keep every line
      *
      * @return list<array<array-key, mixed>>

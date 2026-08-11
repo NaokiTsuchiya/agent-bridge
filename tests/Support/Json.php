@@ -6,6 +6,7 @@ namespace NaokiTsuchiya\AgentBridge\Tests\Support;
 
 use function is_array;
 use function is_bool;
+use function is_float;
 use function is_int;
 use function is_string;
 use function json_decode;
@@ -47,6 +48,24 @@ final class Json
     public static function integer(array $node, string|int $key): ?int
     {
         return is_int($node[$key] ?? null) ? $node[$key] : null;
+    }
+
+    /**
+     * A number that may have arrived as either JSON type, e.g. a timestamp that landed on a
+     * whole second.
+     *
+     * @param array<array-key, mixed> $node
+     *
+     * @pure
+     */
+    public static function number(array $node, string|int $key): ?float
+    {
+        $whole = self::integer($node, $key);
+        if ($whole !== null) {
+            return (float) $whole;
+        }
+
+        return is_float($node[$key] ?? null) ? $node[$key] : null;
     }
 
     /**

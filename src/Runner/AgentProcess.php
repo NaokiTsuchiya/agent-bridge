@@ -44,6 +44,12 @@ final class AgentProcess
     /** Whether anything read from this child has reached the caller, set from the outside. */
     public bool $emitted = false;
 
+    /** Whether a turn is being answered right now, kept by {@see ProcessPool}. */
+    public bool $busy = false;
+
+    /** When a turn on this child last began or ended, kept by {@see ProcessPool}. */
+    public float $lastUsedAt;
+
     /**
      * @param resource      $handle the process itself
      * @param resource|null $input  what the child reads its turns from
@@ -57,7 +63,9 @@ final class AgentProcess
         private ProcessOutput $output,
         public int $pid,
         public HistoryStart $start,
-    ) {}
+    ) {
+        $this->lastUsedAt = microtime(true);
+    }
 
     /**
      * @param list<string> $command the binary and its arguments, run without a shell
@@ -104,10 +112,21 @@ final class AgentProcess
         }
     }
 
-    /** @return string|null the next whole line the child wrote, or null once it wrote its last */
-    public function nextLine(): ?string
+    /**
+     * @param float|null $seconds how long to wait for one, or null to wait for as long as it takes
+     *
+     * @return string|null the next whole line the child wrote, or null when the wait ran out or
+     *                     it wrote its last. {@see outputEnded()} tells the two apart
+     */
+    public function nextLine(?float $seconds = null): ?string
     {
-        return $this->output->nextLine();
+        return $this->output->nextLine($seconds);
+    }
+
+    /** @return bool true once the child has written its last line; a deadline never causes it */
+    public function outputEnded(): bool
+    {
+        return $this->output->ended();
     }
 
     /** @return bool false once the child has ended and its code has been collected */

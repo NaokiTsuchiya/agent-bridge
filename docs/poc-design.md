@@ -313,6 +313,7 @@ Claude Code が `.jsonl` に書き続けているため、プロセスを殺し�
 - **`Swoole\Process` は `Coroutine\run()` の内側では起動できない** (実測、Swoole 6.2.0 / PHP 8.5.5): `Swoole\Process::start()` は `enable_coroutine` の値や `Runtime::enableCoroutine()` の有無にかかわらず `Swoole\Error: must be forked outside the coroutine` で失敗する。実装 (issue #7) は代わりに `Swoole\Runtime::setHookFlags(... | SWOOLE_HOOK_PROC)` を立てた `proc_open` を使う — フック済みのパイプは読み書きでコルーチンを譲るので、blocking wait を避けるという下の要件はそのまま満たせる
 - **`close()` で blocking な待ちを使わない。** `Coroutine\run()` 内で他のコルーチンが全部止まる (`Swoole\Process::wait(true)` 相当。`proc_open` でも `proc_close()` は終了までブロックするので、終了は非ブロッキングにポーリングしてから刈り取る)
 - パイプのバッファリングでストリーミングが詰まる。行の組み立ては自前で行う
+- **`SWOOLE_HOOK_PROC` だけではスレッド同士が並行しない** (実測、Swoole 6.2.0 / PHP 8.5.5): 受信が待つのは `stream_select` だが、これをフックするのは `SWOOLE_HOOK_STREAM_FUNCTION` であって `SWOOLE_HOOK_PROC` ではない。前者が無いと、1 秒の `stream_select` の隣で 0.2 秒眠るコルーチンが 1.008 秒後にしか動かない (= 1 スレッドの待ちが他の全スレッドを止める)。両方立てると同じコルーチンが 0.203 秒で動く。実装 (issue #8) は両方を立てる
 - ゾンビ化。回収は kill 後に必ず wait で刈り取る。SIGCHLD ハンドラと明示 wait の併用は二重回収で衝突するので避ける
 - transcript の `.jsonl` は内部形式のため直接読まない
 - 一発実行では stdin を閉じないと `Warning: no stdin data received in 3s` が出る
