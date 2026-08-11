@@ -23,7 +23,7 @@ final class SocketModeClient
         private SocketModeConnectorInterface $connector,
         private FrameRouter $router,
         private ReconnectDelay $delay,
-        private SocketModeLogInterface $log,
+        private SocketModeLoggerInterface $logger,
         private float $silenceTimeout = 60.0,
     ) {}
 
@@ -38,7 +38,7 @@ final class SocketModeClient
                 $connection = $this->connector->connect();
             } catch (SocketModeException $exception) {
                 $attempt++;
-                $this->log->log("cannot connect: {$exception->getMessage()}");
+                $this->logger->log("cannot connect: {$exception->getMessage()}");
                 $this->pause($attempt);
 
                 continue;
@@ -70,7 +70,7 @@ final class SocketModeClient
                 }
             }
         } catch (SocketModeException $exception) {
-            $this->log->log("connection lost: {$exception->getMessage()}");
+            $this->logger->log("connection lost: {$exception->getMessage()}");
         }
 
         $connection->close();
@@ -86,7 +86,7 @@ final class SocketModeClient
         $frame = $connection->receive($this->silenceTimeout);
 
         if ($frame === null) {
-            $this->log->log("nothing arrived within {$this->silenceTimeout}s; reconnecting");
+            $this->logger->log("nothing arrived within {$this->silenceTimeout}s; reconnecting");
 
             return false;
         }

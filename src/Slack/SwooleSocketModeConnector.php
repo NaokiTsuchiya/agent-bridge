@@ -59,7 +59,8 @@ final class SwooleSocketModeConnector implements SocketModeConnectorInterface
      * The raw body of `apps.connections.open`.
      *
      * The token goes in the Authorization header and nowhere else: Slack rejects it as a POST
-     * parameter, and a header is the one place it cannot end up in a URL or a log line.
+     * parameter, and a header is the one place it cannot end up in a URL or a log line. This is the
+     * only place the value is read; the token itself has no opinion about HTTP.
      *
      * @throws SocketModeException
      */
@@ -67,7 +68,7 @@ final class SwooleSocketModeConnector implements SocketModeConnectorInterface
     {
         $api = self::client(self::API_HOST, self::HTTPS_PORT);
         $api->setHeaders([
-            'Authorization' => $this->token->authorizationHeader(),
+            'Authorization' => "Bearer {$this->token->value}",
             'Content-Type' => 'application/x-www-form-urlencoded',
         ]);
 

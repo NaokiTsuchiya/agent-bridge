@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NaokiTsuchiya\AgentBridge\Tests\Slack;
 
+use NaokiTsuchiya\AgentBridge\Slack\ConnectionState;
 use NaokiTsuchiya\AgentBridge\Slack\FrameOutcome;
 use NaokiTsuchiya\AgentBridge\Slack\ReceivedFrame;
 use PHPUnit\Framework\Attributes\Test;
@@ -20,7 +21,7 @@ use const SWOOLE_WEBSOCKET_OPCODE_TEXT;
  * What each shape of `recv()` return means, decided without a socket.
  *
  * The frames are built by hand, which is all it takes: they are plain objects, and the classifier
- * takes the return value and the `connected` flag rather than the client they came from.
+ * takes the return value and the connection's state rather than the client they came from.
  *
  * @mago-expect lint:too-many-methods
  *
@@ -32,7 +33,10 @@ final class ReceivedFrameTest extends TestCase
     #[Test]
     public function readsATextFrame(): void
     {
-        $frame = ReceivedFrame::of(self::frame(SWOOLE_WEBSOCKET_OPCODE_TEXT, '{"type":"hello"}'), connected: true);
+        $frame = ReceivedFrame::of(
+            self::frame(SWOOLE_WEBSOCKET_OPCODE_TEXT, '{"type":"hello"}'),
+            connection: ConnectionState::Alive,
+        );
 
         self::assertSame(FrameOutcome::Text, $frame->outcome);
         self::assertSame('{"type":"hello"}', $frame->text);
@@ -42,7 +46,7 @@ final class ReceivedFrameTest extends TestCase
     #[Test]
     public function readsAnEmptyTextFrameAsText(): void
     {
-        $frame = ReceivedFrame::of(self::frame(SWOOLE_WEBSOCKET_OPCODE_TEXT, ''), connected: true);
+        $frame = ReceivedFrame::of(self::frame(SWOOLE_WEBSOCKET_OPCODE_TEXT, ''), connection: ConnectionState::Alive);
 
         self::assertSame(FrameOutcome::Text, $frame->outcome);
         self::assertSame('', $frame->text);
@@ -52,7 +56,7 @@ final class ReceivedFrameTest extends TestCase
     #[Test]
     public function readsAPingAsSomethingToAnswer(): void
     {
-        $frame = ReceivedFrame::of(self::frame(SWOOLE_WEBSOCKET_OPCODE_PING, ''), connected: true);
+        $frame = ReceivedFrame::of(self::frame(SWOOLE_WEBSOCKET_OPCODE_PING, ''), connection: ConnectionState::Alive);
 
         self::assertSame(FrameOutcome::Ping, $frame->outcome);
     }
@@ -61,8 +65,11 @@ final class ReceivedFrameTest extends TestCase
     #[Test]
     public function readsAPongAndABinaryFrameAsTrafficToIgnore(): void
     {
-        $pong = ReceivedFrame::of(self::frame(SWOOLE_WEBSOCKET_OPCODE_PONG, ''), connected: true);
-        $binary = ReceivedFrame::of(self::frame(SWOOLE_WEBSOCKET_OPCODE_BINARY, "\x00\x01"), connected: true);
+        $pong = ReceivedFrame::of(self::frame(SWOOLE_WEBSOCKET_OPCODE_PONG, ''), connection: ConnectionState::Alive);
+        $binary = ReceivedFrame::of(
+            self::frame(SWOOLE_WEBSOCKET_OPCODE_BINARY, "\x00\x01"),
+            connection: ConnectionState::Alive,
+        );
 
         self::assertSame(FrameOutcome::Ignored, $pong->outcome);
         self::assertSame(FrameOutcome::Ignored, $binary->outcome);
@@ -72,36 +79,39 @@ final class ReceivedFrameTest extends TestCase
     #[Test]
     public function readsACloseFrameAsAClosedConnection(): void
     {
-        self::assertSame(FrameOutcome::Closed, ReceivedFrame::of(new CloseFrame(), connected: true)->outcome);
+        self::assertSame(
+            FrameOutcome::Closed,
+            ReceivedFrame::of(new CloseFrame(), connection: ConnectionState::Alive)->outcome,
+        );
     }
 
     /** `false` on a connection that is still up is the timeout the silence handling is built on. */
     #[Test]
     public function readsATimeoutOnALiveConnectionAsSilence(): void
     {
-        self::assertSame(FrameOutcome::Silence, ReceivedFrame::of(false, connected: true)->outcome);
+        self::assertSame(FrameOutcome::Silence, ReceivedFrame::of(false, connection: ConnectionState::Alive)->outcome);
     }
 
     /** The same `false` on a connection that is gone is a break, and has to cost the connection. */
     #[Test]
     public function readsAFailureOnADeadConnectionAsBroken(): void
     {
-        self::assertSame(FrameOutcome::Broken, ReceivedFrame::of(false, connected: false)->outcome);
+        self::assertSame(FrameOutcome::Broken, ReceivedFrame::of(false, connection: ConnectionState::Gone)->outcome);
     }
 
     /** An empty string is what a closed socket reads as; it is not an empty frame. */
     #[Test]
     public function readsAnEmptyStringAsBroken(): void
     {
-        self::assertSame(FrameOutcome::Broken, ReceivedFrame::of('', connected: true)->outcome);
-        self::assertSame(FrameOutcome::Broken, ReceivedFrame::of('', connected: false)->outcome);
+        self::assertSame(FrameOutcome::Broken, ReceivedFrame::of('', connection: ConnectionState::Alive)->outcome);
+        self::assertSame(FrameOutcome::Broken, ReceivedFrame::of('', connection: ConnectionState::Gone)->outcome);
     }
 
     /** Newer Swoole can answer with the payload itself rather than a frame object. */
     #[Test]
     public function readsARawStringAsText(): void
     {
-        $frame = ReceivedFrame::of('{"type":"disconnect"}', connected: true);
+        $frame = ReceivedFrame::of('{"type":"disconnect"}', connection: ConnectionState::Alive);
 
         self::assertSame(FrameOutcome::Text, $frame->outcome);
         self::assertSame('{"type":"disconnect"}', $frame->text);
@@ -111,7 +121,7 @@ final class ReceivedFrameTest extends TestCase
     #[Test]
     public function readsATruthyNonFrameAsBroken(): void
     {
-        self::assertSame(FrameOutcome::Broken, ReceivedFrame::of(true, connected: true)->outcome);
+        self::assertSame(FrameOutcome::Broken, ReceivedFrame::of(true, connection: ConnectionState::Alive)->outcome);
     }
 
     /** A frame as Swoole hands it over: a plain object with the opcode and the payload set. */

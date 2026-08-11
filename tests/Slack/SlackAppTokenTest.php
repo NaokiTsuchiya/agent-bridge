@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace NaokiTsuchiya\AgentBridge\Tests\Slack;
 
+use InvalidArgumentException;
 use NaokiTsuchiya\AgentBridge\Slack\SlackAppToken;
+use NaokiTsuchiya\AgentBridge\Slack\SlackAppTokenFactory;
 use NaokiTsuchiya\AgentBridge\Slack\SocketModeException;
 use Override;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -16,7 +18,9 @@ use function putenv;
 use function str_contains;
 
 /**
- * Where the token comes from, what is refused, and what the refusal is allowed to say.
+ * What makes a value an app-level token, where one is read from, and what a refusal may say.
+ *
+ * @mago-expect lint:too-many-methods
  *
  * @internal
  */
@@ -32,7 +36,7 @@ final class SlackAppTokenTest extends TestCase
     #[Override]
     protected function setUp(): void
     {
-        $this->original = getenv(SlackAppToken::ENVIRONMENT_VARIABLE);
+        $this->original = getenv(SlackAppTokenFactory::ENVIRONMENT_VARIABLE);
     }
 
     /** The variable is process-wide, so a case that changes it has to undo that. */
@@ -40,25 +44,36 @@ final class SlackAppTokenTest extends TestCase
     protected function tearDown(): void
     {
         if ($this->original === false) {
-            putenv(SlackAppToken::ENVIRONMENT_VARIABLE);
+            putenv(SlackAppTokenFactory::ENVIRONMENT_VARIABLE);
 
             return;
         }
 
-        putenv(SlackAppToken::ENVIRONMENT_VARIABLE . "={$this->original}");
+        putenv(SlackAppTokenFactory::ENVIRONMENT_VARIABLE . "={$this->original}");
     }
 
     /**
-     * The one thing the token is for: the header the API call carries.
+     * A token that could be one keeps its value, which is all a caller ever needs from it.
+     *
+     * @throws InvalidArgumentException
+     */
+    #[Test]
+    public function keepsTheValueItWasGiven(): void
+    {
+        self::assertSame(self::VALID, new SlackAppToken(self::VALID)->value);
+    }
+
+    /**
+     * The one place this app reads a token from.
      *
      * @throws SocketModeException
      */
     #[Test]
     public function readsTheTokenFromTheEnvironment(): void
     {
-        putenv(SlackAppToken::ENVIRONMENT_VARIABLE . '=' . self::VALID);
+        putenv(SlackAppTokenFactory::ENVIRONMENT_VARIABLE . '=' . self::VALID);
 
-        self::assertSame('Bearer ' . self::VALID, SlackAppToken::fromEnvironment()->authorizationHeader());
+        self::assertSame(self::VALID, SlackAppTokenFactory::fromEnvironment()->value);
     }
 
     /**
@@ -69,29 +84,45 @@ final class SlackAppTokenTest extends TestCase
     #[Test]
     public function failsWithTheVariableNameWhenItIsNotSet(): void
     {
-        putenv(SlackAppToken::ENVIRONMENT_VARIABLE);
+        putenv(SlackAppTokenFactory::ENVIRONMENT_VARIABLE);
 
         $this->expectException(SocketModeException::class);
         $this->expectExceptionMessageMatches('/SLACK_APP_TOKEN/');
 
-        SlackAppToken::fromEnvironment();
+        SlackAppTokenFactory::fromEnvironment();
     }
 
     /**
-     * An exported but empty variable is the same mistake, and must not be taken for a token.
+     * A variable holding something that is not a token names the variable too: from a caller's
+     * side, what is wrong is the environment, not the call.
      *
      * @throws SocketModeException
+     */
+    #[DataProvider('blankValues')]
+    #[DataProvider('valuesThatAreNotAppTokens')]
+    #[Test]
+    public function failsWithTheVariableNameWhenItHoldsSomethingElse(string $value): void
+    {
+        putenv(SlackAppTokenFactory::ENVIRONMENT_VARIABLE . "={$value}");
+
+        $this->expectException(SocketModeException::class);
+        $this->expectExceptionMessageMatches('/SLACK_APP_TOKEN/');
+
+        SlackAppTokenFactory::fromEnvironment();
+    }
+
+    /**
+     * A blank value is not a token, whatever amount of whitespace it is made of.
+     *
+     * @throws InvalidArgumentException
      */
     #[DataProvider('blankValues')]
     #[Test]
     public function refusesABlankValue(string $value): void
     {
-        putenv(SlackAppToken::ENVIRONMENT_VARIABLE . "={$value}");
+        $this->expectException(InvalidArgumentException::class);
 
-        $this->expectException(SocketModeException::class);
-        $this->expectExceptionMessageMatches('/SLACK_APP_TOKEN/');
-
-        SlackAppToken::fromEnvironment();
+        new SlackAppToken($value);
     }
 
     /** @return iterable<string, array{string}> */
@@ -105,13 +136,13 @@ final class SlackAppTokenTest extends TestCase
     /**
      * Only an app-level token opens a Socket Mode connection; the rest fail before any call is made.
      *
-     * @throws SocketModeException
+     * @throws InvalidArgumentException
      */
     #[DataProvider('valuesThatAreNotAppTokens')]
     #[Test]
     public function refusesAnythingThatIsNotAnAppLevelToken(string $value): void
     {
-        $this->expectException(SocketModeException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessageMatches('/xapp-/');
 
         new SlackAppToken($value);
@@ -132,9 +163,10 @@ final class SlackAppTokenTest extends TestCase
     public function keepsTheRefusedValueOutOfTheMessage(): void
     {
         $rejected = 'xoxb-0000-a-value-that-must-not-be-repeated';
+        putenv(SlackAppTokenFactory::ENVIRONMENT_VARIABLE . "={$rejected}");
 
         try {
-            new SlackAppToken($rejected);
+            SlackAppTokenFactory::fromEnvironment();
             self::fail('The value is not an app-level token and must be refused.');
         } catch (SocketModeException $exception) {
             self::assertFalse(

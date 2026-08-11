@@ -31,7 +31,7 @@ final class FrameRouter
     public function __construct(
         private Channel $envelopes,
         private EnvelopeLog $seen,
-        private SocketModeLogInterface $log,
+        private SocketModeLoggerInterface $logger,
         private float $handoffTimeout = 0.001,
     ) {}
 
@@ -45,7 +45,7 @@ final class FrameRouter
         $decoded = self::asObject(json_decode($frame, associative: true));
 
         if ($decoded === null) {
-            $this->log->log('discarded a frame that is not a JSON object');
+            $this->logger->log('discarded a frame that is not a JSON object');
 
             return true;
         }
@@ -61,7 +61,7 @@ final class FrameRouter
     /** The only frame Slack sends unprompted; there is nothing to answer and nothing to hand on. */
     private function hello(): bool
     {
-        $this->log->log('connected');
+        $this->logger->log('connected');
 
         return true;
     }
@@ -70,7 +70,7 @@ final class FrameRouter
     private function disconnect(array $frame): bool
     {
         $reason = self::text($frame, 'reason') ?? 'none given';
-        $this->log->log("Slack asked for a reconnect ({$reason})");
+        $this->logger->log("Slack asked for a reconnect ({$reason})");
 
         return false;
     }
@@ -78,7 +78,7 @@ final class FrameRouter
     /** A frame type this app does not know is not a reason to give up a working connection. */
     private function unknown(): bool
     {
-        $this->log->log('discarded a frame of an unknown type');
+        $this->logger->log('discarded a frame of an unknown type');
 
         return true;
     }
@@ -100,7 +100,7 @@ final class FrameRouter
         $id = self::text($frame, 'envelope_id');
 
         if ($id === null || $id === '') {
-            $this->log->log('discarded an events_api frame without an envelope_id');
+            $this->logger->log('discarded an events_api frame without an envelope_id');
 
             return true;
         }
@@ -110,7 +110,7 @@ final class FrameRouter
         if ($ack === false) {
             // One string under one key cannot fail to encode; the branch is here because the
             // failure is in the signature, and an unsent ack must not be reported as a sent one.
-            $this->log->log("cannot build the ack for {$id}");
+            $this->logger->log("cannot build the ack for {$id}");
 
             return true;
         }
@@ -130,7 +130,7 @@ final class FrameRouter
         $unseen = $this->seen->remember($id);
 
         if (!$unseen) {
-            $this->log->log("acknowledged {$id} again without handing it on");
+            $this->logger->log("acknowledged {$id} again without handing it on");
 
             return true;
         }
@@ -138,7 +138,7 @@ final class FrameRouter
         $payload = self::object($frame, 'payload');
 
         if ($payload === null) {
-            $this->log->log("acknowledged {$id}, which carries no payload object");
+            $this->logger->log("acknowledged {$id}, which carries no payload object");
 
             return true;
         }
@@ -146,7 +146,7 @@ final class FrameRouter
         $handedOn = $this->envelopes->push($payload, $this->handoffTimeout);
 
         if (!$handedOn) {
-            $this->log->log("acknowledged {$id}, but the downstream channel would not take it");
+            $this->logger->log("acknowledged {$id}, but the downstream channel would not take it");
         }
 
         return true;

@@ -21,7 +21,7 @@ final class RunOutcome
     public function __construct(
         public FakeSocketModeConnector $connector,
         public RecordingSleeper $sleeper,
-        public RecordingLog $log,
+        public RecordingLogger $logger,
         public array $handedOn,
         public int $channelLength,
     ) {}

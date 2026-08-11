@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NaokiTsuchiya\AgentBridge\Tests\Slack;
 
-use NaokiTsuchiya\AgentBridge\Slack\SocketModeLogInterface;
+use NaokiTsuchiya\AgentBridge\Slack\SocketModeLoggerInterface;
 use Override;
 
 /**
@@ -12,7 +12,7 @@ use Override;
  *
  * @internal
  */
-final class RecordingLog implements SocketModeLogInterface
+final class RecordingLogger implements SocketModeLoggerInterface
 {
     /** @var list<string> every line, in order */
     public array $lines = [];

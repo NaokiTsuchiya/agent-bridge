@@ -50,14 +50,14 @@ export SLACK_APP_TOKEN='xapp-…'
 require __DIR__ . '/path/to/agent-bridge/vendor/autoload.php';
 
 use NaokiTsuchiya\AgentBridge\Slack\{Backoff, EnvelopeLog, CoroutineSleeper, FrameRouter,
-    MtRandomSource, ReconnectDelay, SlackAppToken, SocketModeClient, StderrSocketModeLog,
+    MtRandomSource, ReconnectDelay, SlackAppTokenFactory, SocketModeClient, StderrSocketModeLogger,
     SwooleSocketModeConnector};
 use Swoole\Coroutine\Channel;
 
 use function Swoole\Coroutine\run;
 
 run(static function (): void {
-    $log = new StderrSocketModeLog();
+    $logger = new StderrSocketModeLogger();
     $envelopes = new Channel(16);
 
     // 後段はまだ無い (#14) ので、押し込まれた payload をこのコルーチンで捨てながら読む。
@@ -68,10 +68,10 @@ run(static function (): void {
     });
 
     new SocketModeClient(
-        new SwooleSocketModeConnector(SlackAppToken::fromEnvironment()),
-        new FrameRouter($envelopes, new EnvelopeLog(), $log),
+        new SwooleSocketModeConnector(SlackAppTokenFactory::fromEnvironment()),
+        new FrameRouter($envelopes, new EnvelopeLog(), $logger),
         new ReconnectDelay(new Backoff(new MtRandomSource()), new CoroutineSleeper()),
-        $log,
+        $logger,
     )->run();
 });
 ```

@@ -52,7 +52,7 @@ final class SocketModeClientTest extends TestCase
         $outcome = self::drive([$connection], stopAt: 2);
 
         self::assertSame([self::ACK], $connection->sent);
-        self::assertContains('connected', $outcome->log->lines);
+        self::assertContains('connected', $outcome->logger->lines);
     }
 
     /** The two things an events_api frame is owed: an ack with its id, and its payload downstream. */
@@ -81,7 +81,10 @@ final class SocketModeClientTest extends TestCase
         self::assertSame([self::ACK], $connection->sent);
         self::assertSame(1, $outcome->channelLength, 'Nothing was added to the full channel.');
         self::assertSame([['filler' => 0]], $outcome->handedOn);
-        self::assertContains('acknowledged ev-1, but the downstream channel would not take it', $outcome->log->lines);
+        self::assertContains(
+            'acknowledged ev-1, but the downstream channel would not take it',
+            $outcome->logger->lines,
+        );
         self::assertSame(2, $outcome->connector->attempts, 'The disconnect after it was still read.');
     }
 
@@ -133,7 +136,7 @@ final class SocketModeClientTest extends TestCase
 
         self::assertSame(2, $outcome->connector->attempts);
         self::assertSame(1, $connection->closes);
-        self::assertContains('connection lost: reset by peer', $outcome->log->lines);
+        self::assertContains('connection lost: reset by peer', $outcome->logger->lines);
     }
 
     /** An ack that cannot be sent says the connection is gone, whatever it looked like a moment ago. */
@@ -246,7 +249,7 @@ final class SocketModeClientTest extends TestCase
 
         self::assertSame(['{"envelope_id":"ev-7"}'], $connection->sent);
         self::assertSame([], $outcome->handedOn);
-        self::assertContains('acknowledged ev-7, which carries no payload object', $outcome->log->lines);
+        self::assertContains('acknowledged ev-7, which carries no payload object', $outcome->logger->lines);
     }
 
     /** @return iterable<string, array{string}> */
@@ -285,7 +288,7 @@ final class SocketModeClientTest extends TestCase
     private static function drive(array $connections, int $stopAt, int $capacity = 4, int $prefill = 0): RunOutcome
     {
         $sleeper = new RecordingSleeper();
-        $log = new RecordingLog();
+        $logger = new RecordingLogger();
         // Written from inside the coroutine below, and read from the hook that ends the run; the
         // hook fires on the first attempt too, when there is no client yet.
         /** @var SocketModeClient|null $client */
@@ -309,7 +312,7 @@ final class SocketModeClientTest extends TestCase
             $connector,
             &$client,
             $sleeper,
-            $log,
+            $logger,
             $capacity,
             $prefill,
             &$handedOn,
@@ -327,19 +330,19 @@ final class SocketModeClientTest extends TestCase
                 // The capacity is the class' own default, so this cannot happen. It is caught
                 // rather than let out because an exception leaving a coroutine kills the
                 // process, which would take the test output with it.
-                $log->log($exception->getMessage());
+                $logger->log($exception->getMessage());
 
                 return;
             }
 
             $client = new SocketModeClient(
                 $connector,
-                new FrameRouter($channel, $seen, $log),
+                new FrameRouter($channel, $seen, $logger),
                 new ReconnectDelay(
                     new Backoff(new FixedRandomSource(), base: self::BASE_DELAY, max: self::MAX_DELAY),
                     $sleeper,
                 ),
-                $log,
+                $logger,
                 self::SILENCE_TIMEOUT,
             );
             $client->run();
@@ -352,6 +355,6 @@ final class SocketModeClientTest extends TestCase
             }
         });
 
-        return new RunOutcome($connector, $sleeper, $log, $handedOn, $length);
+        return new RunOutcome($connector, $sleeper, $logger, $handedOn, $length);
     }
 }

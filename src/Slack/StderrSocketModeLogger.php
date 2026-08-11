@@ -13,7 +13,7 @@ use function error_log;
  *
  * @api
  */
-final class StderrSocketModeLog implements SocketModeLogInterface
+final class StderrSocketModeLogger implements SocketModeLoggerInterface
 {
     /** `error_log` rather than a write to `php://stderr`, so that a configured `error_log` wins. */
     #[Override]

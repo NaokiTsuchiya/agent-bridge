@@ -12,7 +12,7 @@ namespace NaokiTsuchiya\AgentBridge\Slack;
  *
  * @api
  */
-interface SocketModeLogInterface
+interface SocketModeLoggerInterface
 {
     /** Records one line. */
     public function log(string $message): void;

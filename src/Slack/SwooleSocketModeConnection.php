@@ -46,7 +46,10 @@ final class SwooleSocketModeConnection implements SocketModeConnectionInterface
                 return null;
             }
 
-            $frame = ReceivedFrame::of($this->client->recv($remaining), $this->client->connected);
+            $frame = ReceivedFrame::of(
+                $this->client->recv($remaining),
+                $this->client->connected ? ConnectionState::Alive : ConnectionState::Gone,
+            );
 
             if ($frame->outcome === FrameOutcome::Text) {
                 return $frame->text;

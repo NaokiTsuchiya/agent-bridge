@@ -17,8 +17,8 @@ use const SWOOLE_WEBSOCKET_OPCODE_TEXT;
  *
  * `recv()` answers with a frame, `false` or a raw string depending on what happened, and the
  * classification decides whether the client keeps receiving, reconnects, or hands the text on. It
- * takes the return value and the client's `connected` flag rather than the client itself, so the
- * whole judgement can be exercised without a socket.
+ * takes the return value and the connection's state rather than the client itself, so the whole
+ * judgement can be exercised without a socket.
  *
  * @api
  */
@@ -30,14 +30,8 @@ final class ReceivedFrame
         public string $text,
     ) {}
 
-    /**
-     * @param bool $connected the client's `connected` property, read right after `recv()` returned
-     *
-     * @mago-expect lint:no-boolean-flag-parameter
-     *   Not a mode switch: it is the second half of what `recv()` reported, and the pair is what
-     *   tells a timeout apart from a dead socket.
-     */
-    public static function of(Frame|bool|string $received, bool $connected): self
+    /** @param ConnectionState $connection the state of the connection the answer came back from */
+    public static function of(Frame|bool|string $received, ConnectionState $connection): self
     {
         if ($received instanceof Frame) {
             return match ($received->opcode) {
@@ -56,7 +50,9 @@ final class ReceivedFrame
 
         // `false` means both "nothing arrived in time" and "the socket is gone". errno would tell
         // them apart, but ETIMEDOUT differs per platform (60 on macOS, 110 on Linux) and comes from
-        // ext-sockets, which the CI image does not install; `connected` is on the client itself.
-        return !$received && $connected ? new self(FrameOutcome::Silence, '') : new self(FrameOutcome::Broken, '');
+        // ext-sockets, which the CI image does not install; the connection's own state does not.
+        return !$received && $connection === ConnectionState::Alive
+            ? new self(FrameOutcome::Silence, '')
+            : new self(FrameOutcome::Broken, '');
     }
 }
