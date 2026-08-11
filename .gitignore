@@ -1,5 +1,9 @@
 vendor/
 var/
+# Named separately from var/ above because these two are the injector's, and a compile that started
+# committing itself is the failure this is here to prevent.
+var/di/
+var/tmp/
 .worktrees/
 .phpunit.cache/
 .phpunit.result.cache
