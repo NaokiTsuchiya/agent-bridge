@@ -79,7 +79,8 @@ final class CompileCommandTest extends TestCase
     public function isReachableThroughComposer(): void
     {
         $composer = Json::decode((string) file_get_contents(dirname(__DIR__, levels: 2) . '/composer.json')) ?? [];
-        $compile = Json::text(Json::node($composer, 'scripts'), 'compile');
+        $scripts = Json::node($composer, 'scripts');
+        $compile = Json::text($scripts, 'compile:' . ServeContext::NAME);
         self::assertIsString($compile);
 
         self::assertStringContainsString('ray-di-compile', $compile);
@@ -87,6 +88,9 @@ final class CompileCommandTest extends TestCase
         // The context name decides which directory the scripts land in, and the server looks in the
         // one this constant names: compiling some other context would leave it with nothing.
         self::assertStringContainsString(ServeContext::NAME, $compile);
+        // There is more than one context to compile now, so what CI runs is the script that runs
+        // them all; a context left out of it would be missing only once a process started.
+        self::assertContains('@compile:' . ServeContext::NAME, Json::node($scripts, 'compile'));
     }
 
     /** A compile nobody runs is a compile that breaks unnoticed. */

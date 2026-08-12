@@ -294,19 +294,24 @@ final class BecomingChainTest extends TestCase
     }
 
     /**
-     * The end of a tool call is not something a reader is told about.
+     * The end of a tool call is announced the way its start was, and stays out of the answer.
      *
-     * Nothing produces this event yet, so it is handed over by a stand-in execution layer rather
-     * than by the fake CLI; what is pinned is that the pipeline stays quiet about it.
+     * It names the call rather than the tool because that is all {@see ToolCompleted} carries.
+     * Nothing produces the event yet, so it is handed over by a stand-in execution layer rather
+     * than by the fake CLI.
+     *
+     * @param bool   $success how the call went
+     * @param string $notice  what a reader is shown about it
      *
      * @throws Throwable
      */
+    #[DataProvider('toolOutcomes')]
     #[Test]
-    public function ignoresToolCompletion(): void
+    public function announcesToolCompletionApartFromTheReply(bool $success, string $notice): void
     {
         $runner = new StubAgentRunner([
             new TextDelta('hi'),
-            new ToolCompleted('toolu_1', success: true),
+            new ToolCompleted('toolu_1', $success),
             new TurnCompleted(success: true, sessionId: 'session'),
         ]);
         $becoming = $this->chain($runner);
@@ -314,9 +319,16 @@ final class BecomingChainTest extends TestCase
         $completed = $becoming(new IncomingMessage(self::PLATFORM, self::NATIVE_ID, 'hello'));
 
         self::assertInstanceOf(CompletedTurn::class, $completed);
-        self::assertSame('hi', $completed->reply);
-        self::assertSame(['hi'], $this->egress()->last()->appends);
+        self::assertSame('hi', $completed->reply, 'The announcement is not the answer.');
+        self::assertSame(['hi', $notice], $this->egress()->last()->appends);
         self::assertTrue($completed->success);
+    }
+
+    /** @return iterable<string, array{bool, string}> */
+    public static function toolOutcomes(): iterable
+    {
+        yield 'a call that went well' => [true, "\n> toolu_1 done\n"];
+        yield 'a call that did not' => [false, "\n> toolu_1 failed\n"];
     }
 
     /**

@@ -23,7 +23,7 @@ final class SocketModeClient
         private SocketModeConnectorInterface $connector,
         private FrameRouter $router,
         private ReconnectDelay $delay,
-        private SocketModeLoggerInterface $logger,
+        private SlackLoggerInterface $logger,
         private float $silenceTimeout = 60.0,
     ) {}
 

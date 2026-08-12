@@ -11,6 +11,10 @@ declare(strict_types=1);
  */
 
 use NaokiTsuchiya\AgentBridge\Di\ServeContext;
+use NaokiTsuchiya\AgentBridge\Di\SlackContext;
 use NaokiTsuchiya\RayDiContext\MapContextProvider;
 
-return new MapContextProvider([ServeContext::NAME => ServeContext::class]);
+return new MapContextProvider([
+    ServeContext::NAME => ServeContext::class,
+    SlackContext::NAME => SlackContext::class,
+]);
