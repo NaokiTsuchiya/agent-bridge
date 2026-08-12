@@ -69,9 +69,9 @@ final class SpawnCliRunner implements AgentRunner
      */
     public function __construct(
         private WorkingDirectoryResolver $directories,
-        ClaudeCliSettings $settings = new ClaudeCliSettings(),
-        private ClaudeCliEventParser $parser = new ClaudeCliEventParser(),
-        LifecycleSettings $limits = new LifecycleSettings(),
+        ClaudeCliSettings $settings,
+        private ClaudeCliEventParser $parser,
+        LifecycleSettings $limits,
     ) {
         // The same two hooks {@see PersistentCliRunner} turns on, and for the same reasons: without
         // SWOOLE_HOOK_PROC the pipes block the event loop instead of the one coroutine reading

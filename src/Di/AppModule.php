@@ -11,6 +11,7 @@ use NaokiTsuchiya\AgentBridge\AgentBridge;
 use NaokiTsuchiya\AgentBridge\Chat\ChatEgress;
 use NaokiTsuchiya\AgentBridge\Cli\Conversation;
 use NaokiTsuchiya\AgentBridge\Cli\StandardStreamsProvider;
+use NaokiTsuchiya\AgentBridge\Event\ClaudeCliEventParser;
 use NaokiTsuchiya\AgentBridge\Git\Git;
 use NaokiTsuchiya\AgentBridge\Git\GitInterface;
 use NaokiTsuchiya\AgentBridge\Resource\App\Health;
@@ -80,6 +81,9 @@ final class AppModule extends AbstractModule
         $this->bind(ThreadIdFactory::class);
         $this->bind(ClaudeCliSettings::class);
         $this->bind(LifecycleSettings::class);
+        // What every execution layer needs to make sense of the binary's output, and what an
+        // execution layer that takes it as a required constructor argument cannot be built without.
+        $this->bind(ClaudeCliEventParser::class);
         // Singleton because the runner is the pool: a second one would hold its own children and
         // neither would honour the other's limit.
         $this->bind(AgentRunner::class)->to(PersistentCliRunner::class)->in(Scope::SINGLETON);

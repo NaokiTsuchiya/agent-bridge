@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace NaokiTsuchiya\AgentBridge\Tests\Cli;
 
+use NaokiTsuchiya\AgentBridge\Event\ClaudeCliEventParser;
 use NaokiTsuchiya\AgentBridge\Runner\AgentRunner;
 use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliSettings;
+use NaokiTsuchiya\AgentBridge\Runner\LifecycleSettings;
 use NaokiTsuchiya\AgentBridge\Runner\SpawnCliRunner;
 use NaokiTsuchiya\AgentBridge\Runner\WorkingDirectoryResolver;
 use NaokiTsuchiya\AgentBridge\Tests\Support\ClaudeBinary;
@@ -18,6 +20,11 @@ final class SpawnCliChainOutputTest extends CliChainOutputTestCase
     #[Override]
     protected function runner(WorkingDirectoryResolver $directories): AgentRunner
     {
-        return new SpawnCliRunner($directories, new ClaudeCliSettings(binary: ClaudeBinary::fake()));
+        return new SpawnCliRunner(
+            $directories,
+            new ClaudeCliSettings(binary: ClaudeBinary::fake()),
+            new ClaudeCliEventParser(),
+            new LifecycleSettings(),
+        );
     }
 }

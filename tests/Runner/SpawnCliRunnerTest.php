@@ -7,6 +7,7 @@ namespace NaokiTsuchiya\AgentBridge\Tests\Runner;
 use Closure;
 use InvalidArgumentException;
 use NaokiTsuchiya\AgentBridge\Event\AgentError;
+use NaokiTsuchiya\AgentBridge\Event\ClaudeCliEventParser;
 use NaokiTsuchiya\AgentBridge\Event\TextDelta;
 use NaokiTsuchiya\AgentBridge\Event\TurnCompleted;
 use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliSettings;
@@ -563,7 +564,8 @@ final class SpawnCliRunnerTest extends TestCase
                 binary: $binary ?? ClaudeBinary::fake(),
                 allowedTools: $tools ?? ClaudeCliSettings::READ_ONLY_TOOLS,
             ),
-            limits: new LifecycleSettings(turnSeconds: $turnSeconds),
+            new ClaudeCliEventParser(),
+            new LifecycleSettings(turnSeconds: $turnSeconds),
         );
     }
 
