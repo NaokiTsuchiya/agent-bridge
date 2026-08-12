@@ -7,6 +7,7 @@ namespace NaokiTsuchiya\AgentBridge\Tests\Cli;
 use NaokiTsuchiya\AgentBridge\AgentBridge;
 use NaokiTsuchiya\AgentBridge\Chat\ChatEgress;
 use NaokiTsuchiya\AgentBridge\Cli\CliCommand;
+use NaokiTsuchiya\AgentBridge\Cli\Conversation;
 use NaokiTsuchiya\AgentBridge\Cli\StandardOutputEgress;
 use NaokiTsuchiya\AgentBridge\Di\ServeContext;
 use NaokiTsuchiya\AgentBridge\Pipeline\CompletedTurn;
@@ -38,6 +39,7 @@ use function str_contains;
 use function str_replace;
 use function strlen;
 use function substr;
+use function substr_count;
 
 use const GLOB_BRACE;
 
@@ -48,6 +50,8 @@ use const GLOB_BRACE;
  * collaborators by type while a message is being answered, so one that nobody bound goes missing
  * in the middle of somebody's turn; and a runner sent to the wrong directory would still answer,
  * only in a directory that is not the thread's.
+ *
+ * @mago-expect lint:too-many-methods
  */
 final class ProductionWiringTest extends TestCase
 {
@@ -159,6 +163,34 @@ final class ProductionWiringTest extends TestCase
     }
 
     /**
+     * What answers the messages is one object the injector builds, not a set of parts the front
+     * end put together itself.
+     *
+     * @throws CompileDirUnavailable
+     * @throws InvalidAppMeta
+     */
+    #[Test]
+    public function resolvesTheConversationAsOneThing(): void
+    {
+        self::assertInstanceOf(Conversation::class, self::injector()->getInstance(Conversation::class));
+    }
+
+    /**
+     * The command asks the injector for exactly that one thing.
+     *
+     * Read off the source because it is a statement about the seam rather than about behaviour: a
+     * command that resolved its collaborators one by one would answer just as well, while deciding
+     * how a conversation is put together — which belongs to the module.
+     *
+     * @throws ReflectionException
+     */
+    #[Test]
+    public function asksTheInjectorForOneThing(): void
+    {
+        self::assertSame(1, substr_count(self::sourceOf(CliCommand::class), needle: 'getInstance('));
+    }
+
+    /**
      * The front end drives the chain by handing a message over, and nowhere builds a stage itself.
      *
      * Read off the source rather than the behaviour: a hand-written transition would answer just
@@ -169,14 +201,11 @@ final class ProductionWiringTest extends TestCase
     #[Test]
     public function buildsNoneOfTheChainByHand(): void
     {
-        $file = new ReflectionClass(CliCommand::class)->getFileName();
-        self::assertIsString($file);
-        $source = file_get_contents($file);
-        self::assertIsString($source);
-
-        foreach ([ResolvedThread::class, CompletedTurn::class] as $stage) {
-            $short = new ReflectionClass($stage)->getShortName();
-            self::assertFalse(str_contains($source, "new {$short}"), "The front end builds a {$short}.");
+        foreach (self::frontEndClasses() as $class) {
+            foreach ([ResolvedThread::class, CompletedTurn::class] as $stage) {
+                $short = new ReflectionClass($stage)->getShortName();
+                self::assertFalse(str_contains(self::sourceOf($class), "new {$short}"), "{$class} builds a {$short}.");
+            }
         }
     }
 
@@ -193,6 +222,46 @@ final class ProductionWiringTest extends TestCase
         }
 
         return self::$injector;
+    }
+
+    /**
+     * @param class-string $class
+     *
+     * @return string the file that class is written in
+     *
+     * @throws ReflectionException
+     */
+    private static function sourceOf(string $class): string
+    {
+        $file = new ReflectionClass($class)->getFileName();
+        self::assertIsString($file);
+        $source = file_get_contents($file);
+        self::assertIsString($source);
+
+        return $source;
+    }
+
+    /**
+     * @return list<class-string> everything the command line front end is made of
+     *
+     * @throws ReflectionException
+     */
+    private static function frontEndClasses(): array
+    {
+        $namespace = new ReflectionClass(CliCommand::class)->getNamespaceName();
+        $classes = [];
+        foreach (self::sourceClasses() as $class) {
+            $lives = new ReflectionClass($class)->getNamespaceName();
+            if ($lives !== $namespace) {
+                continue;
+            }
+
+            $classes[] = $class;
+        }
+
+        self::assertNotSame([], $classes);
+
+        return $classes;
     }
 
     /**

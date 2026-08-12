@@ -9,6 +9,7 @@ use BEAR\Resource\Module\ResourceObjectModule;
 use BEAR\Resource\ResourceObject;
 use NaokiTsuchiya\AgentBridge\AgentBridge;
 use NaokiTsuchiya\AgentBridge\Chat\ChatEgress;
+use NaokiTsuchiya\AgentBridge\Cli\Conversation;
 use NaokiTsuchiya\AgentBridge\Cli\StandardStreamsProvider;
 use NaokiTsuchiya\AgentBridge\Git\Git;
 use NaokiTsuchiya\AgentBridge\Git\GitInterface;
@@ -71,6 +72,8 @@ final class AppModule extends AbstractModule
         // one every context has; #14 is where a second one has to be chosen rather than assumed.
         // Singleton because what it hands over is the process's own streams.
         $this->bind(ChatEgress::class)->toProvider(StandardStreamsProvider::class)->in(Scope::SINGLETON);
+        // What a front end resolves, in place of the parts it would otherwise put together itself.
+        $this->bind(Conversation::class);
         // Bound although no constructor in this module names it: the pipeline receives it through
         // Be, which asks the injector for it while a message is being resolved, and a compiled
         // injector answers only for what was bound when it was compiled.

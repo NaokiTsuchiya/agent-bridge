@@ -73,22 +73,27 @@ ls .worktrees/          # cli-my-experiment
 
 ```
 bin/agent-bridge-cli
-  └ Cli\CliCommand
-      ├ Di\Boot            → コンパイル済み injector (1 プロセス 1 回、warmup 込み)
-      ├ BecomingInterface  → メッセージを 1 回渡すだけ。遷移は書かない
-      ├ Cli\StandardInputIngress   (ChatIngress)
-      └ Cli\StandardOutputEgress   (ChatEgress) ← AppModule が束縛、php://output と php://stderr
+  └ Cli\CliCommand                  引数 → ThreadId / 入力 / 終了コード だけを担う
+      ├ Di\Boot                     → コンパイル済み injector (1 プロセス 1 回、warmup 込み)
+      ├ Cli\StandardInputIngress    (ChatIngress) 標準入力の 1 行 = 1 メッセージ
+      └ Cli\Conversation            ← injector から解決するのはこれ 1 つだけ
+          ├ BecomingInterface       メッセージを 1 回渡すだけ。遷移は書かない
+          ├ AgentRunner             ターンを答える。最後に close() する
+          └ Cli\StandardOutputEgress (ChatEgress) ← AppModule が束縛、php://output と php://stderr
 ```
 
-`ChatEgress` の束縛は `Di\AppModule` にある。フロントエンドが 1 つしか無いうちはこれが既定で、#14 で Slack が入るときに「選ぶ」ことになる。
+**`CliCommand` が injector に頼むのは `Conversation` 1 つだけ。** 会話をどう組み立てるかは module の責務で、フロントエンドが部品を 1 つずつ解決して自分で組むと、その決定がフロントエンド側に漏れる。`Conversation` は結果を `ConversationResult` (全ターン成功したか / 何に止められたか) として返し、それを exit code に写すのが `CliCommand` の仕事。
 
-turn を終えたあとに `AgentRunner::close()` を呼んでいるのは、プール監視のコルーチンが生きている間 `Swoole\Coroutine\run()` が戻らないため — 呼ばないとプロセスが終わらない。
+`ChatEgress` と `Conversation` の束縛は `Di\AppModule` にある。フロントエンドが 1 つしか無いうちはこれが既定で、#14 で Slack が入るときに「選ぶ」ことになる。
+
+会話の最後に `AgentRunner::close()` を呼んでいるのは、プール監視のコルーチンが生きている間 `Swoole\Coroutine\run()` が戻らないため — 呼ばないとプロセスが終わらない。例外を投げずに `ConversationResult` に載せて返しているのも同じ事情で、コルーチンの中で投げたものは呼び出し元に届かない (プロセスごと落ちる)。
 
 ## 7. テスト
 
 | どこ | 何を見ているか |
 |---|---|
 | `tests/Cli/CliRoundTripTest.php` | `bin/agent-bridge-cli` を**実プロセスとして**起動する端から端まで (往復・worktree・プロセスを跨いだ文脈継続・並行・exit code) |
+| `tests/Cli/ConversationTest.php` | 会話が答えをどう扱うか (失敗ターン・止まったとき・最後に必ずスレッドを手放すこと) |
 | `tests/Cli/CliChainOutputTest.php` | 状態表示と応答の順序、差分が複数回の書き込みで届くこと (`RecordingStream`) |
 | `tests/Cli/WarmupIsolationTest.php` | 同一 injector・同一ハンドラで 2 スレッドを順に処理し、2 つ目の記録に 1 つ目の値が無いこと |
 | `tests/Cli/ProductionWiringTest.php` | コンパイル済み injector が何に繋がっているか (front end / worktree manager) |

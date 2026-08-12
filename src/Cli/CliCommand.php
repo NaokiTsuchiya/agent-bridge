@@ -4,14 +4,11 @@ declare(strict_types=1);
 
 namespace NaokiTsuchiya\AgentBridge\Cli;
 
-use Be\Framework\BecomingInterface;
 use InvalidArgumentException;
+use NaokiTsuchiya\AgentBridge\Chat\ChatIngress;
 use NaokiTsuchiya\AgentBridge\Di\Boot;
 use NaokiTsuchiya\AgentBridge\Di\BootException;
 use NaokiTsuchiya\AgentBridge\Di\ServeContext;
-use NaokiTsuchiya\AgentBridge\Pipeline\CompletedTurn;
-use NaokiTsuchiya\AgentBridge\Runner\AgentRunner;
-use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
 use NaokiTsuchiya\RayDiContext\AppMeta;
 use NaokiTsuchiya\RayDiContext\ContextProviderInterface;
 use NaokiTsuchiya\RayDiContext\Exception\ExceptionInterface;
@@ -27,10 +24,11 @@ use function Swoole\Coroutine\run;
 /**
  * One command line conversation: a thread named in an argument, its messages on standard input.
  *
- * What this exists to prove is that nothing between a message and an answered turn is written by
- * hand. It asks the injector for {@see BecomingInterface} and hands each message to it; the
- * worktree, the session, the child process and the streaming of the reply are all reached through
- * that one call.
+ * All this does is turn a command line into the three things a conversation needs — a thread to
+ * hold it in, somewhere to read the messages from, and a process that can answer them — and turn
+ * how it went into an exit code. Answering is {@see Conversation}'s, and it is asked of the
+ * injector as one object: a front end that resolved its collaborators one by one would be deciding
+ * how the conversation is put together, which is the module's business, not a command's.
  *
  * @api
  */
@@ -98,8 +96,7 @@ final class CliCommand
         }
 
         return $this->converse(
-            $injector->getInstance(BecomingInterface::class),
-            $injector->getInstance(AgentRunner::class),
+            $injector->getInstance(Conversation::class),
             new StandardInputIngress($thread, $this->input),
         );
     }
@@ -117,50 +114,42 @@ final class CliCommand
     }
 
     /**
-     * Answers every message the front end has, one at a time, and gives the child up afterwards.
+     * Holds the conversation, inside the one coroutine this process ever starts.
      *
-     * All of it happens inside one coroutine because the execution layer waits on channels, and
-     * the child is let go of before it ends: the pool watches its processes on a coroutine of its
-     * own, and `Swoole\Coroutine\run()` does not return while that watch is still running.
+     * The execution layer waits on channels, so there has to be one; and everything the
+     * conversation has to say for itself comes back as a value, because nothing thrown inside a
+     * coroutine reaches the caller — it ends the process instead.
      *
      * @return int the exit code
      */
-    private function converse(BecomingInterface $becoming, AgentRunner $runner, StandardInputIngress $ingress): int
+    private function converse(Conversation $conversation, ChatIngress $ingress): int
     {
         $code = self::OK;
-        // Nothing thrown inside a coroutine reaches the caller — it ends the process instead — so
-        // every outcome is decided in here and carried out.
-        run(function () use ($becoming, $runner, $ingress, &$code): void {
-            $thread = null;
-            try {
-                foreach ($ingress->listen() as $message) {
-                    $turn = $becoming($message);
-                    $answered = $turn instanceof CompletedTurn && $turn->success;
-                    $thread = $turn instanceof CompletedTurn ? $turn->workspace->thread : $thread;
-                    $code = $answered ? $code : self::TURN_FAILED;
-                }
-            } catch (InvalidArgumentException $refused) {
-                $this->explain($refused);
-                $code = self::BAD_INVOCATION;
-            } catch (Throwable $failure) {
-                $this->explain($failure);
-                $code = self::TURN_FAILED;
-            } finally {
-                $this->release($runner, $thread);
-            }
+        $failure = null;
+        run(static function () use ($conversation, $ingress, &$code, &$failure): void {
+            $result = $conversation->answer($ingress);
+            $code = self::codeFor($result);
+            $failure = $result->failure;
         });
+
+        if ($failure !== null) {
+            $this->explain($failure);
+        }
 
         return $code;
     }
 
-    /** Ends the thread's child, which is what lets this process finish. */
-    private function release(AgentRunner $runner, ?ThreadId $thread): void
+    /** @return int the exit code that outcome deserves */
+    private static function codeFor(ConversationResult $result): int
     {
-        if ($thread === null) {
-            return;
+        $failure = $result->failure;
+        if ($failure === null) {
+            return $result->answered ? self::OK : self::TURN_FAILED;
         }
 
-        $runner->close($thread);
+        // A message that names no usable thread is the caller's mistake, and reads as one; anything
+        // else went wrong while the answer was being produced.
+        return $failure instanceof InvalidArgumentException ? self::BAD_INVOCATION : self::TURN_FAILED;
     }
 
     /** @return string the directory the compiled scripts are read from */
