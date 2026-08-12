@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Contract;
+namespace NaokiTsuchiya\AgentBridge\FakeClaude;
 
+use NaokiTsuchiya\AgentBridge\Tests\Contract\ClaudeCliContractTestCase;
 use NaokiTsuchiya\AgentBridge\Tests\Support\ClaudeBinary;
 use NaokiTsuchiya\AgentBridge\Tests\Support\TempDir;
 use Override;

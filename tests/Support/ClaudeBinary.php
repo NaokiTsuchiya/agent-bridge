@@ -16,17 +16,17 @@ use function is_string;
  * CI job, or anyone without a logged-in Claude Code, gets to run tests that would otherwise be
  * out of reach.
  *
- * One thing is deliberately not configurable: the unit group always uses the fake ({@see fake()}
- * is what its contract subclass returns, not this). If an environment variable could push the
- * real binary into the unit group, `composer test:unit` would stop being runnable on a machine
- * with no Claude Code, which is the property CI depends on.
+ * One thing is deliberately not configurable: the fake-claude suite always uses the fake
+ * ({@see fake()} is what its contract subclass returns, not this). If an environment variable
+ * could push the real binary into `composer test:fake-claude`, that suite would stop being
+ * runnable on a machine with no Claude Code, which is the property CI depends on.
  */
 final class ClaudeBinary
 {
     /** @return string the fake in this repository, by a path any caller can hand to a shell */
     public static function fake(): string
     {
-        return dirname(__DIR__, levels: 2) . '/tests/Fake/Claude/bin/claude';
+        return dirname(__DIR__, levels: 2) . '/fake-claude/bin/claude';
     }
 
     /** @return string what `AGENT_BRIDGE_CLAUDE_BIN` names, or the real `claude` on PATH */

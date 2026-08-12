@@ -20,6 +20,9 @@
         <testsuite name="agent-bridge">
             <directory>tests</directory>
         </testsuite>
+        <testsuite name="fake-claude">
+            <directory>fake-claude-tests</directory>
+        </testsuite>
     </testsuites>
     <source>
         <include>

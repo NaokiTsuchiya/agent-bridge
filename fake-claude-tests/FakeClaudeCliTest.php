@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Fake\Claude;
+namespace NaokiTsuchiya\AgentBridge\FakeClaude;
 
 use NaokiTsuchiya\AgentBridge\Event\ClaudeCliEventParser;
 use NaokiTsuchiya\AgentBridge\Event\TextDelta;
