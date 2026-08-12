@@ -9,8 +9,8 @@ use NaokiTsuchiya\RayDiContext\AppMeta;
 use NaokiTsuchiya\RayDiContext\Exception\InvalidAppMeta;
 use Override;
 
-/** Two threads through the warmed-up singleton the application ships. */
-final class WarmupIsolationTest extends WarmupIsolationTestCase
+/** The same two threads through a singleton that keeps no process between them. */
+final class SpawnWarmupIsolationTest extends WarmupIsolationTestCase
 {
     /**
      * {@inheritDoc}
@@ -20,6 +20,6 @@ final class WarmupIsolationTest extends WarmupIsolationTestCase
     #[Override]
     protected function meta(): AppMeta
     {
-        return CompiledServe::meta();
+        return CompiledServe::spawnMeta();
     }
 }

@@ -11,13 +11,16 @@ use NaokiTsuchiya\AgentBridge\AgentBridge;
 use NaokiTsuchiya\AgentBridge\Chat\ChatEgress;
 use NaokiTsuchiya\AgentBridge\Cli\Conversation;
 use NaokiTsuchiya\AgentBridge\Cli\StandardStreamsProvider;
+use NaokiTsuchiya\AgentBridge\Event\ClaudeCliEventParser;
 use NaokiTsuchiya\AgentBridge\Git\Git;
 use NaokiTsuchiya\AgentBridge\Git\GitInterface;
 use NaokiTsuchiya\AgentBridge\Resource\App\Health;
 use NaokiTsuchiya\AgentBridge\Runner\AgentRunner;
+use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliCommand;
 use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliSettings;
 use NaokiTsuchiya\AgentBridge\Runner\LifecycleSettings;
 use NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner;
+use NaokiTsuchiya\AgentBridge\Runner\TurnLocks;
 use NaokiTsuchiya\AgentBridge\Runner\WorkingDirectoryResolver;
 use NaokiTsuchiya\AgentBridge\Runner\WorktreeWorkingDirectory;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadIdFactory;
@@ -80,6 +83,12 @@ final class AppModule extends AbstractModule
         $this->bind(ThreadIdFactory::class);
         $this->bind(ClaudeCliSettings::class);
         $this->bind(LifecycleSettings::class);
+        // The parts an execution layer is assembled from, rather than ones it builds for itself.
+        // Bound here and not where a runner is chosen, because they are the same parts whichever
+        // runner that is, and a compiled injector answers only for what was bound.
+        $this->bind(ClaudeCliEventParser::class);
+        $this->bind(ClaudeCliCommand::class);
+        $this->bind(TurnLocks::class);
         // Singleton because the runner is the pool: a second one would hold its own children and
         // neither would honour the other's limit.
         $this->bind(AgentRunner::class)->to(PersistentCliRunner::class)->in(Scope::SINGLETON);
