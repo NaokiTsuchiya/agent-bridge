@@ -23,7 +23,7 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           extensions: swoole
-          coverage: none
+          coverage: pcov
 
       - name: Cache Composer downloads
         uses: actions/cache@v4
@@ -68,6 +68,25 @@ jobs:
         run: composer test:integration
         env:
           AGENT_BRIDGE_CLAUDE_BIN: ${{ github.workspace }}/fake-claude/bin/claude
+
+      # Every suite in one run, so the report covers what the three steps above cover between them.
+      # Confined to one matrix leg: the legs run the same tests, and a second upload of the same
+      # numbers would have Codecov count them twice.
+      - name: Coverage for both groups
+        if: matrix.php == '8.5'
+        run: composer test:coverage
+        env:
+          AGENT_BRIDGE_CLAUDE_BIN: ${{ github.workspace }}/fake-claude/bin/claude
+
+      # No token: the repository is public, so the action uploads tokenless. Failure to upload is
+      # left non-fatal (the action's default) because a rate-limited tokenless upload must not turn
+      # a green suite red; the paths this step depends on are pinned by CoverageReportingTest.
+      - name: Upload coverage to Codecov
+        if: matrix.php == '8.5'
+        uses: codecov/codecov-action@v7
+        with:
+          files: var/coverage/clover.xml
+          disable_search: true
 
       - run: composer lint
 

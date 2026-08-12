@@ -28,5 +28,14 @@
         <include>
             <directory>src</directory>
         </include>
+        <!-- The Swoole transport layer talks to a real socket, so nothing the suite can start
+             reaches it. Excluded on this side rather than through codecov.yml's `ignore:` so that
+             a local coverage text report and Codecov divide by the same denominator. -->
+        <exclude>
+            <file>src/Slack/SwooleHttpClientFactory.php</file>
+            <file>src/Slack/SwooleSlackApiClient.php</file>
+            <file>src/Slack/SwooleSocketModeConnection.php</file>
+            <file>src/Slack/SwooleSocketModeConnector.php</file>
+        </exclude>
     </source>
 </phpunit>
