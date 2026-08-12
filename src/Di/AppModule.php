@@ -8,6 +8,9 @@ use BEAR\Resource\Module\ResourceModule;
 use BEAR\Resource\Module\ResourceObjectModule;
 use BEAR\Resource\ResourceObject;
 use NaokiTsuchiya\AgentBridge\AgentBridge;
+use NaokiTsuchiya\AgentBridge\Chat\ChatEgress;
+use NaokiTsuchiya\AgentBridge\Cli\Conversation;
+use NaokiTsuchiya\AgentBridge\Cli\StandardStreamsProvider;
 use NaokiTsuchiya\AgentBridge\Git\Git;
 use NaokiTsuchiya\AgentBridge\Git\GitInterface;
 use NaokiTsuchiya\AgentBridge\Resource\App\Health;
@@ -64,6 +67,13 @@ final class AppModule extends AbstractModule
             'baseRepository' => self::BASE_REPOSITORY,
         ]);
         $this->bind(WorkingDirectoryResolver::class)->to(WorktreeWorkingDirectory::class);
+        // Asked for while a turn is being answered, so an application that left it out fails in
+        // the middle of somebody's message rather than at boot. The command line front end is the
+        // one every context has; #14 is where a second one has to be chosen rather than assumed.
+        // Singleton because what it hands over is the process's own streams.
+        $this->bind(ChatEgress::class)->toProvider(StandardStreamsProvider::class)->in(Scope::SINGLETON);
+        // What a front end resolves, in place of the parts it would otherwise put together itself.
+        $this->bind(Conversation::class);
         // Bound although no constructor in this module names it: the pipeline receives it through
         // Be, which asks the injector for it while a message is being resolved, and a compiled
         // injector answers only for what was bound when it was compiled.

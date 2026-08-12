@@ -53,6 +53,31 @@ final readonly class FakeCliRecords
         return array_slice($argv, offset: 1);
     }
 
+    /**
+     * Everything one process wrote down about itself, in order.
+     *
+     * Written for the question "is anything of the thread before it in here": the recordings of
+     * several processes share one file, and a claim about the second one has to be made against
+     * the second one's lines alone.
+     *
+     * @param int $pid whose lines to keep, as {@see self::starts()} reports it
+     *
+     * @return list<array<array-key, mixed>>
+     */
+    public function entriesOf(int $pid): array
+    {
+        $mine = [];
+        foreach ($this->entries('invocations.jsonl', null) as $entry) {
+            if (Json::integer($entry, 'pid') !== $pid) {
+                continue;
+            }
+
+            $mine[] = $entry;
+        }
+
+        return $mine;
+    }
+
     /** @return list<int> the pids that were handed a line of input, without repeats */
     public function inputPids(): array
     {
