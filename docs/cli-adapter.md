@@ -108,4 +108,4 @@ unit 群はフェイク CLI を `PATH` に `claude` として置いて回る (`t
 
 - 同プロセスでチェーンを回すものは runner をそのまま受け取る
 - 起動済みプロセスやコンパイル済み injector を使うものは **app dir を差し替える**。実行時の束縛はコンパイル済みスクリプトだけで決まるので、`tests/Di/spawn-bootstrap.php` を `vendor/bin/ray-di-compile` に渡して別の app dir を作り、`AGENT_BRIDGE_APP_DIR` をそちらへ向ければ、`bin/agent-bridge-cli` も `src/Cli/` も変更せずに実行層が入れ替わる (`tests/Di/CompiledServe::spawnMeta()`)
-- 差し替えの中身は束縛 1 行 (`tests/Di/SpawnRunnerModule.php`)。それを固定しているのが `tests/Runner/RunnerSubstitutionTest.php`
+- 差し替えの中身は 1 モジュール (`tests/Di/SpawnRunnerModule.php`) で、実行層を名指す束縛 1 つと、型で頼めない値 (ターンの許容時間) の名前付き束縛 1 つだけ。runner が組み立てられる部品は `Di\AppModule` にあるものをそのまま使う。それを固定しているのが `tests/Runner/RunnerSubstitutionTest.php`

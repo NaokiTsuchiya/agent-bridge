@@ -46,42 +46,30 @@ final class SpawnCliRunner implements AgentRunner
     /** How long a child that would not end on its own is given after it is asked to. */
     private const float TERMINATION_GRACE = 2.0;
 
-    /** How the binary is asked to answer one prompt. */
-    private ClaudeCliCommand $command;
-
-    /** One mutex per thread, held for as long as that thread's turn lasts. */
-    private TurnLocks $locks;
-
-    /** How long a turn may go without reaching its completion event. */
-    private float $turnSeconds;
-
     /**
      * @param WorkingDirectoryResolver $directories where each thread's process is started
-     * @param ClaudeCliSettings        $settings    which binary to run, and with which permissions.
-     *                                              Its close grace is not read here: a child of this
-     *                                              runner has had its input closed since before the
-     *                                              turn began, so there is no polite shutdown left
-     *                                              to wait for
+     * @param ClaudeCliCommand         $command     how the binary is asked to answer one prompt
      * @param ClaudeCliEventParser     $parser      turns the binary's output into events
-     * @param LifecycleSettings        $limits      only {@see LifecycleSettings::$turnSeconds}
-     *                                              applies; the idle timeout and the process limit
-     *                                              are about processes that are kept, and none are
+     * @param TurnLocks                $locks       one mutex per thread, held for as long as that
+     *                                              thread's turn lasts
+     * @param float                    $turnSeconds how long a turn may go without reaching its
+     *                                              completion event. The value itself rather than
+     *                                              the settings it is written in: the rest of
+     *                                              {@see LifecycleSettings} is about processes that
+     *                                              are kept between turns, and this runner keeps none
      */
     public function __construct(
         private WorkingDirectoryResolver $directories,
-        ClaudeCliSettings $settings,
+        private ClaudeCliCommand $command,
         private ClaudeCliEventParser $parser,
-        LifecycleSettings $limits,
+        private TurnLocks $locks,
+        private float $turnSeconds,
     ) {
         // The same two hooks {@see PersistentCliRunner} turns on, and for the same reasons: without
         // SWOOLE_HOOK_PROC the pipes block the event loop instead of the one coroutine reading
         // them, and without SWOOLE_HOOK_STREAM_FUNCTION the `stream_select` every turn waits in
         // freezes every other thread.
         Runtime::setHookFlags(Runtime::getHookFlags() | SWOOLE_HOOK_PROC | SWOOLE_HOOK_STREAM_FUNCTION);
-
-        $this->command = new ClaudeCliCommand($settings);
-        $this->locks = new TurnLocks();
-        $this->turnSeconds = $limits->turnSeconds;
     }
 
     /**

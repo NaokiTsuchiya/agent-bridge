@@ -8,9 +8,11 @@ use InvalidArgumentException;
 use NaokiTsuchiya\AgentBridge\Event\ClaudeCliEventParser;
 use NaokiTsuchiya\AgentBridge\Event\TextDelta;
 use NaokiTsuchiya\AgentBridge\Event\TurnCompleted;
+use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliCommand;
 use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliSettings;
 use NaokiTsuchiya\AgentBridge\Runner\LifecycleSettings;
 use NaokiTsuchiya\AgentBridge\Runner\SpawnCliRunner;
+use NaokiTsuchiya\AgentBridge\Runner\TurnLocks;
 use NaokiTsuchiya\AgentBridge\Tests\Runner\FixedWorkingDirectory;
 use NaokiTsuchiya\AgentBridge\Tests\Support\ClaudeBinary;
 use NaokiTsuchiya\AgentBridge\Tests\Support\Coro;
@@ -71,9 +73,10 @@ final class SpawnCliRunnerSmokeTest extends TestCase
     {
         $runner = new SpawnCliRunner(
             new FixedWorkingDirectory($this->cwd),
-            new ClaudeCliSettings(binary: ClaudeBinary::fromEnvironment()),
+            new ClaudeCliCommand(new ClaudeCliSettings(binary: ClaudeBinary::fromEnvironment())),
             new ClaudeCliEventParser(),
-            new LifecycleSettings(),
+            new TurnLocks(),
+            new LifecycleSettings()->turnSeconds,
         );
         $thread = new ThreadId('smoke:' . uniqid());
 

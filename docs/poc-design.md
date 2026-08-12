@@ -358,7 +358,7 @@ claude --print
 - 出力なしで失敗した `--resume` は 1 度だけ `--session-id` で起動し直す
 - セッションが実在していた場合、その再試行は `Session ID ... is already in use` で失敗し、**エラーとして呼び出し元に届く**。誤った答えが返ることはなく、もともと失敗していたターンでのみ起こる
 
-**差し替え点は `AgentRunner` の束縛 1 か所だけ**である。`Di\AppModule` の既定は `PersistentCliRunner` のままで、テスト側は同じ文脈名を別モジュールでコンパイルした app dir を用意して差し替える (`tests/Di/spawn-bootstrap.php`、docs/cli-adapter.md「実行層を差し替えて同じケースを流す」)。フロントエンド (`src/Cli/`)、ポート、`AgentRunner` の宣言はいずれも無変更である。
+**差し替え点は `AgentRunner` を名指すモジュール 1 つだけ**である (そこに書くのは実行層の束縛と、型で頼めない値 = ターンの許容時間の名前付き束縛のみ。runner の部品 — コマンド組み立て・パーサ・ターンの mutex — は `Di\AppModule` が束縛しているものを使う)。`Di\AppModule` の既定は `PersistentCliRunner` のままで、テスト側は同じ文脈名を別モジュールでコンパイルした app dir を用意して差し替える (`tests/Di/spawn-bootstrap.php`、docs/cli-adapter.md「実行層を差し替えて同じケースを流す」)。フロントエンド (`src/Cli/`)、ポート、`AgentRunner` の宣言はいずれも無変更である。
 
 ### 4.5 Slack 出力層
 

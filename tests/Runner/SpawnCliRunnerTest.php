@@ -10,9 +10,10 @@ use NaokiTsuchiya\AgentBridge\Event\AgentError;
 use NaokiTsuchiya\AgentBridge\Event\ClaudeCliEventParser;
 use NaokiTsuchiya\AgentBridge\Event\TextDelta;
 use NaokiTsuchiya\AgentBridge\Event\TurnCompleted;
+use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliCommand;
 use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliSettings;
-use NaokiTsuchiya\AgentBridge\Runner\LifecycleSettings;
 use NaokiTsuchiya\AgentBridge\Runner\SpawnCliRunner;
+use NaokiTsuchiya\AgentBridge\Runner\TurnLocks;
 use NaokiTsuchiya\AgentBridge\Tests\Fake\Claude\FakeHome;
 use NaokiTsuchiya\AgentBridge\Tests\Fake\Claude\SessionStore;
 use NaokiTsuchiya\AgentBridge\Tests\Support\ClaudeBinary;
@@ -560,12 +561,13 @@ final class SpawnCliRunnerTest extends TestCase
     ): SpawnCliRunner {
         return new SpawnCliRunner(
             $directories ?? new FixedWorkingDirectory($this->cwd),
-            new ClaudeCliSettings(
+            new ClaudeCliCommand(new ClaudeCliSettings(
                 binary: $binary ?? ClaudeBinary::fake(),
                 allowedTools: $tools ?? ClaudeCliSettings::READ_ONLY_TOOLS,
-            ),
+            )),
             new ClaudeCliEventParser(),
-            new LifecycleSettings(turnSeconds: $turnSeconds),
+            new TurnLocks(),
+            $turnSeconds,
         );
     }
 
