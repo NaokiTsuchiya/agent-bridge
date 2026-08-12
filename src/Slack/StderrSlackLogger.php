@@ -13,12 +13,12 @@ use function error_log;
  *
  * @api
  */
-final class StderrSocketModeLogger implements SocketModeLoggerInterface
+final class StderrSlackLogger implements SlackLoggerInterface
 {
     /** `error_log` rather than a write to `php://stderr`, so that a configured `error_log` wins. */
     #[Override]
     public function log(string $message): void
     {
-        error_log("[socket-mode] {$message}");
+        error_log("[slack] {$message}");
     }
 }

@@ -1,0 +1,23 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * The Slack front end: `agent-bridge-slack`, connected until it is stopped.
+ *
+ * See docs/slack-adapter.md. The context mapping comes from bootstrap.php — the same one the
+ * compile CLI is given, so that this process resolves from what that compile wrote.
+ */
+
+use NaokiTsuchiya\AgentBridge\Slack\SlackCommand;
+use NaokiTsuchiya\RayDiContext\ContextProviderInterface;
+
+$root = dirname(__DIR__);
+
+require $root . '/vendor/autoload.php';
+
+$contexts = require $root . '/bootstrap.php';
+assert($contexts instanceof ContextProviderInterface, 'bootstrap.php must return a context provider.');
+
+exit(new SlackCommand($contexts, $root, STDERR)->run($argv));

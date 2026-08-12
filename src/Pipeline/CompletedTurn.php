@@ -38,6 +38,19 @@ final readonly class CompletedTurn
      */
     private const string TOOL_NOTICE = "\n> %s\n";
 
+    /**
+     * What a finished tool call is announced as, wrapped in the same quoting as its start.
+     *
+     * It names the call's identifier rather than the tool, because {@see ToolCompleted} carries no
+     * name: pairing it back to the {@see ToolStarted} that began it would mean keeping a table of
+     * the calls in flight, and a turn that ended in the middle of one would leave entries in it for
+     * as long as the process ran.
+     */
+    private const string TOOL_DONE = '%s done';
+
+    /** The same, for a call that did not go well. */
+    private const string TOOL_FAILED = '%s failed';
+
     /** Everything the agent said, without the tool announcements. */
     public string $reply;
 
@@ -74,8 +87,11 @@ final readonly class CompletedTurn
             foreach ($runner->send($thread, $text) as $event) {
                 match ($event::class) {
                     TextDelta::class => $reply .= self::say($stream, $event->text),
-                    ToolStarted::class => $stream->append(sprintf(self::TOOL_NOTICE, $event->name)),
-                    ToolCompleted::class => null,
+                    ToolStarted::class => $stream->append(self::announce($event->name)),
+                    ToolCompleted::class => $stream->append(self::announce(sprintf(
+                        $event->success ? self::TOOL_DONE : self::TOOL_FAILED,
+                        $event->id,
+                    ))),
                     TurnCompleted::class => $success = $event->success,
                     AgentError::class => $error = self::say($stream, $event->message),
                     // Not a fallback: the five arms above are every implementation there is, and a
@@ -92,6 +108,12 @@ final readonly class CompletedTurn
         $this->reply = $reply;
         $this->success = $success;
         $this->error = $error;
+    }
+
+    /** @return string what a tool call's announcement looks like on the reply stream */
+    private static function announce(string $what): string
+    {
+        return sprintf(self::TOOL_NOTICE, $what);
     }
 
     /** @return string the same text, so that a caller can both send and keep it in one expression */

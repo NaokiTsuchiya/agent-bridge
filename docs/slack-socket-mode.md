@@ -50,14 +50,14 @@ export SLACK_APP_TOKEN='xapp-…'
 require __DIR__ . '/path/to/agent-bridge/vendor/autoload.php';
 
 use NaokiTsuchiya\AgentBridge\Slack\{Backoff, EnvelopeLog, CoroutineSleeper, FrameRouter,
-    MtRandomSource, ReconnectDelay, SlackAppTokenFactory, SocketModeClient, StderrSocketModeLogger,
+    MtRandomSource, ReconnectDelay, SlackAppTokenFactory, SocketModeClient, StderrSlackLogger,
     SwooleHttpClientFactory, SwooleSocketModeConnector};
 use Swoole\Coroutine\Channel;
 
 use function Swoole\Coroutine\run;
 
 run(static function (): void {
-    $logger = new StderrSocketModeLogger();
+    $logger = new StderrSlackLogger();
     $envelopes = new Channel(16);
 
     // 後段はまだ無い (#14) ので、押し込まれた payload をこのコルーチンで捨てながら読む。
@@ -82,7 +82,7 @@ php /tmp/socket-mode-smoke.php
 
 確認すること:
 
-- 数秒以内に `[socket-mode] connected` が出る (Slack の `hello` フレームを受けた証拠)。
+- 数秒以内に `[slack] connected` が出る (Slack の `hello` フレームを受けた証拠)。
 - **トークンが出力に現れない。**
 - `SLACK_APP_TOKEN` を空にして起動すると、接続を試みる前に `SLACK_APP_TOKEN is not set…` で落ちる。
 - 別種のトークン (`xoxb-…`) を入れて起動すると、`xapp-` を要求するメッセージで落ちる。

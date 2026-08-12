@@ -31,7 +31,7 @@ final class FrameRouter
     public function __construct(
         private Channel $envelopes,
         private EnvelopeLog $seen,
-        private SocketModeLoggerInterface $logger,
+        private SlackLoggerInterface $logger,
         private float $handoffTimeout = 0.001,
     ) {}
 

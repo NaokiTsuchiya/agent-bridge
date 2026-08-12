@@ -54,11 +54,12 @@ ls .worktrees/          # cli-my-experiment
 |---|---|---|
 | 応答本文 | 標準出力 | 差分が届いたそばから書かれる。ターンの終わりに改行 1 つ |
 | ツール開始 | 標準出力 | `> Grep` (パイプラインが `CompletedTurn::TOOL_NOTICE` で付ける引用行) |
+| ツール完了 | 標準出力 | `> toolu_1 done` / `> toolu_1 failed` (同じ引用行) |
 | 状態表示 | 標準エラー | `# Working on it.` (受付直後に 1 回) |
 
 応答と状態を分けてあるのは、**標準出力をそのままパイプできるようにするため**。`cmd > answer.txt` に状態表示が混ざらない。
 
-ツール完了は何も出さない。`CompletedTurn` が意図的に黙っており (`ToolCompleted` の生産者もまだ無い)、`tests/Pipeline/BecomingChainTest.php` がその沈黙を固定している。
+ツール完了行が**ツール名ではなく呼び出し id を名乗る**のは、`ToolCompleted` が `id` と `success` しか持たないため。開始と対応付けるにはパイプラインが実行中の呼び出し表を持つことになり、ターンが呼び出しの途中で終わるとその表が残る。`tests/Pipeline/BecomingChainTest.php` がこの形を固定している (`ToolCompleted` の生産者はまだ無いので、スタブの実行層から流している)。
 
 ## 5. exit code
 
