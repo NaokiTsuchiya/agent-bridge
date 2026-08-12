@@ -51,6 +51,38 @@ final readonly class ClaudeCliCommand
         ];
     }
 
+    /**
+     * The same protocol for a run that answers one prompt and then ends.
+     *
+     * `--input-format` is absent, and that absence is the whole difference: the binary reads turns
+     * from stdin only when it is told to, so here the prompt travels as the trailing positional
+     * argument and stdin is left to reach its end. A prompt that begins with `-` is not safe on
+     * this path and no `--` separator is passed: the only measured evidence of what the binary
+     * accepts for a one-shot run is a trailing positional, which is how the contract tests invoke
+     * it, and a separator would be a guess against the real CLI.
+     *
+     * @param HistoryStart $start how this run should relate to the thread's history
+     *
+     * @return list<string> the binary and its arguments, to be run without a shell
+     */
+    public function oneShot(ThreadId $thread, HistoryStart $start, string $prompt): array
+    {
+        return [
+            $this->settings->binary,
+            '--print',
+            '--output-format',
+            'stream-json',
+            '--verbose',
+            // Without this the reply arrives in one piece at the end of the turn.
+            '--include-partial-messages',
+            '--allowedTools',
+            implode(',', $this->settings->allowedTools),
+            $start->value,
+            ThreadDerivation::sessionId($thread),
+            $prompt,
+        ];
+    }
+
     /** @return string one line of `stream-json` input, newline included */
     public static function prompt(string $prompt): string
     {

@@ -93,11 +93,19 @@ bin/agent-bridge-cli
 
 | どこ | 何を見ているか |
 |---|---|
-| `tests/Cli/CliRoundTripTest.php` | `bin/agent-bridge-cli` を**実プロセスとして**起動する端から端まで (往復・worktree・プロセスを跨いだ文脈継続・並行・exit code) |
+| `tests/Cli/CliRoundTripTestCase.php` | `bin/agent-bridge-cli` を**実プロセスとして**起動する端から端まで (往復・worktree・プロセスを跨いだ文脈継続・並行・exit code) |
 | `tests/Cli/ConversationTest.php` | 会話が答えをどう扱うか (失敗ターン・止まったとき・最後に必ずスレッドを手放すこと) |
-| `tests/Cli/CliChainOutputTest.php` | 状態表示と応答の順序、差分が複数回の書き込みで届くこと (`RecordingStream`) |
-| `tests/Cli/WarmupIsolationTest.php` | 同一 injector・同一ハンドラで 2 スレッドを順に処理し、2 つ目の記録に 1 つ目の値が無いこと |
-| `tests/Cli/ProductionWiringTest.php` | コンパイル済み injector が何に繋がっているか (front end / worktree manager) |
+| `tests/Cli/CliChainOutputTestCase.php` | 状態表示と応答の順序、差分が複数回の書き込みで届くこと (`RecordingStream`) |
+| `tests/Cli/WarmupIsolationTestCase.php` | 同一 injector・同一ハンドラで 2 スレッドを順に処理し、2 つ目の記録に 1 つ目の値が無いこと |
+| `tests/Cli/ProductionWiringTest.php` | コンパイル済み injector が何に繋がっているか (front end / worktree manager)。**既定の実行層が `PersistentCliRunner` のままであることもここが見張る** |
 | `tests/Integration/CliSmokeTest.php` | 実 `claude` に対する 1 往復 |
 
 unit 群はフェイク CLI を `PATH` に `claude` として置いて回る (`tests/Support/ExecutablePath.php`)。ログイン済み Claude Code は要らない。
+
+### 実行層を差し替えて同じケースを流す
+
+上の 3 つの `*TestCase` は抽象クラスで、実行層を選ぶ 1 メソッドだけを具象クラスが答える。ケース本体は 1 つしか無く、`PersistentCliRunner` 版 (`CliRoundTripTest` / `CliChainOutputTest` / `WarmupIsolationTest`) と `SpawnCliRunner` 版 (`SpawnCliRoundTripTest` / `SpawnCliChainOutputTest` / `SpawnWarmupIsolationTest`) が同じ期待を共有する。
+
+- 同プロセスでチェーンを回すものは runner をそのまま受け取る
+- 起動済みプロセスやコンパイル済み injector を使うものは **app dir を差し替える**。実行時の束縛はコンパイル済みスクリプトだけで決まるので、`tests/Di/spawn-bootstrap.php` を `vendor/bin/ray-di-compile` に渡して別の app dir を作り、`AGENT_BRIDGE_APP_DIR` をそちらへ向ければ、`bin/agent-bridge-cli` も `src/Cli/` も変更せずに実行層が入れ替わる (`tests/Di/CompiledServe::spawnMeta()`)
+- 差し替えの中身は束縛 1 行 (`tests/Di/SpawnRunnerModule.php`)。それを固定しているのが `tests/Runner/RunnerSubstitutionTest.php`

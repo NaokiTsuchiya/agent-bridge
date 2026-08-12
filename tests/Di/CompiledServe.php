@@ -28,8 +28,14 @@ use function uniqid;
  */
 final class CompiledServe
 {
-    /** The meta of the compile this process has already run, if it has. */
-    private static ?AppMeta $meta = null;
+    /** The bootstrap of the application as it ships. */
+    private const string PRODUCTION_BOOTSTRAP = 'bootstrap.php';
+
+    /** The bootstrap that maps the same context name onto the swapped execution layer. */
+    private const string SPAWN_BOOTSTRAP = 'tests/Di/spawn-bootstrap.php';
+
+    /** @var array<string, AppMeta> the compiles this process has already run, by bootstrap */
+    private static array $metas = [];
 
     /**
      * Compiles into a throwaway app dir, once per test process.
@@ -40,36 +46,39 @@ final class CompiledServe
      */
     public static function meta(): AppMeta
     {
-        if (self::$meta !== null) {
-            return self::$meta;
-        }
-
-        $appDir = sys_get_temp_dir() . '/agent-bridge-compiled-serve-' . uniqid();
-        Assert::assertTrue(mkdir($appDir, permissions: 0o777, recursive: true), message: "Could not create {$appDir}.");
-
-        [$exitCode, $output] = self::compile($appDir);
-        Assert::assertSame(0, $exitCode, message: "Compiling the serve context failed: {$output}");
-
-        $meta = AppMeta::fromAppDir($appDir, ServeContext::NAME);
-        Assert::assertTrue(is_dir($meta->compileDir), message: "No compile dir at {$meta->compileDir}.");
-
-        self::$meta = $meta;
-
-        return $meta;
+        return self::compiled(self::PRODUCTION_BOOTSTRAP);
     }
 
     /**
-     * Runs the compile CLI against this repository's bootstrap.
+     * The same, for the wiring whose execution layer is {@see SpawnServeContext}'s.
+     *
+     * A second app dir rather than a second context name: a process resolves from the compiled
+     * scripts alone, so an app dir is the whole of what it takes to run this application on the
+     * other execution layer.
+     *
+     * @return AppMeta the meta of the swapped compile
+     *
+     * @throws InvalidAppMeta
+     */
+    public static function spawnMeta(): AppMeta
+    {
+        return self::compiled(self::SPAWN_BOOTSTRAP);
+    }
+
+    /**
+     * Runs the compile CLI against one of this repository's bootstraps.
+     *
+     * @param string $bootstrap which bootstrap to compile, relative to the project directory
      *
      * @return array{int, string} exit code and the combined output
      */
-    public static function compile(string $appDir): array
+    public static function compile(string $appDir, string $bootstrap = self::PRODUCTION_BOOTSTRAP): array
     {
         $projectDir = dirname(__DIR__, levels: 2);
         $command = implode(' ', [
             'php',
             escapeshellarg("{$projectDir}/vendor/bin/ray-di-compile"),
-            escapeshellarg("{$projectDir}/bootstrap.php"),
+            escapeshellarg("{$projectDir}/{$bootstrap}"),
             escapeshellarg($appDir),
             escapeshellarg(ServeContext::NAME),
         ]);
@@ -79,5 +88,33 @@ final class CompiledServe
         exec("{$command} 2>&1", $output, $exitCode);
 
         return [$exitCode, implode("\n", $output)];
+    }
+
+    /**
+     * @param string $bootstrap which bootstrap to compile, relative to the project directory
+     *
+     * @return AppMeta the meta of that bootstrap's compile, run at most once per test process
+     *
+     * @throws InvalidAppMeta
+     */
+    private static function compiled(string $bootstrap): AppMeta
+    {
+        $known = self::$metas[$bootstrap] ?? null;
+        if ($known !== null) {
+            return $known;
+        }
+
+        $appDir = sys_get_temp_dir() . '/agent-bridge-compiled-serve-' . uniqid();
+        Assert::assertTrue(mkdir($appDir, permissions: 0o777, recursive: true), message: "Could not create {$appDir}.");
+
+        [$exitCode, $output] = self::compile($appDir, $bootstrap);
+        Assert::assertSame(0, $exitCode, message: "Compiling {$bootstrap} failed: {$output}");
+
+        $meta = AppMeta::fromAppDir($appDir, ServeContext::NAME);
+        Assert::assertTrue(is_dir($meta->compileDir), message: "No compile dir at {$meta->compileDir}.");
+
+        self::$metas[$bootstrap] = $meta;
+
+        return $meta;
     }
 }
