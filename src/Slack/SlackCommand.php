@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace NaokiTsuchiya\AgentBridge\Slack;
 
-use NaokiTsuchiya\AgentBridge\Cli\CliCommand;
 use NaokiTsuchiya\AgentBridge\Di\Boot;
 use NaokiTsuchiya\AgentBridge\Di\BootException;
 use NaokiTsuchiya\AgentBridge\Di\SlackContext;
@@ -15,16 +14,20 @@ use Throwable;
 
 use function count;
 use function fwrite;
-use function getenv;
-use function is_string;
 use function Swoole\Coroutine\run;
 
 /**
  * The Slack front end as a process: connect, and answer until it is stopped.
  *
  * It asks the injector for {@see SlackServer} and nothing else, for the same reason
- * {@see CliCommand} asks only for a conversation: how the front end is put together is the module's
- * business, and a command that resolved the parts itself would be making that decision instead.
+ * {@see \NaokiTsuchiya\AgentBridge\Cli\CliCommand} asks only for a conversation: how the front
+ * end is put together is the module's business, and a command that resolved the parts itself would
+ * be making that decision instead.
+ *
+ * **Where the compiled scripts are is a command line argument, not an environment variable.** The
+ * three tokens are secrets and belong in the environment; a path is neither secret nor constant
+ * across the deployments one machine may run, and naming it where the process is started is what
+ * keeps two of them from having to share one variable.
  *
  * @api
  */
@@ -41,18 +44,21 @@ final class SlackCommand
 
     /** What a caller who got the command line wrong is told, newline included. */
     private const string USAGE = <<<'TEXT'
-        usage: agent-bridge-slack
+        usage: agent-bridge-slack [APP_DIR]
 
-        Takes no arguments. Reads SLACK_APP_TOKEN, SLACK_BOT_TOKEN and SLACK_BOT_USER_ID
-        from the environment; see docs/slack-adapter.md.
+        APP_DIR is where the compiled DI scripts are read from, and defaults to the
+        directory this program was installed under.
+
+        SLACK_APP_TOKEN, SLACK_BOT_TOKEN and SLACK_BOT_USER_ID come from the
+        environment, because they are secrets; see docs/slack-adapter.md.
 
         TEXT;
 
     /**
      * @param ContextProviderInterface $contexts    the context-name-to-context mapping, as
      *                                              bootstrap.php returns it
-     * @param string                   $projectRoot where the compiled scripts are looked for
-     *                                              unless the environment names another directory
+     * @param string                   $projectRoot where the compiled scripts are looked for when
+     *                                              the command line does not name a directory
      * @param resource                 $errors      where a refusal is explained
      */
     public function __construct(
@@ -68,13 +74,16 @@ final class SlackCommand
      */
     public function run(array $argv): int
     {
-        if (count($argv) !== 1) {
+        // One optional argument and no more: a second one is somebody expecting this to take
+        // something it does not, and guessing which of the two they meant would be worse.
+        if (count($argv) > 2) {
             $this->complain(self::USAGE);
 
             return self::BAD_INVOCATION;
         }
 
-        $server = $this->server();
+        $named = $argv[1] ?? '';
+        $server = $this->server($named === '' ? $this->projectRoot : $named);
 
         if ($server === null) {
             return self::CANNOT_START;
@@ -94,11 +103,13 @@ final class SlackCommand
      *
      * The tokens are read while this is built, so a workspace that was never configured is refused
      * here rather than in the middle of somebody's message.
+     *
+     * @param string $appDir the directory the compiled scripts are read from
      */
-    private function server(): ?SlackServer
+    private function server(string $appDir): ?SlackServer
     {
         try {
-            $injector = (new Boot(AppMeta::fromAppDir($this->appDir(), SlackContext::NAME), $this->contexts))();
+            $injector = (new Boot(AppMeta::fromAppDir($appDir, SlackContext::NAME), $this->contexts))();
 
             return $injector->getInstance(SlackServer::class);
         } catch (BootException|ExceptionInterface|SlackException|SocketModeException $failure) {
@@ -106,14 +117,6 @@ final class SlackCommand
 
             return null;
         }
-    }
-
-    /** @return string the directory the compiled scripts are read from */
-    private function appDir(): string
-    {
-        $configured = getenv(CliCommand::APP_DIR);
-
-        return is_string($configured) && $configured !== '' ? $configured : $this->projectRoot;
     }
 
     /** Says why nothing more will happen. */

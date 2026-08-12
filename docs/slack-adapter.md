@@ -85,7 +85,17 @@ bin/agent-bridge-slack
 
 `ThreadChannels` は「そのスレッドがどの channel のものか」をプロセス内に覚えているだけの写像で、永続化しない。ThreadId には channel を入れない (ポートの宣言に Slack 固有の語彙を出さないという #10 の制約) ためで、再起動後は次のメッセージが来た時点で埋め直される。session_id と worktree は導出なので、この写像が空でも文脈は切れない。
 
-### 環境変数
+### 引数と環境変数
+
+```
+usage: agent-bridge-slack [APP_DIR]
+```
+
+| | 意味 |
+|---|---|
+| `APP_DIR` (引数、省略可) | コンパイル済み DI スクリプトを読むディレクトリ。既定は `bin/` の親 |
+
+**パスは引数で、秘密は環境変数で渡す。** 引数が 2 つ以上あれば usage を書いて exit 2。
 
 | 変数 | 必須 | 意味 |
 |---|---|---|
@@ -93,9 +103,8 @@ bin/agent-bridge-slack
 | `SLACK_BOT_TOKEN` | ○ | `xoxb-` で始まる bot token。Web API 呼び出しに使う |
 | `SLACK_BOT_USER_ID` | ○ | 自 app の bot user ID (`U…`)。**自分の投稿を無視するために要る** |
 | `AGENT_BRIDGE_REPOSITORY` | | worktree を切り出す元のリポジトリ (既定: カレントディレクトリ) |
-| `AGENT_BRIDGE_APP_DIR` | | コンパイル済みスクリプトを探すディレクトリ (既定: `bin/` の親) |
 
-3 つとも起動時に読む。欠けていれば**接続する前に**理由を書いて exit 3 で落ちる。
+3 つのトークンは起動時に読む。欠けていれば**接続する前に**理由を書いて exit 3 で落ちる。
 
 ---
 
@@ -135,13 +144,15 @@ export SLACK_BOT_TOKEN='xoxb-…'
 export SLACK_BOT_USER_ID='U…'
 export AGENT_BRIDGE_REPOSITORY="$PWD"  # worktree を切る元
 
-php bin/agent-bridge-slack
+php bin/agent-bridge-slack                 # APP_DIR 省略 = リポジトリ直下
+# php bin/agent-bridge-slack /srv/agent-bridge   # 別の場所に compile してある場合
 ```
 
 確認すること:
 
 - 数秒以内に `[slack] connected` が出る。
 - 3 つの環境変数のどれかを消して起動すると、**接続を試みる前に**その変数名を含むメッセージで落ちる。
+- コンパイル済みスクリプトの無いディレクトリを `APP_DIR` に渡すと、そのパスを含むメッセージで exit 3 になる。
 - ログにトークンが出ない。
 
 以降の章は、このプロセスを動かしたまま行う。
