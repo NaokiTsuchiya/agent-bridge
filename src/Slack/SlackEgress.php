@@ -36,17 +36,25 @@ final class SlackEgress implements ChatEgress
         private SlackApiClient $api,
         private ThreadChannels $channels,
         private SlackLoggerInterface $logger,
+        private StreamingSettings $settings,
+        private ClockInterface $clock,
     ) {}
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     *
+     * The reply is streamed, and the one-message reply of `chat.postMessage` is handed to it rather
+     * than left behind: a workspace that will not open a stream still has to get its answer.
+     */
     #[Override]
     public function open(ThreadId $thread): StreamHandle
     {
-        return new SlackReply(
-            $this->api,
-            $this->channels->channelFor($thread->nativeId),
-            $thread->nativeId,
-            $this->logger,
+        $channel = $this->channels->channelFor($thread->nativeId);
+
+        return new SlackStreamingReply(
+            new SlackStream($this->api, $channel, $thread->nativeId, $this->logger, $this->settings),
+            new Throttle($this->clock, $this->settings->throttleMilliseconds),
+            new SlackReply($this->api, $channel, $thread->nativeId, $this->logger),
         );
     }
 

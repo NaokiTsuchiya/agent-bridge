@@ -8,10 +8,13 @@ use Be\Framework\Module\BeModule;
 use NaokiTsuchiya\AgentBridge\AgentBridge;
 use NaokiTsuchiya\AgentBridge\Chat\ChatEgress;
 use NaokiTsuchiya\AgentBridge\Di\SlackContext;
+use NaokiTsuchiya\AgentBridge\Slack\ClockInterface;
 use NaokiTsuchiya\AgentBridge\Slack\SlackCommand;
 use NaokiTsuchiya\AgentBridge\Slack\SlackEgress;
 use NaokiTsuchiya\AgentBridge\Slack\SlackIngress;
 use NaokiTsuchiya\AgentBridge\Slack\SlackServer;
+use NaokiTsuchiya\AgentBridge\Slack\StreamingSettings;
+use NaokiTsuchiya\AgentBridge\Slack\SystemClock;
 use NaokiTsuchiya\AgentBridge\Slack\ThreadChannels;
 use NaokiTsuchiya\AgentBridge\Tests\Support\Coro;
 use Override;
@@ -112,6 +115,29 @@ final class SlackWiringTest extends TestCase
         });
 
         self::assertSame('C0CHANNEL', $channels->channelFor('1700000001.123456'));
+    }
+
+    /**
+     * The pace of a streamed reply comes from the injector, not from the front end.
+     *
+     * A value written into the reply itself could not be moved by a deployment that found it wrong
+     * for its workspace, and the tier `chat.appendStream` is rated at is why the default cannot go
+     * below 600ms: that is 100 calls a minute, which is what the method allows.
+     */
+    #[Test]
+    public function takesThePaceOfAReplyFromTheSettings(): void
+    {
+        $settings = self::injector()->getInstance(StreamingSettings::class);
+
+        self::assertInstanceOf(StreamingSettings::class, $settings);
+        self::assertGreaterThanOrEqual(600, $settings->throttleMilliseconds);
+    }
+
+    /** And what that pace is measured against comes from there too. */
+    #[Test]
+    public function tellsTheTimeWithTheMachinesClock(): void
+    {
+        self::assertInstanceOf(SystemClock::class, self::injector()->getInstance(ClockInterface::class));
     }
 
     /** What the process resolves is the server, put together by the module rather than by a command. */

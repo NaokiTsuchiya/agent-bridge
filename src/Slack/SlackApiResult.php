@@ -16,11 +16,18 @@ namespace NaokiTsuchiya\AgentBridge\Slack;
 final readonly class SlackApiResult
 {
     /**
-     * @param bool   $ok    whether Slack carried the call out
-     * @param string $error what it said went wrong, empty when nothing did
+     * @param bool   $ok         whether Slack carried the call out
+     * @param string $error      what it said went wrong, empty when nothing did
+     * @param string $ts         the message the call created, empty when it created none. A stream
+     *                           is appended to and stopped by this value, so it is the one part of
+     *                           a body a caller here has to see
+     * @param float  $retryAfter how long Slack asked to be left alone for, in seconds; 0.0 when it
+     *                           asked for nothing, which is every answer but a rate limited one
      */
     public function __construct(
         public bool $ok,
         public string $error = '',
+        public string $ts = '',
+        public float $retryAfter = 0.0,
     ) {}
 }

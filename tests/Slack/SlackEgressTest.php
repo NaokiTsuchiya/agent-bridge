@@ -20,6 +20,8 @@ use NaokiTsuchiya\AgentBridge\Pipeline\IncomingMessage;
 use NaokiTsuchiya\AgentBridge\Slack\SlackEgress;
 use NaokiTsuchiya\AgentBridge\Slack\SlackMessage;
 use NaokiTsuchiya\AgentBridge\Slack\SlackReply;
+use NaokiTsuchiya\AgentBridge\Slack\SlackStream;
+use NaokiTsuchiya\AgentBridge\Slack\StreamingSettings;
 use NaokiTsuchiya\AgentBridge\Slack\ThreadChannels;
 use NaokiTsuchiya\AgentBridge\Tests\Pipeline\PipelineModule;
 use NaokiTsuchiya\AgentBridge\Tests\Pipeline\StubAgentRunner;
@@ -32,15 +34,20 @@ use PHPUnit\Framework\TestCase;
 use Ray\Di\Injector;
 use Throwable;
 
+use function implode;
 use function str_contains;
 
 /**
  * What a turn looks like by the time it reaches a workspace.
  *
  * Two ways in on purpose. The cases about a whole turn go through the pipeline itself — the status,
- * the buffering and the tool announcements are only worth anything in the order and the shape the
+ * the streaming and the tool announcements are only worth anything in the order and the shape the
  * pipeline produces them in — while the cases about a thread nobody has heard from, or a turn that
  * said nothing, drive the front end directly, because the pipeline has no way to produce them.
+ *
+ * The reply's own behaviour — the throttle, the splitting, what happens when a fragment is refused
+ * — belongs to {@see SlackStreamingReplyTest}. The clock here never moves, which is what a turn
+ * finishing inside the throttle window looks like: everything goes out when the turn ends.
  *
  * @mago-expect lint:too-many-methods
  */
@@ -138,24 +145,6 @@ final class SlackEgressTest extends TestCase
         self::assertSame([], $api->calls);
     }
 
-    /** Fragments are held until the turn is over, and go out as one message. */
-    #[Test]
-    public function holdsTheFragmentsUntilTheTurnIsOver(): void
-    {
-        [$egress, $api] = $this->frontEnd();
-        $reply = $egress->open(self::thread());
-
-        $reply->append('one ');
-        $reply->append('two ');
-        $reply->append('three');
-        self::assertSame([], $api->calls, 'Nothing goes out while the turn is running.');
-
-        $reply->close();
-
-        self::assertSame([SlackReply::POST_MESSAGE], $api->methods());
-        self::assertSame('one two three', $api->argumentsOf(SlackReply::POST_MESSAGE)[0]['text'] ?? '');
-    }
-
     /** A turn that produced no text is not an empty message. */
     #[Test]
     public function postsNothingWhenThereWasNothingToSay(): void
@@ -167,9 +156,9 @@ final class SlackEgressTest extends TestCase
         self::assertSame([], $api->calls);
     }
 
-    /** Closing twice does not post the same answer again. */
+    /** Closing twice does not end the same reply twice. */
     #[Test]
-    public function postsAnAnswerOnce(): void
+    public function endsAnAnswerOnce(): void
     {
         [$egress, $api] = $this->frontEnd();
         $reply = $egress->open(self::thread());
@@ -178,16 +167,16 @@ final class SlackEgressTest extends TestCase
         $reply->close();
         $reply->close();
 
-        self::assertSame([SlackReply::POST_MESSAGE], $api->methods());
+        self::assertSame([SlackStream::START, SlackStream::STOP], $api->methods());
     }
 
     /**
-     * The whole turn, as the pipeline produces it: a status, then one message with the answer in it.
+     * The whole turn, as the pipeline produces it: a status, then the answer as a streamed reply.
      *
      * @throws Throwable
      */
     #[Test]
-    public function answersATurnWithOneThreadedMessage(): void
+    public function streamsATurnIntoAThreadedReply(): void
     {
         $api = $this->answer([
             new TextDelta('the '),
@@ -195,12 +184,33 @@ final class SlackEgressTest extends TestCase
             new TurnCompleted(success: true, sessionId: 'session'),
         ]);
 
-        self::assertSame([self::SET_STATUS, SlackReply::POST_MESSAGE], $api->methods());
+        self::assertSame([self::SET_STATUS, SlackStream::START, SlackStream::STOP], $api->methods());
+        self::assertSame('the answer', implode('', SentCalls::texts($api)));
+    }
+
+    /**
+     * A workspace that will not open a stream still gets the answer, and the turn still completes.
+     *
+     * The turn reaching {@see CompletedTurn} is the assertion in {@see answer()}: a fallback that
+     * threw would end the turn there, and the reader would be left with a status and nothing else.
+     *
+     * @throws Throwable
+     */
+    #[Test]
+    public function answersWithOneMessageWhenTheStreamCannotStart(): void
+    {
+        $api = $this->answer([
+            new TextDelta('the '),
+            new TextDelta('answer'),
+            new TurnCompleted(success: true, sessionId: 'session'),
+        ], unstreamable: 'method_not_supported');
+
+        self::assertSame([self::SET_STATUS, SlackStream::START, SlackReply::POST_MESSAGE], $api->methods());
         self::assertSame('the answer', $api->argumentsOf(SlackReply::POST_MESSAGE)[0]['text'] ?? '');
     }
 
     /**
-     * Every post is a thread reply. An answer in the channel next to the question is the one
+     * Every answer is a thread reply. An answer in the channel next to the question is the one
      * mistake that cannot be taken back.
      *
      * @throws Throwable
@@ -208,24 +218,33 @@ final class SlackEgressTest extends TestCase
     #[Test]
     public function repliesInTheThreadAndNowhereElse(): void
     {
-        $api = $this->answer([
-            new TextDelta('the answer'),
-            new TurnCompleted(success: true, sessionId: 'session'),
-        ], refusal: 'not_allowed_token_type');
+        $api = $this->answer(
+            [
+                new TextDelta('the answer'),
+                new TurnCompleted(success: true, sessionId: 'session'),
+            ],
+            refusal: 'not_allowed_token_type',
+            unstreamable: 'method_not_supported',
+        );
 
-        self::assertNotSame([], $api->argumentsOf(SlackReply::POST_MESSAGE));
+        $addressed = [
+            ...$api->argumentsOf(SlackStream::START),
+            ...$api->argumentsOf(SlackReply::POST_MESSAGE),
+        ];
 
-        foreach ($api->argumentsOf(SlackReply::POST_MESSAGE) as $arguments) {
+        self::assertNotSame([], $addressed);
+
+        foreach ($addressed as $arguments) {
             self::assertArrayHasKey('thread_ts', $arguments);
             self::assertSame(self::NATIVE_ID, $arguments['thread_ts'] ?? null);
         }
     }
 
     /**
-     * A tool call is announced as a quoted line, which Slack renders apart from the answer.
+     * A tool call goes out as a task update, which Slack shows apart from the answer.
      *
-     * Both ends of the call are there, and each is on a line of its own that the reply text never
-     * contains — which is the whole of "told apart from the body".
+     * Both ends of the call are there, and neither is in the reply text — which is the whole of
+     * "told apart from the body".
      *
      * @throws Throwable
      */
@@ -240,13 +259,12 @@ final class SlackEgressTest extends TestCase
             new TurnCompleted(success: true, sessionId: 'session'),
         ]);
 
-        $posted = $api->argumentsOf(SlackReply::POST_MESSAGE)[0]['text'] ?? '';
+        self::assertSame(['Grep', 'toolu_1 done'], SentCalls::taskTitles($api));
 
-        self::assertStringContainsString("\n> Grep\n", $posted);
-        self::assertStringContainsString("\n> toolu_1 done\n", $posted);
-        self::assertStringContainsString('looking', $posted);
-        self::assertStringContainsString('found it', $posted);
-        self::assertFalse(str_contains('looking found it', '>'), 'The answer itself carries no quoting.');
+        $streamed = implode('', SentCalls::texts($api));
+        self::assertTrue(str_contains($streamed, 'looking'));
+        self::assertTrue(str_contains($streamed, 'found it'));
+        self::assertFalse(str_contains($streamed, '>'), 'An announcement stayed in the answer too.');
     }
 
     /**
@@ -264,24 +282,23 @@ final class SlackEgressTest extends TestCase
             new TurnCompleted(success: true, sessionId: 'session'),
         ]);
 
-        self::assertStringContainsString(
-            "\n> toolu_9 failed\n",
-            $api->argumentsOf(SlackReply::POST_MESSAGE)[0]['text'] ?? '',
-        );
+        self::assertSame(['Bash', 'toolu_9 failed'], SentCalls::taskTitles($api));
     }
 
     /**
      * Runs one turn through the real pipeline into a real Slack front end.
      *
-     * @param list<AgentEvent> $events  what the execution layer answers with
-     * @param string|null      $refusal what the workspace says about showing a status, when it
-     *                                  will not show one
+     * @param list<AgentEvent> $events       what the execution layer answers with
+     * @param string|null      $refusal      what the workspace says about showing a status, when it
+     *                                       will not show one
+     * @param string|null      $unstreamable what it says about opening a stream, when it will not
+     *                                       open one
      *
      * @return FakeSlackApiClient everything that reached the workspace
      *
      * @throws Throwable
      */
-    private function answer(array $events, ?string $refusal = null): FakeSlackApiClient
+    private function answer(array $events, ?string $refusal = null, ?string $unstreamable = null): FakeSlackApiClient
     {
         $this->repository = GitRepository::make('slack-egress-repo');
 
@@ -289,6 +306,10 @@ final class SlackEgressTest extends TestCase
 
         if ($refusal !== null) {
             $api->refuse(self::SET_STATUS, $refusal);
+        }
+
+        if ($unstreamable !== null) {
+            $api->refuse(SlackStream::START, $unstreamable);
         }
 
         $becoming = new Injector(
@@ -337,8 +358,9 @@ final class SlackEgressTest extends TestCase
     private static function frontEndOf(ThreadChannels $channels): array
     {
         $api = new FakeSlackApiClient();
+        $egress = new SlackEgress($api, $channels, new RecordingLogger(), new StreamingSettings(), new FixedClock());
 
-        return [new SlackEgress($api, $channels, new RecordingLogger()), $api];
+        return [$egress, $api];
     }
 
     /** @return ThreadId the thread every case answers in */
