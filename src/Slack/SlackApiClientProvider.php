@@ -26,9 +26,14 @@ final class SlackApiClientProvider implements ProviderInterface
     /** Where the bot token is read from; the name Slack's own documentation uses. */
     public const string ENVIRONMENT_VARIABLE = 'SLACK_BOT_TOKEN';
 
-    /** @param HttpClientFactoryInterface $clients where the coroutine HTTP clients come from */
+    /**
+     * @param HttpClientFactoryInterface $clients where the coroutine HTTP clients come from
+     * @param SleeperInterface           $sleeper what a rate limited call is waited out with
+     */
     public function __construct(
         private HttpClientFactoryInterface $clients,
+        private SleeperInterface $sleeper,
+        private StreamingSettings $settings,
     ) {}
 
     /**
@@ -59,6 +64,13 @@ final class SlackApiClientProvider implements ProviderInterface
             );
         }
 
-        return new SwooleSlackApiClient($token, $this->clients);
+        // Wrapped rather than built into the transport: waiting is a decision about how to answer
+        // Slack, while the transport is about reaching it, and only the wrapper can be exercised
+        // without a workspace.
+        return new RetryingSlackApiClient(
+            new SwooleSlackApiClient($token, $this->clients),
+            $this->sleeper,
+            $this->settings,
+        );
     }
 }

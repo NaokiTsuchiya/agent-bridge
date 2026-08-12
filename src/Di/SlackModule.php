@@ -6,6 +6,7 @@ namespace NaokiTsuchiya\AgentBridge\Di;
 
 use NaokiTsuchiya\AgentBridge\Chat\ChatEgress;
 use NaokiTsuchiya\AgentBridge\Slack\Backoff;
+use NaokiTsuchiya\AgentBridge\Slack\ClockInterface;
 use NaokiTsuchiya\AgentBridge\Slack\CoroutineSleeper;
 use NaokiTsuchiya\AgentBridge\Slack\EnvelopeChannelProvider;
 use NaokiTsuchiya\AgentBridge\Slack\EnvelopeLog;
@@ -27,7 +28,9 @@ use NaokiTsuchiya\AgentBridge\Slack\SocketModeClient;
 use NaokiTsuchiya\AgentBridge\Slack\SocketModeConnectorInterface;
 use NaokiTsuchiya\AgentBridge\Slack\SocketModeConnectorProvider;
 use NaokiTsuchiya\AgentBridge\Slack\StderrSlackLogger;
+use NaokiTsuchiya\AgentBridge\Slack\StreamingSettings;
 use NaokiTsuchiya\AgentBridge\Slack\SwooleHttpClientFactory;
+use NaokiTsuchiya\AgentBridge\Slack\SystemClock;
 use NaokiTsuchiya\AgentBridge\Slack\ThreadChannels;
 use Override;
 use Ray\Di\AbstractModule;
@@ -69,6 +72,10 @@ final class SlackModule extends AbstractModule
         $this->bind(SlackLoggerInterface::class)->to(StderrSlackLogger::class);
         $this->bind(RandomSourceInterface::class)->to(MtRandomSource::class);
         $this->bind(SleeperInterface::class)->to(CoroutineSleeper::class);
+        // How fast a reply may be sent, and what tells it how much time has gone by. Both are here
+        // rather than inside the front end so that a deployment can move the pace without a change.
+        $this->bind(StreamingSettings::class);
+        $this->bind(ClockInterface::class)->to(SystemClock::class);
         // Bound although nothing in this file names them as a parameter: a compiled injector
         // answers only for what was bound when it was compiled, and these are what the server is
         // built out of.

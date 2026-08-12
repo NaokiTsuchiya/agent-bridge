@@ -8,6 +8,7 @@ use Override;
 use SensitiveParameter;
 use Swoole\Coroutine\Http\Client;
 
+use function is_array;
 use function json_encode;
 
 /**
@@ -67,6 +68,8 @@ final class SwooleSlackApiClient implements SlackApiClient
 
         $posted = $client->post(self::PREFIX . $method, $body);
         $answer = $client->getBody();
+        $status = $client->statusCode;
+        $headers = $client->getHeaders();
         $failure = $client->errMsg;
         $client->close();
 
@@ -76,7 +79,9 @@ final class SwooleSlackApiClient implements SlackApiClient
             return new SlackApiResult(ok: false, error: "cannot reach {$method}: {$failure}");
         }
 
-        return SlackApiResponse::of($answer);
+        // The status and the headers travel with the body because a rate limited answer says so in
+        // those two and nowhere else: a 429 may carry no Slack JSON at all.
+        return SlackApiResponse::of($answer, $status, is_array($headers) ? $headers : []);
     }
 
     /** @throws SocketModeException when a client cannot be created at all */

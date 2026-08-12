@@ -44,12 +44,19 @@ final class SlackAdapterDocTest extends TestCase
         yield 'the scopes the app needs' => ['## 5. Slack アプリの設定'];
         yield 'the events it subscribes to' => ['app_mention'];
         yield 'the bot token scope' => ['chat:write'];
-        yield 'a mention answered in the same thread' => ['## 7. メンションに応答が同じスレッドで返る'];
+        yield 'the streaming methods that scope covers' => [
+            '`chat.startStream` / `chat.appendStream` / `chat.stopStream`',
+        ];
+        yield 'that no assistant scope is needed' => ['**`assistant:write` は要らない。**'];
+        yield 'a mention answered in the same thread' => ['## 7. メンションに応答が同じスレッドで逐次現れる'];
+        yield 'the reply appearing as it is written' => ['**応答が逐次現れること**'];
+        yield 'what a tool call looks like while it runs' => ['**ツール実行中の表示**'];
         yield 'five exchanges in one thread' => ['## 8. 同一スレッド 5 往復で文脈が保たれる'];
         yield 'two threads at once' => ['## 9. 別スレッド 2 本を同時に走らせて混線しない'];
         yield 'two worktrees edited in parallel' => ['## 10. 別スレッド 2 本が別 worktree で並行編集して衝突しない'];
         yield 'a restart' => ['## 11. サーバ再起動後も同じ worktree に着き文脈が継続する'];
         yield 'a long task' => ['## 12. 長時間タスク (5 分以上)'];
+        yield 'a stream that survives one' => ['**5 分以上かかってもストリームが切れない**こと'];
         yield 'the same thread id from both front ends' => ['## 13. 同じ ThreadId を CLI と Slack の両方から使う'];
         yield 'that a person runs it' => ['自動判定の対象外'];
     }

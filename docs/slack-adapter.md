@@ -1,6 +1,6 @@
-# Slack アダプタ (`chat.postMessage` 版)
+# Slack アダプタ (ストリーミング版)
 
-**ステータス:** 実装済み (issue #14)
+**ステータス:** 実装済み (issue #14 → #15)
 **対象:** `bin/agent-bridge-slack` / `src/Slack/` / `src/Di/SlackModule.php` / `src/Di/SlackContext.php`
 
 7 章以降は**人が実 Slack ワークスペースに対して行う手動スモークテスト**で、**自動判定の対象外**。CI では回さない。
@@ -11,9 +11,25 @@
 
 `ChatIngress` / `ChatEgress` / `StreamHandle` (#10) の 2 つ目の実装。#13 の Socket Mode クライアントが受けた envelope を、CLI アダプタ (#11) と同じパイプラインに流し、答えをスレッド返信として返す。
 
-**出力はこの段では `chat.postMessage` 1 本。** 差分はターン中ためておき、ターンが終わったときに 1 通として投稿する。ストリーミング API (`chat.startStream` / `appendStream` / `stopStream`) への差し替えは #15 で、そのとき**実行層より下は 1 行も変わらない**ことが確かめられるように、この段を分けてある。
+**出力は Slack のストリーミング API** (`chat.startStream` / `chat.appendStream` / `chat.stopStream`)。答えは書かれながらスレッドに現れ、ターンの終わりでストリームが閉じられる。#14 の `chat.postMessage` 版は消していない — ストリームを開けなかったワークスペースがそのまま 1 通の返信を受け取るための**フォールバック**として残してある。
 
-`src/Di/SlackModule.php` がその主張そのものになっている: `AppModule` を `install()` したうえで `ChatEgress` を束縛し直すのが差し替えの全部で、パイプラインから下は CLI が使うものと同一である。
+差し替えは `src/Slack/` に閉じた: `AgentRunner` も `AgentEvent` も worktree も ThreadId 導出も、ポートの宣言 (`src/Chat/`) すら 1 行も変わっていない。`src/Di/SlackModule.php` がその主張そのもので、`AppModule` を `install()` したうえで `ChatEgress` を束縛し直すのが差し替えの全部である。
+
+### 出力層のふるまい
+
+| いつ | 何をするか |
+|---|---|
+| 受付直後 | `assistant.threads.setStatus` (断られたら一時メッセージ。3 章) |
+| 最初に送る差分 | `chat.startStream` (`channel` / `thread_ts` / `markdown_text`) で返信を開き、応答の `ts` を控える |
+| 以降の差分 | `chat.appendStream` (`channel` / `ts` / `markdown_text`) |
+| ツールの開始・完了 | 同じ呼び出しの `chunks` に `task_update` チャンク (**256 文字**まで) として載せる |
+| ターンの終わり | 残りを送り切ってから `chat.stopStream` |
+
+- **送るのは差分だけ**で、全文を毎回送り直さない。
+- **スロットル既定 600ms** (`Slack\StreamingSettings::$throttleMilliseconds`)。`chat.appendStream` は Tier 4 (100+ 回/分) で、600ms 間隔がちょうど 100 回/分にあたる。値は DI で外から与えられる。窓の中に届いた差分はまとめて 1 回で送る。**ターンの終わりだけは窓を待たない** — そこで抱えたままにすると誰にも届かない。
+- 1 回の `markdown_text` が **12,000 文字**を超える分は分割して送る。
+- **HTTP 429** を受けたら `Retry-After` の秒数だけ待って同じ呼び出しをやり直す (`Slack\RetryingSlackApiClient`)。上限回数と最長待ち時間も設定にある。
+- **ストリームを開けなかったときだけ** `chat.postMessage` へ落ちる。開いた後の追記・終端が断られたときは落ちない — 返信はもうスレッドにあり、そこから投稿し直せば同じ答えが 2 度出る。
 
 ## 2. ThreadId と、無視するもの
 
@@ -51,17 +67,21 @@ ThreadId は `slack:` + **スレッドの `ts`**。
 
 どちらの経路も `tests/Slack/SlackEgressTest.php` がフェイク API クライアントで駆動している。**実ワークスペースでどちらになったかは 7 章で人が見る** — 状態が本文とは別の場所に出れば 1、`Working on it.` というメッセージがスレッドに増えれば 3 である。
 
-> 代替が選ばれた場合、そのメッセージは消さない。`chat.delete` を足すのは簡単だが、消し損ねたときに残るのは「消えるはずだったもの」であり、`chat:write` 以上の権限も要る。#15 でストリーミングに移ればこの分岐ごと無くなる。
+> 代替が選ばれた場合、そのメッセージは消さない。`chat.delete` を足すのは簡単だが、消し損ねたときに残るのは「消えるはずだったもの」であり、追加の権限も要る。ストリーミングに移ってもこの分岐は残している — 状態表示は本文のストリームとは別の場所に出るものなので、`chat.stopStream` までの間を埋める役目が無くならないからである。
+>
+> 必要スコープの点でも `assistant.threads.setStatus` は例外的で、`assistant:write` **または** `chat:write` のどちらでも通る (公式は今後 `chat:write` のみになると告知している)。**この 1 本のために `assistant:write` を足す必要は無い。**
 
 ## 4. ツール開始 / 完了の見え方と、結線
 
-ツールの開始・完了は**パイプラインが引用行に包んでから** `StreamHandle` へ流す (`CompletedTurn::TOOL_NOTICE`)。Slack はこれを引用として描画するので、本文と一目で区別が付く。
+ツールの開始・完了は**パイプラインが引用行に包んでから** `StreamHandle` へ流す (`CompletedTurn::TOOL_NOTICE`)。ポートが約束するのは「差分を append する」ことだけなので、ツール通知もテキストとしてここへ届く。アダプタはその**行の形**を手がかりに (`> ` で始まる行 1 本) 本文と切り分け、Slack が用意している置き場 — `task_update` チャンク — へ回す (`Slack\StreamChunks`)。
 
-| 出るもの | 形 |
+| 出るもの | 送り方 |
 |---|---|
-| ツール開始 | `> Grep` |
-| ツール完了 | `> toolu_1 done` / `> toolu_1 failed` |
-| 応答本文 | そのまま |
+| ツール開始 | `task_update` チャンク `{"type":"task_update","title":"Grep"}` |
+| ツール完了 | 同 `{"title":"toolu_1 done"}` / `{"title":"toolu_1 failed"}` |
+| 応答本文 | `markdown_text` |
+
+文中の `>` は本文のままにする (行頭の 1 本だけが通知)。チャンクは 256 文字で切り詰める — 超えると Slack が呼び出しごと断るため。
 
 完了行が**ツール名ではなく呼び出し id を名乗る**のは、`ToolCompleted` が `id` と `success` しか持たないため (`docs/cli-adapter.md` 4 章と同じ理由)。
 
@@ -76,9 +96,14 @@ bin/agent-bridge-slack
           │   └ Slack\ThreadChannels  スレッド → channel を書き留める
           └ BecomingInterface       メッセージごとに go() で 1 回呼ぶだけ
               └ Slack\SlackEgress   (ChatEgress) ← SlackModule が束縛
-                  ├ Slack\SlackReply    (StreamHandle) 差分をため、close で 1 通投稿
+                  ├ Slack\SlackStreamingReply  (StreamHandle) start → append → stop
+                  │   ├ Slack\StreamChunks     本文と task_update チャンクの切り分け
+                  │   ├ Slack\StreamingSettings  スロットル・上限・再送回数
+                  │   ├ Slack\ClockInterface     経過時間 (本番は SystemClock)
+                  │   └ Slack\SlackReply         (#14) 開始に失敗したときだけ使う 1 通投稿
                   └ Slack\SlackApiClient    Web API はこのインターフェース越しだけ
-                      └ Slack\SwooleSlackApiClient  Swoole\Coroutine\Http\Client を使う
+                      └ Slack\RetryingSlackApiClient  429 を Retry-After 秒待って再送
+                          └ Slack\SwooleSlackApiClient  Swoole\Coroutine\Http\Client を使う
 ```
 
 **スレッドごとのディスパッチャは無い。** 1 スレッドが 1 度に 1 ターンしか走らせないことは実行層 (`Runner\TurnLocks`) が既に保証しており、それが worktree の直列化でもある。別スレッドは同時に走る。
@@ -127,7 +152,9 @@ usage: agent-bridge-slack [APP_DIR]
 | `app_mentions:read` | 上のイベントを受け取る |
 | `channels:history` | スレッド返信を受け取る |
 | `im:history` | ダイレクトメッセージを受け取る |
-| `chat:write` | `chat.postMessage` で答える。`assistant.threads.setStatus` もこれで足りる |
+| `chat:write` | 返信のすべて。`chat.startStream` / `chat.appendStream` / `chat.stopStream` も、フォールバックの `chat.postMessage` も、`assistant.threads.setStatus` もこれ 1 つで足りる |
+
+**`assistant:write` は要らない。** ストリーミング 3 メソッドの必要スコープは `chat:write` で (docs.slack.dev、2026-08 時点)、`assistant.threads.setStatus` だけが `assistant:write` **または** `chat:write` のどちらでも通る — 公式は今後 `chat:write` のみになると告知している。したがって上の 1 行で全部が動く。
 
 **Bot User ID を控える。** Basic Information / App Home に出ている `U` で始まる ID で、`SLACK_BOT_USER_ID` に入れる値。
 
@@ -157,13 +184,14 @@ php bin/agent-bridge-slack                 # APP_DIR 省略 = リポジトリ直
 
 以降の章は、このプロセスを動かしたまま行う。
 
-## 7. メンションに応答が同じスレッドで返る
+## 7. メンションに応答が同じスレッドで逐次現れる
 
 1. 招待したチャンネルで `@<アプリ名> このリポジトリは何をするもの?` と発言する。
 2. **応答が「チャンネル直下」ではなく、その発言のスレッドに返る**こと。
-3. 状態表示 (3 章) がどちらの形で出たかを記録する — スレッド上部などの状態行なら `setStatus` が効いており、`Working on it.` というメッセージが増えていれば代替に落ちている。**どちらでも正しい。**
-4. ツールを使う質問 (`このリポジトリの composer.json を読んで` など) をすると、応答の中に `> Read` のような引用行と、`> toolu_… done` の完了行が混ざること。
-5. `ls .worktrees/` に `slack-<ts>` の形の worktree が 1 つできていること。
+3. **応答が逐次現れること** — 答えが出来上がってから 1 通で出るのではなく、返信が 1 つ書かれていき、少しずつ伸びる。長めの答えを求める質問 (`このリポジトリの構成を 10 行で説明して` など) だと分かりやすい。伸びる様子が見えず最後に 1 通だけ出るなら、ストリームを開けずフォールバックしている (プロセスのログに `chat.startStream was refused …` が出ているはず。スコープと 5 章を見直す)。
+4. **ツール実行中の表示**を見る。ツールを使う質問 (`このリポジトリの composer.json を読んで` など) をすると、実行中に `Read` のようなツール名が**本文とは別の行**として現れ、続いて `toolu_… done` が出ること (`task_update` チャンク)。本文の中に `> Read` という引用行が混ざるなら、チャンクではなく本文として送られている。
+5. 答え終わった後、返信が「書きかけ」の表示のまま残らないこと (`chat.stopStream` が届いている)。
+6. `ls .worktrees/` に `slack-<ts>` の形の worktree が 1 つできていること。
 
 ## 8. 同一スレッド 5 往復で文脈が保たれる
 
@@ -208,9 +236,11 @@ php bin/agent-bridge-slack                 # APP_DIR 省略 = リポジトリ直
 
 1. 時間のかかる依頼を出す (`src/ 以下のすべてのクラスについて 1 行の要約を作って` など)。
 2. 受付直後に状態表示が出ること。
-3. **5 分以上かかっても切れない**こと — Socket Mode の接続が無音タイムアウトで落ちない、ターンタイムアウト (`LifecycleSettings`) に当たらない。
-4. 終わったときに、答えが**1 通のメッセージ**としてスレッドに投稿されること (この段は `chat.postMessage` なので、途中経過は出ない)。
-5. その間に**別のスレッド**へメンションすると、そちらは待たされずに答えること (別スレッドは同時に走る)。
+3. **5 分以上かかってもストリームが切れない**こと — 返信が最後まで伸び続け、途中で止まったり、別のメッセージに切り替わったりしない。Socket Mode の接続が無音タイムアウトで落ちない、ターンタイムアウト (`LifecycleSettings`) に当たらない。
+4. その間、ツールを使うたびに実行中の表示が更新されること。
+5. 終わったときに `chat.stopStream` が届き、返信が完成した 1 通として残ること。
+6. 途中で 429 に当たった場合でも**返信が失われない**こと (プロセスのログに再送が出る。数分の依頼を数本同時に走らせると起きやすい)。
+7. その間に**別のスレッド**へメンションすると、そちらは待たされずに答えること (別スレッドは同時に走る)。
 
 ## 13. 同じ ThreadId を CLI と Slack の両方から使う
 
@@ -236,10 +266,12 @@ php bin/agent-bridge-slack                 # APP_DIR 省略 = リポジトリ直
 |---|---|
 | `tests/Slack/SlackMessageTest.php` | ThreadId の規則と、無視するものすべて (2 章の表) |
 | `tests/Slack/SlackIngressTest.php` | Channel → `IncomingMessage` の列挙と、channel の書き留め |
-| `tests/Slack/SlackEgressTest.php` | 状態表示の 2 経路、差分のバッファ、`thread_ts` の付与、ツール行の区別。パイプライン経由と直接の両方 |
-| `tests/Slack/SlackApiResponseTest.php` | 応答 body の解釈 (**Slack は断るときも HTTP 200 で `ok: false` を返す**) |
+| `tests/Slack/SlackEgressTest.php` | 状態表示の 2 経路、`thread_ts` の付与、ツールの task_update、フォールバック。パイプライン経由と直接の両方 |
+| `tests/Slack/SlackStreamingReplyTest.php` | start → append → stop の順序、差分のみ送ること、スロットル (境界含む)、12,000 文字での分割、チャンクの 256 文字、追記/終端の失敗、429 の再送 |
+| `tests/Slack/RetryingSlackApiClientTest.php` | `Retry-After` 秒の待ちと再送、上限回数、待ちの頭打ち |
+| `tests/Slack/SlackApiResponseTest.php` | 応答 body の解釈 (**Slack は断るときも HTTP 200 で `ok: false` を返す**)、429 と `Retry-After`、開いたストリームの `ts` |
 | `tests/Slack/SlackApiClientTest.php` | Web API がインターフェース越しであること、本番実装が `Swoole\Coroutine\Http\Client` を使うこと、bot token の検証 |
 | `tests/Slack/SlackWiringTest.php` | slack コンテキストが何に繋がっているか、ingress と egress が同じ写像を見ていること、ポートより下が Slack を知らないこと |
 | `tests/Slack/SlackAdapterDocTest.php` | この手順書の各章が残っていること |
 
-**Slack トークンを要求するテストは 1 つも無い。** Web API はフェイクを差し、Socket Mode は #13 のフェイク接続を使う。実接続で初めて分かること — スコープが足りているか、`setStatus` が通常スレッドで通るか、5 分の沈黙で切れないか — が、7 章以降に寄せてあるものである。
+**Slack トークンを要求するテストは 1 つも無い。** Web API はフェイクを差し、Socket Mode は #13 のフェイク接続を使う。実接続で初めて分かること — スコープが足りているか、ストリーミング 3 メソッドがこのワークスペースで使えるか、`setStatus` が通常スレッドで通るか、5 分の沈黙で切れないか — が、7 章以降に寄せてあるものである。

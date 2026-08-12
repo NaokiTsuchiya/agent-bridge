@@ -17,8 +17,10 @@ namespace NaokiTsuchiya\AgentBridge\Slack;
 interface SlackApiClient
 {
     /**
-     * @param string                $method    the Web API method, e.g. `chat.postMessage`
-     * @param array<string, string> $arguments its arguments, as Slack names them
+     * @param string               $method    the Web API method, e.g. `chat.postMessage`
+     * @param array<string, mixed> $arguments its arguments, as Slack names them. Not every one of
+     *                                        them is a string: a streaming call carries its chunks
+     *                                        as an array, which the transport encodes as it stands
      *
      * @return SlackApiResult how it went; a call that could not be made at all is a result too
      */
