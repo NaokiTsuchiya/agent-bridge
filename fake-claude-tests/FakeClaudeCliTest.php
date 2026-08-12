@@ -33,10 +33,10 @@ use function realpath;
 /**
  * The fake's own behaviour: everything it offers that the real CLI is not asked about.
  *
- * The shared behaviour is in tests/Contract. What is left here is the machinery a test needs and
- * the real binary has no equivalent for — scenario control, the recordings, and the isolation
- * between two tests — plus the exactness the contract deliberately avoids, such as the reply text
- * and the way deltas add up.
+ * The shared behaviour is in {@see ClaudeCliContractTestCase}. What is left here is the machinery
+ * a test needs and the real binary has no equivalent for — scenario control, the recordings, and
+ * the isolation between two tests — plus the exactness the contract deliberately avoids, such as
+ * the reply text and the way deltas add up.
  *
  * @mago-expect lint:too-many-methods
  * @mago-expect lint:kan-defect
