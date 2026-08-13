@@ -27,11 +27,13 @@ final class SlackApiClientProvider implements ProviderInterface
     public const string ENVIRONMENT_VARIABLE = 'SLACK_BOT_TOKEN';
 
     /**
-     * @param HttpClientFactoryInterface $clients where the coroutine HTTP clients come from
-     * @param SleeperInterface           $sleeper what a rate limited call is waited out with
+     * @param HttpClientFactoryInterface $clients  where the coroutine HTTP clients come from
+     * @param SlackApiEndpoint           $endpoint where the calls those clients make are sent
+     * @param SleeperInterface           $sleeper  what a rate limited call is waited out with
      */
     public function __construct(
         private HttpClientFactoryInterface $clients,
+        private SlackApiEndpoint $endpoint,
         private SleeperInterface $sleeper,
         private StreamingSettings $settings,
     ) {}
@@ -39,13 +41,11 @@ final class SlackApiClientProvider implements ProviderInterface
     /**
      * {@inheritDoc}
      *
-     * @throws SlackException when the variable is unset or does not hold a bot token, or when the
-     *                        endpoint variables do not name a host and port
+     * @throws SlackException when the variable is unset or does not hold a bot token
      */
     #[Override]
     public function get(): SlackApiClient
     {
-        $endpoint = SlackApiEndpoint::fromEnvironment();
         $value = getenv(self::ENVIRONMENT_VARIABLE);
 
         if ($value === false) {
@@ -70,7 +70,7 @@ final class SlackApiClientProvider implements ProviderInterface
         // Slack, while the transport is about reaching it, and only the wrapper can be exercised
         // without a workspace.
         return new RetryingSlackApiClient(
-            new SwooleSlackApiClient($token, $this->clients, $endpoint->host, $endpoint->port),
+            new SwooleSlackApiClient($token, $this->clients, $this->endpoint->host, $this->endpoint->port),
             $this->sleeper,
             $this->settings,
         );

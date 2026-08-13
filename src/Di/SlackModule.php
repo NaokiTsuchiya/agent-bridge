@@ -17,6 +17,8 @@ use NaokiTsuchiya\AgentBridge\Slack\RandomSourceInterface;
 use NaokiTsuchiya\AgentBridge\Slack\ReconnectDelay;
 use NaokiTsuchiya\AgentBridge\Slack\SlackApiClient;
 use NaokiTsuchiya\AgentBridge\Slack\SlackApiClientProvider;
+use NaokiTsuchiya\AgentBridge\Slack\SlackApiEndpoint;
+use NaokiTsuchiya\AgentBridge\Slack\SlackApiEndpointProvider;
 use NaokiTsuchiya\AgentBridge\Slack\SlackEgress;
 use NaokiTsuchiya\AgentBridge\Slack\SlackIdentity;
 use NaokiTsuchiya\AgentBridge\Slack\SlackIdentityProvider;
@@ -67,6 +69,9 @@ final class SlackModule extends AbstractModule
         $this->bind(SlackApiClient::class)->toProvider(SlackApiClientProvider::class)->in(Scope::SINGLETON);
         $this->bind(SlackIdentity::class)->toProvider(SlackIdentityProvider::class)->in(Scope::SINGLETON);
         $this->bind(SocketModeConnectorInterface::class)->toProvider(SocketModeConnectorProvider::class);
+        // Not a credential, but read at the same moment and for the same reason: where the API is
+        // reached is the running machine's business, and a compiled script cannot hold it either.
+        $this->bind(SlackApiEndpoint::class)->toProvider(SlackApiEndpointProvider::class)->in(Scope::SINGLETON);
 
         $this->bind(HttpClientFactoryInterface::class)->to(SwooleHttpClientFactory::class);
         $this->bind(SlackLoggerInterface::class)->to(StderrSlackLogger::class);

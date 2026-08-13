@@ -6,7 +6,7 @@ namespace NaokiTsuchiya\AgentBridge\Tests\Slack;
 
 use NaokiTsuchiya\AgentBridge\Di\SlackContext;
 use NaokiTsuchiya\AgentBridge\Slack\SlackApiClientProvider;
-use NaokiTsuchiya\AgentBridge\Slack\SlackApiEndpoint;
+use NaokiTsuchiya\AgentBridge\Slack\SlackApiEndpointProvider;
 use NaokiTsuchiya\AgentBridge\Slack\SlackAppToken;
 use NaokiTsuchiya\AgentBridge\Slack\SlackAppTokenFactory;
 use NaokiTsuchiya\AgentBridge\Slack\SlackBotToken;
@@ -78,7 +78,7 @@ final class SlackBinaryTest extends TestCase
         self::assertSame(0, $compiled, "Compiling the slack context failed: {$output}");
 
         [$code, $errors] = self::start([$appDir], [
-            SlackApiEndpoint::PORT_VARIABLE => 'not-a-port',
+            SlackApiEndpointProvider::PORT_VARIABLE => 'not-a-port',
             SlackAppTokenFactory::ENVIRONMENT_VARIABLE => SlackAppToken::PREFIX . 'shaped-like-one',
             SlackApiClientProvider::ENVIRONMENT_VARIABLE => SlackBotToken::PREFIX . 'shaped-like-one',
             SlackIdentityProvider::ENVIRONMENT_VARIABLE => 'U0BOT',
@@ -86,7 +86,7 @@ final class SlackBinaryTest extends TestCase
 
         TempDir::remove($appDir);
         self::assertSame(3, $code);
-        self::assertStringContainsString(SlackApiEndpoint::PORT_VARIABLE, $errors);
+        self::assertStringContainsString(SlackApiEndpointProvider::PORT_VARIABLE, $errors);
         self::assertStringContainsString('"not-a-port"', $errors);
     }
 
