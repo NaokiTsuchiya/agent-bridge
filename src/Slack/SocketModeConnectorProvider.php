@@ -19,9 +19,13 @@ use Ray\Di\ProviderInterface;
  */
 final class SocketModeConnectorProvider implements ProviderInterface
 {
-    /** @param HttpClientFactoryInterface $clients where the coroutine HTTP clients come from */
+    /**
+     * @param HttpClientFactoryInterface $clients  where the coroutine HTTP clients come from
+     * @param SlackApiEndpoint           $endpoint where the handshake is opened against
+     */
     public function __construct(
         private HttpClientFactoryInterface $clients,
+        private SlackApiEndpoint $endpoint,
     ) {}
 
     /**
@@ -32,6 +36,11 @@ final class SocketModeConnectorProvider implements ProviderInterface
     #[Override]
     public function get(): SocketModeConnectorInterface
     {
-        return new SwooleSocketModeConnector(SlackAppTokenFactory::fromEnvironment(), $this->clients);
+        return new SwooleSocketModeConnector(
+            SlackAppTokenFactory::fromEnvironment(),
+            $this->clients,
+            $this->endpoint->host,
+            $this->endpoint->port,
+        );
     }
 }

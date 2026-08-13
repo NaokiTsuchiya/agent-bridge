@@ -4,12 +4,22 @@ declare(strict_types=1);
 
 namespace NaokiTsuchiya\AgentBridge\Tests\Slack;
 
+use NaokiTsuchiya\AgentBridge\Di\SlackContext;
+use NaokiTsuchiya\AgentBridge\Slack\SlackApiClientProvider;
+use NaokiTsuchiya\AgentBridge\Slack\SlackApiEndpointProvider;
+use NaokiTsuchiya\AgentBridge\Slack\SlackAppToken;
+use NaokiTsuchiya\AgentBridge\Slack\SlackAppTokenFactory;
+use NaokiTsuchiya\AgentBridge\Slack\SlackBotToken;
+use NaokiTsuchiya\AgentBridge\Slack\SlackIdentityProvider;
 use NaokiTsuchiya\AgentBridge\Tests\Support\CliProcess;
 use NaokiTsuchiya\AgentBridge\Tests\Support\TempDir;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 use function dirname;
+use function escapeshellarg;
+use function exec;
+use function implode;
 
 use const PHP_BINARY;
 
@@ -21,7 +31,8 @@ use const PHP_BINARY;
  * dropped the argument, or passed only the program name, would answer every case in that class the
  * same way and still look in the wrong directory when a person ran it.
  *
- * Neither case needs a Slack token or a network: both stop before a workspace is ever reached,
+ * No case here needs a Slack workspace or a network: each stops before one is reached — the two
+ * argument cases before anything is built, the endpoint case while the wiring is being built —
  * which is why they belong in the unit group rather than with the integration ones.
  */
 final class SlackBinaryTest extends TestCase
@@ -53,14 +64,65 @@ final class SlackBinaryTest extends TestCase
     }
 
     /**
-     * @param list<string> $arguments what to put after the program name
+     * A port that is not one ends the start, with the variable named and the value quoted back.
+     *
+     * The tokens are shaped like real ones so that nothing else can be what stops the process; the
+     * refusal has to be the endpoint's. Nothing is dialled: the connector is refused as it is
+     * built, which is before any client exists.
+     */
+    #[Test]
+    public function refusesAPortThatIsNotAPort(): void
+    {
+        $appDir = TempDir::make('slack-binary-compiled');
+        [$compiled, $output] = self::compile($appDir);
+        self::assertSame(0, $compiled, "Compiling the slack context failed: {$output}");
+
+        [$code, $errors] = self::start([$appDir], [
+            SlackApiEndpointProvider::PORT_VARIABLE => 'not-a-port',
+            SlackAppTokenFactory::ENVIRONMENT_VARIABLE => SlackAppToken::PREFIX . 'shaped-like-one',
+            SlackApiClientProvider::ENVIRONMENT_VARIABLE => SlackBotToken::PREFIX . 'shaped-like-one',
+            SlackIdentityProvider::ENVIRONMENT_VARIABLE => 'U0BOT',
+        ]);
+
+        TempDir::remove($appDir);
+        self::assertSame(3, $code);
+        self::assertStringContainsString(SlackApiEndpointProvider::PORT_VARIABLE, $errors);
+        self::assertStringContainsString('"not-a-port"', $errors);
+    }
+
+    /**
+     * Compiles the Slack context into an app dir, the way a deployment produces one.
+     *
+     * @return array{int, string} the exit code and the combined output of the compile
+     */
+    private static function compile(string $appDir): array
+    {
+        $root = dirname(__DIR__, levels: 2);
+        $command = implode(' ', [
+            PHP_BINARY,
+            escapeshellarg("{$root}/vendor/bin/ray-di-compile"),
+            escapeshellarg("{$root}/bootstrap.php"),
+            escapeshellarg($appDir),
+            escapeshellarg(SlackContext::NAME),
+        ]);
+
+        $output = [];
+        $exitCode = 0;
+        exec("{$command} 2>&1", $output, $exitCode);
+
+        return [$exitCode, implode("\n", $output)];
+    }
+
+    /**
+     * @param list<string>          $arguments what to put after the program name
+     * @param array<string, string> $env       added to this process's environment, not replacing it
      *
      * @return array{int, string} the exit code and everything written to the error stream
      */
-    private static function start(array $arguments): array
+    private static function start(array $arguments, array $env = []): array
     {
         $root = dirname(__DIR__, levels: 2);
-        $process = CliProcess::start([PHP_BINARY, "{$root}/bin/agent-bridge-slack", ...$arguments], $root);
+        $process = CliProcess::start([PHP_BINARY, "{$root}/bin/agent-bridge-slack", ...$arguments], $root, $env);
         $process->closeStdin();
 
         $code = $process->waitForExit(self::PATIENCE);

@@ -128,6 +128,8 @@ usage: agent-bridge-slack [APP_DIR]
 | `SLACK_BOT_TOKEN` | ○ | `xoxb-` で始まる bot token。Web API 呼び出しに使う |
 | `SLACK_BOT_USER_ID` | ○ | 自 app の bot user ID (`U…`)。**自分の投稿を無視するために要る** |
 | `AGENT_BRIDGE_REPOSITORY` | | worktree を切り出す元のリポジトリ (既定: カレントディレクトリ) |
+| `AGENT_BRIDGE_SLACK_API_HOST` | | Web API と `apps.connections.open` の宛先ホスト (既定: `slack.com`) |
+| `AGENT_BRIDGE_SLACK_API_PORT` | | そのホストへ繋ぐポート。1〜65535 の整数 (既定: `443`) |
 
 3 つのトークンは起動時に読む。欠けていれば**接続する前に**理由を書いて exit 3 で落ちる。
 

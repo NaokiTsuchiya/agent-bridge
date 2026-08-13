@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NaokiTsuchiya\AgentBridge\Tests\Slack;
 
+use NaokiTsuchiya\AgentBridge\Slack\SlackApiEndpointProvider;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -59,5 +60,9 @@ final class SlackAdapterDocTest extends TestCase
         yield 'a stream that survives one' => ['**5 分以上かかってもストリームが切れない**こと'];
         yield 'the same thread id from both front ends' => ['## 13. 同じ ThreadId を CLI と Slack の両方から使う'];
         yield 'that a person runs it' => ['自動判定の対象外'];
+        yield 'the host the API is reached at' => ['`' . SlackApiEndpointProvider::HOST_VARIABLE . '`'];
+        yield 'the port it is reached on' => ['`' . SlackApiEndpointProvider::PORT_VARIABLE . '`'];
+        yield 'the host a deployment gets without saying anything' => ['(既定: `slack.com`)'];
+        yield 'the port it gets without saying anything' => ['(既定: `443`)'];
     }
 }
