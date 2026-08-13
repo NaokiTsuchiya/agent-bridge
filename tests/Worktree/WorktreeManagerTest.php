@@ -15,6 +15,8 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 use function array_map;
+use function chdir;
+use function clearstatcache;
 use function count;
 use function dirname;
 use function escapeshellarg;
@@ -22,10 +24,12 @@ use function exec;
 use function explode;
 use function file_get_contents;
 use function file_put_contents;
+use function getcwd;
 use function implode;
 use function is_dir;
 use function mkdir;
 use function realpath;
+use function rmdir;
 use function str_starts_with;
 use function symlink;
 use function sys_get_temp_dir;
@@ -283,6 +287,79 @@ final class WorktreeManagerTest extends TestCase
     {
         yield 'via origin/HEAD' => ['origin-head'];
         yield 'via HEAD' => ['head'];
+    }
+
+    /**
+     * An origin/HEAD pointing outside the remote namespace names no remote branch, so rule 2 answers.
+     *
+     * `git remote set-head` cannot write this, but `git symbolic-ref` can, and a repository that has
+     * been through one is not broken enough for git itself to complain. Reading the name out of it
+     * regardless would cut the worktree from a branch nobody asked for.
+     *
+     * The branch is deliberately longer than the prefix that does not match it: a shorter one is cut
+     * to nothing by the length alone, so it would look the same whether the prefix was tested or not.
+     *
+     * @throws InvalidArgumentException
+     * @throws WorktreeException
+     */
+    #[Test]
+    public function fallsBackToTheCurrentBranchWhenOriginHeadNamesSomethingElse(): void
+    {
+        $repository = $this->initRepository('repo');
+        $branch = 'feature/with/a/rather/long/name';
+        self::git($repository, ['checkout', '-b', $branch]);
+        $this->commit($repository, 'feature.txt');
+        self::git($repository, ['symbolic-ref', 'refs/remotes/origin/HEAD', "refs/heads/{$branch}"]);
+
+        $git = new RecordingGit(new Git());
+        $path = new WorktreeManager($repository, $git)->worktreeFor(new ThreadId('cli:x'));
+
+        self::assertSame(self::git($repository, ['rev-parse', $branch]), self::git($path, ['rev-parse', 'HEAD']));
+        self::assertNotSame(self::git($repository, ['rev-parse', 'main']), self::git($path, ['rev-parse', 'HEAD']));
+        self::assertContains('symbolic-ref refs/remotes/origin/HEAD', $git->commands);
+        self::assertContains('symbolic-ref HEAD', $git->commands, 'Rule 1 answered with a name it should not have.');
+    }
+
+    /**
+     * A path that cannot be resolved and has no parent left ends the resolution rather than recursing.
+     *
+     * `realpath` gives up on a relative path once the working directory is gone, and `''` is its own
+     * parent — which is the one shape that would have the resolution call itself forever. Deleting
+     * the working directory is how that state is reached on both a BSD and a glibc `realpath`: the
+     * BSD one answers an empty path with the working directory for as long as there is one.
+     *
+     * @throws InvalidArgumentException
+     * @throws WorktreeException
+     */
+    #[Test]
+    public function stopsResolvingAPathThatHasNoParentLeft(): void
+    {
+        $previous = getcwd();
+        self::assertIsString($previous);
+        $gone = "{$this->root}/gone";
+        self::assertTrue(mkdir($gone));
+        $git = new StubGit();
+
+        try {
+            self::assertTrue(chdir($gone));
+            self::assertTrue(rmdir($gone));
+            clearstatcache(clear_realpath_cache: true);
+            self::assertFalse(realpath(''), 'The working directory is still there; the case is not set up.');
+
+            $path = new WorktreeManager('', $git)->worktreeFor(new ThreadId('cli:x'));
+        } finally {
+            self::assertTrue(chdir($previous));
+        }
+
+        self::assertSame('//.worktrees/cli-x', $path);
+        self::assertSame(
+            [
+                'worktree prune',
+                'show-ref --verify --quiet refs/heads/agent/cli-x',
+                'worktree add //.worktrees/cli-x agent/cli-x',
+            ],
+            $git->commands,
+        );
     }
 
     /**

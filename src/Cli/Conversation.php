@@ -7,6 +7,7 @@ namespace NaokiTsuchiya\AgentBridge\Cli;
 use Be\Framework\BecomingInterface;
 use NaokiTsuchiya\AgentBridge\Chat\ChatIngress;
 use NaokiTsuchiya\AgentBridge\Pipeline\CompletedTurn;
+use NaokiTsuchiya\AgentBridge\Pipeline\Turn;
 use NaokiTsuchiya\AgentBridge\Runner\AgentRunner;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
 use Throwable;
@@ -51,9 +52,8 @@ final class Conversation
         try {
             foreach ($ingress->listen() as $message) {
                 $turn = ($this->becoming)($message);
-                $completed = $turn instanceof CompletedTurn;
-                $thread = $completed ? $turn->workspace->thread : $thread;
-                $answered = $answered && $completed && $turn->success;
+                $thread = $turn instanceof Turn ? $turn->workspace->thread : $thread;
+                $answered = $answered && $turn instanceof CompletedTurn;
             }
         } catch (Throwable $failure) {
             // Carried back rather than thrown on: a conversation is driven from inside a coroutine,

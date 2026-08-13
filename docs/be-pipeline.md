@@ -27,8 +27,10 @@ interface StreamHandle { public function append(string $delta): void; public fun
 | 段階 | 属性 | 存在が証明すること |
 |---|---|---|
 | `Pipeline\IncomingMessage` | `#[Be(ResolvedThread::class)]` | 何も検証されていない生の入力 (platform / nativeId / 本文) |
-| `Pipeline\ResolvedThread` | `#[Be(CompletedTurn::class)]` | ThreadId が妥当・session_id が導出済み・**worktree が実在する** |
-| `Pipeline\CompletedTurn` | (無し = 最終型) | ターンが完走し、イベントが流れきった |
+| `Pipeline\ResolvedThread` | `#[Be(AnsweringTurn::class)]` | ThreadId が妥当・session_id が導出済み・**worktree が実在する** |
+| `Pipeline\AnsweringTurn` | `#[Be([CompletedTurn::class, FailedTurn::class])]` | イベントが流れきり、どちらのターンだったかが `$being` に決まった |
+| `Pipeline\CompletedTurn` | (無し = 最終型) | エージェントが完了を告げ、そのターンは成功だった |
+| `Pipeline\FailedTurn` | (無し = 最終型) | 答えが立たなかった (失敗して終わった・止まった・完了を告げないまま尽きた) |
 
 ```php
 $becoming = $injector->getInstance(BecomingInterface::class);
@@ -39,9 +41,22 @@ $turn = $becoming(new IncomingMessage('cli', 'my-experiment', 'what does this re
 
 `ResolvedThread` のコンストラクタは順に ThreadId の生成 → session_id の導出 → worktree の生成を行い、3 つを `Thread\ThreadWorkspace` 1 つにまとめて持つ。**どれかが失敗すればオブジェクトは存在しない** ので、「まだ検証されていない ThreadId」「まだ存在しない worktree」を持つ状態を型として表現できない。導出は #3 (`ThreadDerivation`) と #6 (`WorktreeManager`) のもので、ここでは再実装していない。
 
-`ThreadWorkspace` は「この PoC が ThreadId から導出するもの」の全部であり、3 つが常に同じスレッドのものであることを型で担保する (session だけ別スレッドのもの、という状態を作れない)。段階の受け渡しもこれ 1 つ + 本文で済むので、`CompletedTurn` のコンストラクタは `#[Input]` 2 つ + `#[Inject]` 2 つになる。
+`ThreadWorkspace` は「この PoC が ThreadId から導出するもの」の全部であり、3 つが常に同じスレッドのものであることを型で担保する (session だけ別スレッドのもの、という状態を作れない)。段階の受け渡しもこれ 1 つ + 本文で済むので、`AnsweringTurn` のコンストラクタは `#[Input]` 2 つ + `#[Inject]` 2 つになる。
 
-`CompletedTurn` は `AgentRunner` のイベントを `StreamHandle` へ流す。本文 (`TextDelta`) はそのまま append し、ツール開始 (`ToolStarted`) は本文と混ざらないよう `> 名前` の 1 行として別に append する。`ToolCompleted` は producer がまだ無く、何もしない。
+`AnsweringTurn` は `AgentRunner` のイベントを `StreamHandle` へ流す。本文 (`TextDelta`) はそのまま append し、ツール開始 (`ToolStarted`) は本文と混ざらないよう `> 名前` の 1 行として別に append する。`ToolCompleted` は producer がまだ無く、何もしない。
+
+### エラー系も最終型で受け取る
+
+**ターンの失敗は例外ではなく型である。** `AnsweringTurn` はイベントを流し終えた時点で `$being` に `Pipeline\Completed` か `Pipeline\Failed` のどちらかを立て、`#[Be([...])]` の型マッチが対応する最終型を選ぶ。呼び出し側は `catch` ではなく、受け取った最終型がどちらかで分岐する (`Cli\Conversation`)。両者は `Pipeline\Turn` を実装するので、スレッドと読み手に届いた本文だけが要るところはどちらでも受けられる。
+
+| 終わり方 | 最終型 | `error` |
+|---|---|---|
+| 完了イベントが成功を告げた | `CompletedTurn` | (持たない) |
+| 完了イベントが失敗を告げた / 完了しないまま尽きた | `FailedTurn` | 空 |
+| `AgentError` が届いた | `FailedTurn` | そのメッセージ (読み手にも流れている) |
+| どの arm も持たないイベントが届いた | `FailedTurn` | `No arm for <クラス名>.` |
+
+最後の行が `UnhandledMatchError` の throw だったものである。6 個目の `AgentEvent` 実装を足すと**そのターンはそこで止まって失敗する** — 落ちるのはターン 1 つで、常駐プロセスでも読み手でもない。落ちること自体は変わらないので、`Event\AgentEvent` が約束する「黙って落とさない」は保たれている。
 
 ### ThreadId ファクトリ
 
@@ -57,9 +72,9 @@ $turn = $becoming(new IncomingMessage('cli', 'my-experiment', 'what does this re
 
 Be は `#[Input]` 引数の名前から `NaokiTsuchiya\AgentBridge\Semantic\<PascalCase>` を探し、**無ければ `E_USER_NOTICE` を出す** (`vendor/be-framework/be/src/SemanticVariable/SemanticValidator.php`)。`phpunit.xml.dist` は `failOnNotice="true"` なので、登録が無いとチェーンを回すテストが落ちる。
 
-そこで `Platform` / `NativeId` / `Text` / `Workspace` を置いてある (= `ResolvedThread` と `CompletedTurn` の `#[Input]` 引数名の集合)。**検証メソッドは持たない** — 書式の正は `ThreadId` にあり、二重に持つと片方だけ直る日が来る。
+そこで `Platform` / `NativeId` / `Text` / `Workspace` / `Being` を置いてある (= `ResolvedThread` / `AnsweringTurn` / `CompletedTurn` / `FailedTurn` の `#[Input]` 引数名の集合)。**検証メソッドは持たない** — 書式の正は `ThreadId` にあり、二重に持つと片方だけ直る日が来る。
 
-> **`ResolvedThread` / `CompletedTurn` に `#[Input]` 引数を足したら、同じ名前のクラスをここに足すこと。** 忘れると通知が出て、テストが落ちて分かる。
+> **チェーンの段階に `#[Input]` 引数を足したら、同じ名前のクラスをここに足すこと。** 忘れると通知が出て、テストが落ちて分かる。
 
 ## 4. コンパイル済み Injector と `Becoming`
 
@@ -75,7 +90,7 @@ Be は `#[Input]` 引数の名前から `NaokiTsuchiya\AgentBridge\Semantic\<Pas
 
 **3 段目を素の `Injector` でも回しているのは、テストが使うフェイク CLI のパスや使い捨てリポジトリが実行時のパスで、`BakedPathGuard` があるためコンパイル時に焼けないからである** (`src/Di/BaseRepositoryProvider.php` の docblock)。
 
-`CompletedTurn` が注入する `ChatEgress` は #11 で `Di\AppModule` に束縛された (CLI アダプタ)。コンパイル済み Injector からチェーンを端まで回す経路は `tests/Cli/WarmupIsolationTest`、束縛そのものは `tests/Cli/ProductionWiringTest` にある。
+`AnsweringTurn` が注入する `ChatEgress` は #11 で `Di\AppModule` に束縛された (CLI アダプタ)。コンパイル済み Injector からチェーンを端まで回す経路は `tests/Cli/WarmupIsolationTest`、束縛そのものは `tests/Cli/ProductionWiringTest` にある。
 
 **未検証のまま残っているもの:** Swoole の常駐プロセス上で `Becoming` を長時間回したときの挙動 (CLI アダプタはメッセージを流し終えると終了する)。実際に常駐へ載るのは Slack アダプタの issue で、そこで初めて確かめられる。
 

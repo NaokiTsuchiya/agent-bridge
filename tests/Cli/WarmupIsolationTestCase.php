@@ -197,7 +197,6 @@ abstract class WarmupIsolationTestCase extends TestCase
         });
 
         self::assertInstanceOf(CompletedTurn::class, $second);
-        self::assertTrue($second->success);
         self::assertStringContainsString('fake reply to: what was the word?', $written);
         // The fake answers with the input it was sent before, if it has one for that session. So
         // this is the reply saying, in its own words, that it knows nothing of the first thread.

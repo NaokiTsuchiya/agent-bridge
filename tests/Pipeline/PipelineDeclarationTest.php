@@ -6,7 +6,9 @@ namespace NaokiTsuchiya\AgentBridge\Tests\Pipeline;
 
 use Be\Framework\Attribute\Be;
 use BEAR\Resource\ResourceInterface;
+use NaokiTsuchiya\AgentBridge\Pipeline\AnsweringTurn;
 use NaokiTsuchiya\AgentBridge\Pipeline\CompletedTurn;
+use NaokiTsuchiya\AgentBridge\Pipeline\FailedTurn;
 use NaokiTsuchiya\AgentBridge\Pipeline\IncomingMessage;
 use NaokiTsuchiya\AgentBridge\Pipeline\ResolvedThread;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -43,25 +45,47 @@ final class PipelineDeclarationTest extends TestCase
     }
 
     /**
-     * A resolved thread can only become a completed turn.
+     * A resolved thread can only become the turn being answered.
      *
      * @throws ReflectionException
      */
     #[Test]
-    public function aResolvedThreadBecomesACompletedTurn(): void
+    public function aResolvedThreadBecomesAnAnsweringTurn(): void
     {
-        self::assertSame([CompletedTurn::class], self::becomingOf(ResolvedThread::class));
+        self::assertSame([AnsweringTurn::class], self::becomingOf(ResolvedThread::class));
     }
 
     /**
-     * The last stage says nothing about what comes next, which is what ends the chain.
+     * The turn being answered can become either of the two turns there are, and the rule that
+     * picks between them is the declaration rather than code.
      *
      * @throws ReflectionException
      */
     #[Test]
-    public function aCompletedTurnBecomesNothing(): void
+    public function anAnsweringTurnBecomesOneOfTheTwoTurns(): void
     {
-        self::assertSame([], self::becomingOf(CompletedTurn::class));
+        self::assertSame([CompletedTurn::class, FailedTurn::class], self::becomingOf(AnsweringTurn::class));
+    }
+
+    /**
+     * Both of the last stages say nothing about what comes next, which is what ends the chain.
+     *
+     * @param class-string $turn one of the two a chain can end at
+     *
+     * @throws ReflectionException
+     */
+    #[DataProvider('finalTurns')]
+    #[Test]
+    public function aTurnBecomesNothing(string $turn): void
+    {
+        self::assertSame([], self::becomingOf($turn));
+    }
+
+    /** @return iterable<string, array{class-string}> */
+    public static function finalTurns(): iterable
+    {
+        yield 'the turn that was answered' => [CompletedTurn::class];
+        yield 'the turn that was not' => [FailedTurn::class];
     }
 
     /**

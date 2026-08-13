@@ -12,7 +12,9 @@ use NaokiTsuchiya\AgentBridge\Event\TextDelta;
 use NaokiTsuchiya\AgentBridge\Event\ToolCompleted;
 use NaokiTsuchiya\AgentBridge\Event\TurnCompleted;
 use NaokiTsuchiya\AgentBridge\Pipeline\CompletedTurn;
+use NaokiTsuchiya\AgentBridge\Pipeline\FailedTurn;
 use NaokiTsuchiya\AgentBridge\Pipeline\IncomingMessage;
+use NaokiTsuchiya\AgentBridge\Pipeline\Turn;
 use NaokiTsuchiya\AgentBridge\Runner\AgentRunner;
 use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliSettings;
 use NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner;
@@ -120,7 +122,7 @@ final class BecomingChainTest extends TestCase
     {
         $completed = $this->answer('what is the weather');
 
-        self::assertTrue($completed->success);
+        self::assertInstanceOf(CompletedTurn::class, $completed);
         self::assertStringContainsString('fake reply to: what is the weather', $completed->reply);
         self::assertSame(self::PLATFORM . ':' . self::NATIVE_ID, $completed->workspace->thread->value);
     }
@@ -321,7 +323,6 @@ final class BecomingChainTest extends TestCase
         self::assertInstanceOf(CompletedTurn::class, $completed);
         self::assertSame('hi', $completed->reply, 'The announcement is not the answer.');
         self::assertSame(['hi', $notice], $this->egress()->last()->appends);
-        self::assertTrue($completed->success);
     }
 
     /** @return iterable<string, array{bool, string}> */
@@ -332,7 +333,56 @@ final class BecomingChainTest extends TestCase
     }
 
     /**
-     * A turn that ends badly is a completed turn that says so, not an exception.
+     * An event the pipeline has no arm for ends the turn as a failed one, and the reply is still
+     * ended.
+     *
+     * Dropping it instead would be the failure nobody sees: the reader gets an answer that is
+     * missing whatever the new event carried, and the turn is a completed one. Coming back as a
+     * {@see FailedTurn} rather than as a throw is what lets a caller be handed the failure the way
+     * it is handed an answer — the stream being closed once is the other half, since a reader left
+     * with an open reply is how a turn that stopped would show up in Slack.
+     *
+     * @throws Throwable
+     */
+    #[Test]
+    public function failsATurnOnAnEventNoArmHandles(): void
+    {
+        $becoming = $this->chain(new StubAgentRunner([new TextDelta('hi'), new UnknownAgentEvent()]));
+        $egress = $this->egress();
+
+        $failed = $becoming(new IncomingMessage(self::PLATFORM, self::NATIVE_ID, 'hello'));
+
+        self::assertInstanceOf(FailedTurn::class, $failed);
+        self::assertSame('No arm for ' . UnknownAgentEvent::class . '.', $failed->error);
+        self::assertSame('hi', $failed->reply, 'What the reader was told before it stopped.');
+        self::assertSame(['hi', $failed->error], $egress->last()->appends);
+        self::assertSame(1, $egress->last()->closes, 'The reader was left with an open reply.');
+    }
+
+    /**
+     * Nothing after the event no arm handles is taken: the turn stopped there.
+     *
+     * @throws Throwable
+     */
+    #[Test]
+    public function takesNothingAfterAnEventNoArmHandles(): void
+    {
+        $becoming = $this->chain(new StubAgentRunner([
+            new UnknownAgentEvent(),
+            new TextDelta('and then some'),
+            new TurnCompleted(success: true, sessionId: 'session'),
+        ]));
+        $egress = $this->egress();
+
+        $failed = $becoming(new IncomingMessage(self::PLATFORM, self::NATIVE_ID, 'hello'));
+
+        self::assertInstanceOf(FailedTurn::class, $failed, 'A completion event after the stop counted.');
+        self::assertSame('', $failed->reply);
+        self::assertSame([$failed->error], $egress->last()->appends);
+    }
+
+    /**
+     * A turn that ends badly is a turn of its own kind, not an exception and not an answer.
      *
      * @throws Throwable
      */
@@ -341,10 +391,10 @@ final class BecomingChainTest extends TestCase
     {
         $this->useScenario(['turns' => ['1' => ['text' => 'no luck', 'is_error' => true]]]);
 
-        $completed = $this->answer('hello');
+        $failed = $this->answer('hello');
 
-        self::assertFalse($completed->success);
-        self::assertSame('', $completed->error, 'The turn ended; nothing failed on the way.');
+        self::assertInstanceOf(FailedTurn::class, $failed);
+        self::assertSame('', $failed->error, 'The turn ended; nothing failed on the way.');
     }
 
     /**
@@ -355,11 +405,11 @@ final class BecomingChainTest extends TestCase
     #[Test]
     public function reportsAnAgentError(): void
     {
-        $completed = $this->answer('hello', binary: '/nonexistent/agent-bridge-claude');
+        $failed = $this->answer('hello', binary: '/nonexistent/agent-bridge-claude');
 
-        self::assertFalse($completed->success);
-        self::assertNotSame('', $completed->error);
-        self::assertSame($completed->error, $this->egress()->last()->joined());
+        self::assertInstanceOf(FailedTurn::class, $failed);
+        self::assertNotSame('', $failed->error);
+        self::assertSame($failed->error, $this->egress()->last()->joined());
         self::assertSame(1, $this->egress()->last()->closes);
     }
 
@@ -373,7 +423,7 @@ final class BecomingChainTest extends TestCase
         string $platform = self::PLATFORM,
         string $nativeId = self::NATIVE_ID,
         ?string $binary = null,
-    ): CompletedTurn {
+    ): Turn {
         $turns = $this->turns([$text], $platform, $nativeId, $this->cliRunner($binary ?? ClaudeBinary::fake()));
 
         return self::nth($turns, index: 0);
@@ -388,7 +438,7 @@ final class BecomingChainTest extends TestCase
      *
      * @param list<string> $texts one turn each, in order
      *
-     * @return list<CompletedTurn>
+     * @return list<Turn>
      *
      * @throws Throwable
      */
@@ -408,14 +458,14 @@ final class BecomingChainTest extends TestCase
             }
 
             $last = $completed[count($completed) - 1] ?? null;
-            if ($last instanceof CompletedTurn) {
+            if ($last instanceof Turn) {
                 $runner->close($last->workspace->thread);
             }
         });
 
         $turns = [];
         foreach ($completed as $turn) {
-            self::assertInstanceOf(CompletedTurn::class, $turn);
+            self::assertInstanceOf(Turn::class, $turn);
             $turns[] = $turn;
         }
 
@@ -459,14 +509,14 @@ final class BecomingChainTest extends TestCase
     }
 
     /**
-     * @param list<CompletedTurn> $turns
+     * @param list<Turn> $turns
      *
-     * @return CompletedTurn the one at that position, which has to be there
+     * @return Turn the one at that position, which has to be there
      */
-    private static function nth(array $turns, int $index): CompletedTurn
+    private static function nth(array $turns, int $index): Turn
     {
         $turn = $turns[$index] ?? null;
-        self::assertInstanceOf(CompletedTurn::class, $turn, "Turn {$index} never happened.");
+        self::assertInstanceOf(Turn::class, $turn, "Turn {$index} never happened.");
 
         return $turn;
     }

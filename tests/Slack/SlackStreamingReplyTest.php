@@ -334,6 +334,35 @@ final class SlackStreamingReplyTest extends TestCase
         self::assertSame('the answer', $api->argumentsOf(SlackReply::POST_MESSAGE)[0]['text'] ?? '');
     }
 
+    /**
+     * Once the answer is going out as one message, what arrives after it goes the same way.
+     *
+     * The stream was refused at its start, and it is not offered anything again: retrying it would
+     * put half the answer in a message and half in a stream. This is a different moment from
+     * {@see fallsBackToOneMessageWhenTheStreamCannotStart()}, where nothing arrives after the
+     * refusal — the clock is moved before the first fragment so that the fallback is settled while
+     * the turn is still going.
+     */
+    #[Test]
+    public function keepsAddingToTheMessageAfterFallingBack(): void
+    {
+        [$reply, $api, $clock] = self::reply();
+        $api->refuse(SlackStream::START, 'method_not_supported');
+
+        $clock->advance(self::PAST_THE_WINDOW);
+        $reply->append('the ');
+        $clock->advance(self::PAST_THE_WINDOW);
+        $reply->append('answer');
+        $reply->close();
+
+        self::assertSame(
+            [SlackStream::START, SlackReply::POST_MESSAGE],
+            $api->methods(),
+            'The stream was offered the fragment that arrived after the fallback.',
+        );
+        self::assertSame('the answer', $api->argumentsOf(SlackReply::POST_MESSAGE)[0]['text'] ?? '');
+    }
+
     /** The same when the stream is opened but Slack names no message to add to. */
     #[Test]
     public function fallsBackWhenNoStreamCameBack(): void

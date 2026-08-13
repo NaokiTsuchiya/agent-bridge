@@ -25,7 +25,7 @@ use Ray\InputQuery\Attribute\Input;
  *
  * @api
  */
-#[Be(CompletedTurn::class)]
+#[Be(AnsweringTurn::class)]
 final readonly class ResolvedThread
 {
     /** The thread, its session and its directory, which exist by the time this returns. */
