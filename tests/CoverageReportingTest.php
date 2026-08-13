@@ -18,7 +18,8 @@ use function substr_count;
 /**
  * The coverage setup is spread over four configuration files, and every way it breaks leaves the
  * build green: an exclude pointing at a renamed file silently grows the denominator, a clover path
- * that only one side was updated in uploads nothing, a leg guard naming a PHP version the matrix
+ * that only one side was updated in uploads nothing, a group or test suite filter on the one step
+ * that runs the tests drops a whole group or suite, a leg guard naming a PHP version the matrix
  * does not have skips the upload everywhere. These assert the couplings that nothing else would.
  */
 final class CoverageReportingTest extends TestCase
@@ -53,13 +54,19 @@ final class CoverageReportingTest extends TestCase
         }
     }
 
-    /** The script writes the report and the workflow uploads it; only one of them has to move. */
+    /**
+     * The script writes the report and the workflow uploads it; only one of them has to move. That
+     * same script is the only thing running the tests in CI, so a group or test suite filter on it
+     * would drop a whole group or suite from the build with nothing left to run it.
+     */
     #[Test]
-    public function writesTheCloverWhereTheWorkflowUploadsItFrom(): void
+    public function writesTheCloverWhereTheWorkflowUploadsItFromAndRunsEverything(): void
     {
         $composer = Json::decode(self::read('composer.json')) ?? [];
         $script = Json::text(Json::node($composer, 'scripts'), 'test:coverage');
         self::assertIsString($script);
+        self::assertStringNotContainsString('group', $script, 'the coverage run filters by group');
+        self::assertStringNotContainsString('testsuite', $script, 'the coverage run picks a suite');
 
         $clover = self::capture('#--coverage-clover=(\S+)#', $script);
 
@@ -87,20 +94,22 @@ final class CoverageReportingTest extends TestCase
     }
 
     /**
-     * Both steps have to sit on the same leg — on every leg the same report would be counted twice,
-     * and on a version the matrix does not run neither step would happen at all.
+     * Measuring on one leg leaves what the other version reaches unmeasured, and the measuring step
+     * is the only one running the suite, so a guard on it would skip the tests as well. Uploading
+     * from every leg has Codecov count the same numbers twice; uploading from a version the matrix
+     * does not run uploads nothing at all.
      */
     #[Test]
-    public function producesAndUploadsOnOneMatrixLegTheBuildActuallyRuns(): void
+    public function measuresOnEveryLegAndUploadsFromOneTheBuildRuns(): void
     {
         $workflow = self::read('.github/workflows/ci.yml');
-        $pattern = "#if: matrix.php == '([^']+)'#";
+        $measuring = self::stepContaining($workflow, 'composer test:coverage');
+        self::assertStringNotContainsString('if:', $measuring);
 
-        $producing = self::capture($pattern, self::stepContaining($workflow, 'composer test:coverage'));
-        $uploading = self::capture($pattern, self::stepContaining($workflow, 'codecov/codecov-action@'));
-        self::assertSame($producing, $uploading);
+        $uploading = self::stepContaining($workflow, 'codecov/codecov-action@');
+        $leg = self::capture("#if: matrix.php == '([^']+)'#", $uploading);
 
-        self::assertStringContainsString("'{$producing}'", self::capture('#php: \[([^\]]+)\]#', $workflow));
+        self::assertStringContainsString("'{$leg}'", self::capture('#php: \[([^\]]+)\]#', $workflow));
     }
 
     /** One status left as a gate is enough to fail a pull request for lowering coverage. */
@@ -154,7 +163,9 @@ final class CoverageReportingTest extends TestCase
     private static function stepContaining(string $workflow, string $needle): string
     {
         $steps = [];
-        foreach (explode("\n      - ", $workflow) as $step) {
+        foreach (explode("\n      - ", $workflow) as $chunk) {
+            // A comment at step indentation belongs to the step below it, not the one above.
+            $step = explode("\n      #", $chunk)[0];
             if (!str_contains($step, $needle)) {
                 continue;
             }

@@ -161,6 +161,6 @@ AGENT_BRIDGE_CLAUDE_BIN="$PWD/fake-claude/bin/claude" composer test:integration
 AGENT_BRIDGE_CLAUDE_BIN="$PWD/fake-claude/bin/claude" composer test:coverage
 ```
 
-CI (`.github/workflows/ci.yml`) は unit 群と fake-claude 群に加えて、**integration 群をフェイクに対して**回している (`AGENT_BRIDGE_CLAUDE_BIN` にフェイクのパスを渡す step)。実 `claude` に対する実行は課金とログインが要るので CI では行わない — **手元で定期的に回すもの**で、落ちたらフェイクを実 CLI に合わせて直す (2 章の原則)。
+CI (`.github/workflows/ci.yml`) は unit 群・fake-claude 群・integration 群を **1 つの step でまとめて** (`composer test:coverage`) 回しており、**integration 群はフェイクに対して**動く (`AGENT_BRIDGE_CLAUDE_BIN` にフェイクのパスを渡す step)。実 `claude` に対する実行は課金とログインが要るので CI では行わない — **手元で定期的に回すもの**で、落ちたらフェイクを実 CLI に合わせて直す (2 章の原則)。
 
-カバレッジは matrix の片方 (PHP 8.5) だけで、同じフェイク指定のまま `composer test:coverage` を 1 回追加で回して測り、その clover を Codecov に上げている (両方の leg から上げると同じ数字が二重に計上される)。
+カバレッジはその 1 回の実行で matrix の両方 (PHP 8.4 / 8.5) が測る。Codecov へのアップロードだけを片方 (8.5) に閉じている — 両方の leg から上げると同じ数字が二重に計上されるため。
