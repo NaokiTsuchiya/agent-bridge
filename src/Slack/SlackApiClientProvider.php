@@ -39,11 +39,13 @@ final class SlackApiClientProvider implements ProviderInterface
     /**
      * {@inheritDoc}
      *
-     * @throws SlackException when the variable is unset or does not hold a bot token
+     * @throws SlackException when the variable is unset or does not hold a bot token, or when the
+     *                        endpoint variables do not name a host and port
      */
     #[Override]
     public function get(): SlackApiClient
     {
+        $endpoint = SlackApiEndpoint::fromEnvironment();
         $value = getenv(self::ENVIRONMENT_VARIABLE);
 
         if ($value === false) {
@@ -68,7 +70,7 @@ final class SlackApiClientProvider implements ProviderInterface
         // Slack, while the transport is about reaching it, and only the wrapper can be exercised
         // without a workspace.
         return new RetryingSlackApiClient(
-            new SwooleSlackApiClient($token, $this->clients),
+            new SwooleSlackApiClient($token, $this->clients, $endpoint->host, $endpoint->port),
             $this->sleeper,
             $this->settings,
         );

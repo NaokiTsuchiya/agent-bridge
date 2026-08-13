@@ -28,10 +28,21 @@ final class SocketModeConnectorProvider implements ProviderInterface
      * {@inheritDoc}
      *
      * @throws SocketModeException when the app token is unset or unusable
+     * @throws SlackException      when the endpoint variables do not name a host and port
      */
     #[Override]
     public function get(): SocketModeConnectorInterface
     {
-        return new SwooleSocketModeConnector(SlackAppTokenFactory::fromEnvironment(), $this->clients);
+        // Read before the token, so that a wrong port is said to be wrong even on a machine that
+        // has no app token yet: both are settings of the same start, and the first one asked about
+        // is the one a person is told to fix.
+        $endpoint = SlackApiEndpoint::fromEnvironment();
+
+        return new SwooleSocketModeConnector(
+            SlackAppTokenFactory::fromEnvironment(),
+            $this->clients,
+            $endpoint->host,
+            $endpoint->port,
+        );
     }
 }
