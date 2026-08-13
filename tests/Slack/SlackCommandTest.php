@@ -4,15 +4,26 @@ declare(strict_types=1);
 
 namespace NaokiTsuchiya\AgentBridge\Tests\Slack;
 
+use InvalidArgumentException;
 use NaokiTsuchiya\AgentBridge\Di\SlackContext;
 use NaokiTsuchiya\AgentBridge\Slack\SlackCommand;
+use NaokiTsuchiya\AgentBridge\Slack\SlackException;
+use NaokiTsuchiya\AgentBridge\Slack\SlackIdentity;
+use NaokiTsuchiya\AgentBridge\Slack\SlackIngress;
+use NaokiTsuchiya\AgentBridge\Slack\SlackServer;
+use NaokiTsuchiya\AgentBridge\Slack\SocketModeException;
+use NaokiTsuchiya\AgentBridge\Slack\ThreadChannels;
+use NaokiTsuchiya\AgentBridge\Tests\Di\FixedContext;
 use NaokiTsuchiya\AgentBridge\Tests\Support\TempDir;
 use NaokiTsuchiya\RayDiContext\ContextProviderInterface;
 use NaokiTsuchiya\RayDiContext\Exception\ExceptionInterface;
 use NaokiTsuchiya\RayDiContext\MapContextProvider;
 use Override;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Swoole\Coroutine\Channel;
+use Throwable;
 
 use function fopen;
 use function rewind;
@@ -32,6 +43,9 @@ use function stream_get_contents;
  */
 final class SlackCommandTest extends TestCase
 {
+    /** This app's own user id, for the server the running case resolves. */
+    private const string BOT = 'U0BOT';
+
     /**
      * Where a case's refusal is written.
      *
@@ -115,10 +129,85 @@ final class SlackCommandTest extends TestCase
         self::assertStringContainsString('environment', $usage);
     }
 
+    /**
+     * A command line that is in order runs the server, and stops when the server does.
+     *
+     * What is pinned is that the server was really run rather than resolved and dropped: the
+     * connection loop opened its one connection, and nothing waited for a reconnection that was
+     * never going to be needed.
+     *
+     * @throws InvalidArgumentException never; the identity below is a usable one.
+     */
+    #[Test]
+    public function runsTheServerUntilItStops(): void
+    {
+        $envelopes = new Channel(1);
+        // Closed before anything runs, which is the only way a resident front end is asked to stop.
+        $envelopes->close();
+        $logger = new RecordingLogger();
+        $connection = new OneAttemptClient($envelopes, $logger);
+        $server = new SlackServer(
+            new ParkingBecoming(),
+            new SlackIngress($envelopes, new SlackIdentity(self::BOT), new ThreadChannels()),
+            $connection->client,
+            $logger,
+        );
+
+        $code = $this->serving([SlackServer::class => $server])->run(['agent-bridge-slack', $this->empty]);
+
+        self::assertSame(0, $code);
+        self::assertSame(1, $connection->connector->attempts, 'The server was resolved but never run.');
+        self::assertSame([], $connection->sleeper->delays, 'Something took a real wait.');
+        self::assertSame('', $this->written());
+    }
+
+    /**
+     * A workspace this cannot connect for is refused while the server is built, not in the middle
+     * of somebody's message — and the reason is the one thing worth saying.
+     *
+     * @param Throwable $failure what building the server ran into
+     * @param string    $reason  what the caller has to be told
+     */
+    #[DataProvider('workspacesItCannotConnectFor')]
+    #[Test]
+    public function explainsAWorkspaceItCannotConnectFor(Throwable $failure, string $reason): void
+    {
+        $code = $this->serving([SlackServer::class => $failure])->run(['agent-bridge-slack', $this->empty]);
+
+        self::assertSame(3, $code);
+        self::assertStringContainsString($reason, $this->written());
+    }
+
+    /** @return iterable<string, array{Throwable, string}> */
+    public static function workspacesItCannotConnectFor(): iterable
+    {
+        // The tokens are read while the server is built, so a workspace that was never configured
+        // is found out here.
+        yield 'nothing in the environment' => [
+            new SlackException('SLACK_APP_TOKEN is not set'),
+            'SLACK_APP_TOKEN is not set',
+        ];
+        // And one the workspace itself refuses is the same kind of answer: nothing to serve.
+        yield 'a token the workspace refuses' => [
+            new SocketModeException('invalid_auth'),
+            'invalid_auth',
+        ];
+    }
+
     /** @param string $projectRoot where the command was installed */
     private function command(string $projectRoot): SlackCommand
     {
         return new SlackCommand($this->contexts(), $projectRoot, $this->errors());
+    }
+
+    /**
+     * A command whose injector answers with what a case prepared, in place of compiled scripts.
+     *
+     * @param array<class-string, object|Throwable> $prepared what the server is resolved as
+     */
+    private function serving(array $prepared): SlackCommand
+    {
+        return new SlackCommand(new FixedContext($prepared), $this->empty, $this->errors());
     }
 
     /** @return ContextProviderInterface the one mapping bootstrap.php also returns */
