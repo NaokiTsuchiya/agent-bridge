@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace NaokiTsuchiya\AgentBridge\Slack;
 
-use function is_array;
+use NaokiTsuchiya\AgentBridge\Json;
+
 use function is_numeric;
-use function is_string;
 use function json_decode;
 
 /**
@@ -51,7 +51,7 @@ final class SlackApiResponse
             return new SlackApiResult(ok: false, error: self::RATE_LIMITED, retryAfter: self::secondsIn($headers));
         }
 
-        $decoded = self::asObject(json_decode($body, associative: true));
+        $decoded = Json::asObject(json_decode($body, associative: true));
 
         if ($decoded === null) {
             // Not Slack answering: a proxy's error page, a truncated body, an empty one.
@@ -60,10 +60,10 @@ final class SlackApiResponse
 
         // `!== true` rather than a falsiness check: a body without `ok` is not a body that said yes.
         if (($decoded['ok'] ?? null) !== true) {
-            return new SlackApiResult(ok: false, error: self::text($decoded, 'error') ?? self::UNKNOWN);
+            return new SlackApiResult(ok: false, error: Json::text($decoded, 'error') ?? self::UNKNOWN);
         }
 
-        return new SlackApiResult(ok: true, ts: self::text($decoded, 'ts') ?? '');
+        return new SlackApiResult(ok: true, ts: Json::text($decoded, 'ts') ?? '');
     }
 
     /**
@@ -75,7 +75,7 @@ final class SlackApiResponse
      */
     private static function secondsIn(array $headers): float
     {
-        $asked = self::text($headers, self::RETRY_AFTER);
+        $asked = Json::text($headers, self::RETRY_AFTER);
 
         if ($asked === null || !is_numeric($asked)) {
             return self::DEFAULT_RETRY_AFTER;
@@ -85,30 +85,5 @@ final class SlackApiResponse
 
         // A zero or a negative would turn the wait into a hot loop against a limit already reached.
         return $seconds > 0.0 ? $seconds : self::DEFAULT_RETRY_AFTER;
-    }
-
-    /**
-     * Whatever `json_decode` answered with, as an object, or null when it is anything else.
-     *
-     * Taking the decoded value as an argument rather than a variable is what keeps its type off a
-     * `mixed` assignment, which is the whole reason the decode is not written inline.
-     *
-     * @return array<array-key, mixed>|null
-     *
-     * @pure
-     */
-    private static function asObject(mixed $decoded): ?array
-    {
-        return is_array($decoded) ? $decoded : null;
-    }
-
-    /**
-     * @param array<array-key, mixed> $node
-     *
-     * @pure
-     */
-    private static function text(array $node, string $key): ?string
-    {
-        return is_string($node[$key] ?? null) ? $node[$key] : null;
     }
 }

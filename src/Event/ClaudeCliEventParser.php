@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace NaokiTsuchiya\AgentBridge\Event;
 
+use NaokiTsuchiya\AgentBridge\Json;
+
 use function array_filter;
 use function array_values;
 use function is_array;
 use function is_bool;
-use function is_string;
 use function json_decode;
 
 /**
@@ -32,7 +33,7 @@ final class ClaudeCliEventParser
             return [];
         }
 
-        return match (self::text($decoded, 'type')) {
+        return match (Json::text($decoded, 'type')) {
             'stream_event' => $this->textDeltas($decoded),
             'assistant' => $this->toolStarts($decoded),
             'result' => [$this->turnCompleted($decoded)],
@@ -50,7 +51,7 @@ final class ClaudeCliEventParser
         $delta = self::node(self::node($line, 'event'), 'delta');
         // text_delta is matched as a whitelist rather than "anything but thinking/signature":
         // input_json_delta also occurs (it streams a tool call's arguments) and has no `text`.
-        $text = self::text($delta, 'type') === 'text_delta' ? self::text($delta, 'text') : null;
+        $text = Json::text($delta, 'type') === 'text_delta' ? Json::text($delta, 'text') : null;
 
         return $text === null ? [] : [new TextDelta($text)];
     }
@@ -66,9 +67,9 @@ final class ClaudeCliEventParser
         // stream_event content_block_start, and reading both would start every tool twice.
         $events = [];
         foreach (self::nodes(self::node($line, 'message'), 'content') as $block) {
-            $name = self::text($block, 'name');
-            $id = self::text($block, 'id');
-            if (self::text($block, 'type') !== 'tool_use' || $name === null || $id === null) {
+            $name = Json::text($block, 'name');
+            $id = Json::text($block, 'id');
+            if (Json::text($block, 'type') !== 'tool_use' || $name === null || $id === null) {
                 continue;
             }
 
@@ -85,7 +86,7 @@ final class ClaudeCliEventParser
         // be read must not reach the consumer as a turn that went well.
         $isError = self::flag($line, 'is_error');
 
-        return new TurnCompleted($isError !== null && !$isError, self::text($line, 'session_id') ?? '');
+        return new TurnCompleted($isError !== null && !$isError, Json::text($line, 'session_id') ?? '');
     }
 
     /**
@@ -110,16 +111,6 @@ final class ClaudeCliEventParser
     private static function nodes(array $node, string $key): array
     {
         return array_values(array_filter(self::node($node, $key), is_array(...)));
-    }
-
-    /**
-     * @param array<array-key, mixed> $node
-     *
-     * @pure
-     */
-    private static function text(array $node, string $key): ?string
-    {
-        return is_string($node[$key] ?? null) ? $node[$key] : null;
     }
 
     /**

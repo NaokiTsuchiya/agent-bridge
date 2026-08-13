@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace NaokiTsuchiya\AgentBridge\Slack;
 
-use function is_array;
+use NaokiTsuchiya\AgentBridge\Json;
+
 use function is_string;
 use function json_decode;
 
@@ -28,7 +29,7 @@ final class ConnectionOpenResponse
      */
     public static function websocketUrl(string $body): string
     {
-        $decoded = self::asObject(json_decode($body, associative: true));
+        $decoded = Json::asObject(json_decode($body, associative: true));
 
         if ($decoded === null) {
             throw new SocketModeException('apps.connections.open did not answer with a JSON object.');
@@ -47,20 +48,5 @@ final class ConnectionOpenResponse
         }
 
         return $url;
-    }
-
-    /**
-     * Whatever `json_decode` answered with, as an object, or null when it is anything else.
-     *
-     * Taking the decoded value as an argument rather than a variable is what keeps its type off a
-     * `mixed` assignment, which is the whole reason the decode is not written inline.
-     *
-     * @return array<array-key, mixed>|null
-     *
-     * @pure
-     */
-    private static function asObject(mixed $decoded): ?array
-    {
-        return is_array($decoded) ? $decoded : null;
     }
 }

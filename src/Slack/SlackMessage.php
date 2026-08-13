@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace NaokiTsuchiya\AgentBridge\Slack;
 
+use NaokiTsuchiya\AgentBridge\Json;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
 
 use function array_key_exists;
 use function in_array;
-use function is_array;
-use function is_string;
 
 /**
  * One Socket Mode payload, read as a message this app has to answer — or read as nothing.
@@ -18,11 +17,6 @@ use function is_string;
  * this app wrote it, and which thread it belongs to. It is a value object rather than a method on
  * the ingress because that is what lets the rules be exercised one payload at a time, without a
  * channel and without a coroutine.
- *
- * The complexity the linter counts here is the count of those rules, and splitting them across
- * classes would only make the list of what this front end ignores harder to read as a list.
- *
- * @mago-expect lint:cyclomatic-complexity
  *
  * @api
  */
@@ -66,7 +60,7 @@ final readonly class SlackMessage
      */
     public static function from(array $payload, string $botUserId): ?self
     {
-        $event = self::text($payload, 'type') === 'event_callback' ? self::object($payload, 'event') : null;
+        $event = Json::text($payload, 'type') === 'event_callback' ? Json::object($payload, 'event') : null;
 
         if ($event === null || !self::isAMessage($event) || !self::byAPerson($event, $botUserId)) {
             return null;
@@ -88,7 +82,7 @@ final readonly class SlackMessage
     private static function isAMessage(array $event): bool
     {
         return (
-            in_array(self::text($event, 'type'), self::ANSWERABLE, strict: true) && !array_key_exists('subtype', $event)
+            in_array(Json::text($event, 'type'), self::ANSWERABLE, strict: true) && !array_key_exists('subtype', $event)
         );
     }
 
@@ -107,7 +101,7 @@ final readonly class SlackMessage
      */
     private static function byAPerson(array $event, string $botUserId): bool
     {
-        $user = self::text($event, 'user') ?? '';
+        $user = Json::text($event, 'user') ?? '';
 
         return !array_key_exists('bot_id', $event) && $user !== '' && $user !== $botUserId;
     }
@@ -119,37 +113,15 @@ final readonly class SlackMessage
      */
     private static function of(array $event): ?self
     {
-        $channel = self::text($event, 'channel') ?? '';
-        $ts = self::text($event, 'ts') ?? '';
+        $channel = Json::text($event, 'channel') ?? '';
+        $ts = Json::text($event, 'ts') ?? '';
 
         if ($channel === '' || $ts === '') {
             return null;
         }
 
-        $threadTs = self::text($event, 'thread_ts') ?? '';
+        $threadTs = Json::text($event, 'thread_ts') ?? '';
 
-        return new self($channel, $threadTs === '' ? $ts : $threadTs, self::text($event, 'text') ?? '');
-    }
-
-    /**
-     * @param array<array-key, mixed> $node
-     *
-     * @return array<array-key, mixed>|null
-     *
-     * @pure
-     */
-    private static function object(array $node, string $key): ?array
-    {
-        return is_array($node[$key] ?? null) ? $node[$key] : null;
-    }
-
-    /**
-     * @param array<array-key, mixed> $node
-     *
-     * @pure
-     */
-    private static function text(array $node, string $key): ?string
-    {
-        return is_string($node[$key] ?? null) ? $node[$key] : null;
+        return new self($channel, $threadTs === '' ? $ts : $threadTs, Json::text($event, 'text') ?? '');
     }
 }
