@@ -31,6 +31,7 @@ use PHPUnit\Framework\TestCase;
 use Ray\Di\Injector;
 use Swoole\Runtime;
 use Throwable;
+use UnhandledMatchError;
 
 use function array_filter;
 use function array_values;
@@ -329,6 +330,33 @@ final class BecomingChainTest extends TestCase
     {
         yield 'a call that went well' => [true, "\n> toolu_1 done\n"];
         yield 'a call that did not' => [false, "\n> toolu_1 failed\n"];
+    }
+
+    /**
+     * An event the pipeline has no arm for stops the turn, and the reply is still ended.
+     *
+     * Dropping it instead would be the failure nobody sees: the reader gets an answer that is
+     * missing whatever the new event carried, and the turn reports success. The stream being closed
+     * once is the other half — the arms run inside a `try`, and a reader left with an open reply is
+     * how an exception on this path would show up in Slack.
+     *
+     * @throws Throwable
+     */
+    #[Test]
+    public function stopsATurnOnAnEventNoArmHandles(): void
+    {
+        $becoming = $this->chain(new StubAgentRunner([new TextDelta('hi'), new UnknownAgentEvent()]));
+        $egress = $this->egress();
+
+        $this->expectException(UnhandledMatchError::class);
+        $this->expectExceptionMessageIsOrContains(UnknownAgentEvent::class);
+
+        try {
+            $becoming(new IncomingMessage(self::PLATFORM, self::NATIVE_ID, 'hello'));
+        } finally {
+            self::assertSame(['hi'], $egress->last()->appends);
+            self::assertSame(1, $egress->last()->closes, 'The reader was left with an open reply.');
+        }
     }
 
     /**

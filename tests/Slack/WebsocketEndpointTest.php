@@ -106,4 +106,33 @@ final class WebsocketEndpointTest extends TestCase
         // A port that is not a number is the one shape `parse_url` gives up on outright.
         yield 'unparseable' => ['wss://wss-primary.slack.com:port/link'];
     }
+
+    /**
+     * The shapes that get as far as the host: a WSS URL with no authority at all.
+     *
+     * None of the rows above reach that test — `parse_url` gives up on an empty authority, and a URL
+     * with no scheme is turned away before the host is looked at — so the refusal is named here
+     * rather than only asked for by type. A URL that lost its host and was refused for some other
+     * reason would read as the same green test otherwise.
+     *
+     * @throws SocketModeException
+     */
+    #[DataProvider('wssUrlsThatParseWithoutAHost')]
+    #[Test]
+    public function refusesAWssUrlThatParsesButNamesNoHost(string $url): void
+    {
+        $this->expectException(SocketModeException::class);
+        $this->expectExceptionMessageIsOrContains('without a host');
+
+        WebsocketEndpoint::fromUrl($url);
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function wssUrlsThatParseWithoutAHost(): iterable
+    {
+        yield 'a relative path' => ['wss:link'];
+        yield 'an absolute path' => ['wss:/link'];
+        yield 'a query and nothing else' => ['wss:?ticket=1234-5678'];
+        yield 'nothing but the scheme' => ['wss:'];
+    }
 }

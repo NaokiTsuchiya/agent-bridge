@@ -14,6 +14,8 @@ use NaokiTsuchiya\AgentBridge\Slack\SocketModeException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use ReflectionException;
+use ReflectionMethod;
 use Swoole\Coroutine\Channel;
 
 use function count;
@@ -259,6 +261,39 @@ final class SocketModeClientTest extends TestCase
         yield 'a string' => ['{"type":"events_api","envelope_id":"ev-7","payload":"app_mention"}'];
         yield 'a number' => ['{"type":"events_api","envelope_id":"ev-7","payload":7}'];
         yield 'null' => ['{"type":"events_api","envelope_id":"ev-7","payload":null}'];
+    }
+
+    /**
+     * An acknowledgement that could not be built is not reported as one that was sent.
+     *
+     * This is the one branch of the router no frame can drive it into. `json_encode` refuses a
+     * string only when it is not valid UTF-8, and `json_decode` refuses a frame carrying one
+     * outright — so an id that cannot be encoded can never come back out of a decoded frame. The
+     * router is therefore handed the frame where it would have come from, which is the only place
+     * the branch is reachable from at all. What it does there is worth pinning: an unsent ack has
+     * Slack redeliver the envelope, and a connection given up over it would take the working ones
+     * with it.
+     *
+     * No coroutine, unlike everything else here: the channel is never reached, because the branch
+     * returns before the payload is handed on.
+     *
+     * @throws InvalidArgumentException
+     * @throws ReflectionException
+     */
+    #[Test]
+    public function acknowledgesNothingWhenTheAckCannotBeBuilt(): void
+    {
+        $connection = new FakeSocketModeConnection();
+        $logger = new RecordingLogger();
+        $unencodable = "\xB1\x31";
+        $router = new FrameRouter(new Channel(1), new EnvelopeLog(), $logger);
+
+        self::assertTrue(
+            new ReflectionMethod($router, 'event')->invoke($router, ['envelope_id' => $unencodable], $connection),
+            'A frame that could not be acknowledged gave up the connection.',
+        );
+        self::assertSame([], $connection->sent, 'Something was sent as the acknowledgement anyway.');
+        self::assertContains("cannot build the ack for {$unencodable}", $logger->lines);
     }
 
     /** A stop asked for while a connection was up ends the loop instead of opening another one. */
