@@ -53,7 +53,7 @@ ls .worktrees/          # cli-my-experiment
 | 行 | 出力先 | 例 |
 |---|---|---|
 | 応答本文 | 標準出力 | 差分が届いたそばから書かれる。ターンの終わりに改行 1 つ |
-| ツール開始 | 標準出力 | `> Grep` (パイプラインが `CompletedTurn::TOOL_NOTICE` で付ける引用行) |
+| ツール開始 | 標準出力 | `> Grep` (パイプラインが `AnsweringTurn::TOOL_NOTICE` で付ける引用行) |
 | ツール完了 | 標準出力 | `> toolu_1 done` / `> toolu_1 failed` (同じ引用行) |
 | 状態表示 | 標準エラー | `# Working on it.` (受付直後に 1 回) |
 

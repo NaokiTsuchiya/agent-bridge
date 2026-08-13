@@ -7,11 +7,12 @@ namespace NaokiTsuchiya\AgentBridge\Tests\Cli;
 use InvalidArgumentException;
 use NaokiTsuchiya\AgentBridge\Chat\ChatIngress;
 use NaokiTsuchiya\AgentBridge\Cli\Conversation;
-use NaokiTsuchiya\AgentBridge\Event\AgentEvent;
 use NaokiTsuchiya\AgentBridge\Event\TurnCompleted;
+use NaokiTsuchiya\AgentBridge\Pipeline\Completed;
 use NaokiTsuchiya\AgentBridge\Pipeline\CompletedTurn;
+use NaokiTsuchiya\AgentBridge\Pipeline\Failed;
+use NaokiTsuchiya\AgentBridge\Pipeline\FailedTurn;
 use NaokiTsuchiya\AgentBridge\Pipeline\IncomingMessage;
-use NaokiTsuchiya\AgentBridge\Tests\Chat\RecordingChatEgress;
 use NaokiTsuchiya\AgentBridge\Tests\Pipeline\StubAgentRunner;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadWorkspace;
@@ -19,7 +20,6 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Throwable;
-use UnhandledMatchError;
 
 /**
  * What a conversation does with the answers it gets, apart from any front end or agent.
@@ -155,41 +155,30 @@ final class ConversationTest extends TestCase
      * A turn of the thread these cases use, which reached its completion event.
      *
      * Built rather than mocked: what a conversation reads off it — the thread it belongs to and
-     * whether it went well — is what the real stage carries.
+     * which of the two turns it is — is what the real stages carry.
      *
      * @throws InvalidArgumentException
-     * @throws UnhandledMatchError
      */
     private static function finishedTurn(): CompletedTurn
     {
-        return self::turn([new TurnCompleted(success: true, sessionId: 'session')]);
+        return new CompletedTurn(self::workspace(), new Completed('hello'));
     }
 
     /**
-     * A turn whose agent stopped before saying it was done, which is what `success` is false for.
+     * A turn whose agent stopped before saying it was done, which is the turn the chain ends at
+     * when nothing stood behind the answer.
      *
      * @throws InvalidArgumentException
-     * @throws UnhandledMatchError
      */
-    private static function unfinishedTurn(): CompletedTurn
+    private static function unfinishedTurn(): FailedTurn
     {
-        return self::turn([]);
+        return new FailedTurn(self::workspace(), new Failed('', ''));
     }
 
-    /**
-     * @param list<AgentEvent> $events what the turn's agent says
-     *
-     * @throws InvalidArgumentException
-     * @throws UnhandledMatchError
-     */
-    private static function turn(array $events): CompletedTurn
+    /** @throws InvalidArgumentException */
+    private static function workspace(): ThreadWorkspace
     {
-        return new CompletedTurn(
-            new ThreadWorkspace(new ThreadId(self::THREAD), 'session', '/tmp'),
-            'hello',
-            new StubAgentRunner($events),
-            new RecordingChatEgress(),
-        );
+        return new ThreadWorkspace(new ThreadId(self::THREAD), 'session', '/tmp');
     }
 
     /** @param int $messages how many the front end has */

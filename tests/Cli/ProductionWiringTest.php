@@ -10,7 +10,9 @@ use NaokiTsuchiya\AgentBridge\Cli\CliCommand;
 use NaokiTsuchiya\AgentBridge\Cli\Conversation;
 use NaokiTsuchiya\AgentBridge\Cli\StandardOutputEgress;
 use NaokiTsuchiya\AgentBridge\Di\ServeContext;
+use NaokiTsuchiya\AgentBridge\Pipeline\AnsweringTurn;
 use NaokiTsuchiya\AgentBridge\Pipeline\CompletedTurn;
+use NaokiTsuchiya\AgentBridge\Pipeline\FailedTurn;
 use NaokiTsuchiya\AgentBridge\Pipeline\ResolvedThread;
 use NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner;
 use NaokiTsuchiya\AgentBridge\Runner\WorkingDirectoryResolver;
@@ -202,11 +204,17 @@ final class ProductionWiringTest extends TestCase
     public function buildsNoneOfTheChainByHand(): void
     {
         foreach (self::frontEndClasses() as $class) {
-            foreach ([ResolvedThread::class, CompletedTurn::class] as $stage) {
+            foreach (self::pipelineStages() as $stage) {
                 $short = new ReflectionClass($stage)->getShortName();
                 self::assertFalse(str_contains(self::sourceOf($class), "new {$short}"), "{$class} builds a {$short}.");
             }
         }
+    }
+
+    /** @return list<class-string> every stage a message passes through, first to last */
+    private static function pipelineStages(): array
+    {
+        return [ResolvedThread::class, AnsweringTurn::class, CompletedTurn::class, FailedTurn::class];
     }
 
     /**
