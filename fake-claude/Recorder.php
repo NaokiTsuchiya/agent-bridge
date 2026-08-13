@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Fake\Claude;
+namespace NaokiTsuchiya\AgentBridge\FakeClaude;
 
 use function getmypid;
 use function json_encode;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Contract;
+namespace NaokiTsuchiya\AgentBridge\FakeClaude;
 
 use NaokiTsuchiya\AgentBridge\Tests\Support\CliProcess;
 use NaokiTsuchiya\AgentBridge\Tests\Support\Json;
@@ -26,6 +26,11 @@ use function implode;
  * for a reason that has nothing to do with the contract.
  *
  * When one of these fails on the real side, the real side is right and the fake is what changes.
+ *
+ * It is the fake's promise, so it lives with the fake rather than in `tests/`: that keeps the
+ * fake's suite from reaching into the host package's test namespace, and leaves the real side
+ * ({@see \NaokiTsuchiya\AgentBridge\Tests\Integration\RealClaudeCliContractTest}) as the one
+ * crossing over — the direction `tests/` already depends in.
  *
  * @internal
  *

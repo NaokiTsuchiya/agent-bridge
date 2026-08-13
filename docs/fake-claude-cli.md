@@ -1,7 +1,7 @@
 # フェイク Claude CLI と契約テスト
 
 **ステータス:** 実装済み (issue #5)
-**対象:** `tests/Fake/Claude/bin/claude` / `tests/Contract/` / `tests/Integration/RealClaudeCliContractTest.php`
+**対象:** `fake-claude/bin/claude` / `fake-claude-tests/` / `tests/Integration/RealClaudeCliContractTest.php`
 
 ---
 
@@ -20,22 +20,23 @@
 
 ## 2. 起動のしかた
 
-`tests/Fake/Claude/bin/claude` は実行ビット付きの実行可能ファイルで、リポジトリ内のパスをそのまま指定して起動できる。
+`fake-claude/bin/claude` は実行ビット付きの実行可能ファイルで、リポジトリ内のパスをそのまま指定して起動できる。
 
 ```bash
-FAKE_CLAUDE_HOME=/tmp/fake-home tests/Fake/Claude/bin/claude \
+FAKE_CLAUDE_HOME=/tmp/fake-home fake-claude/bin/claude \
   -p --output-format stream-json --verbose --include-partial-messages \
   --session-id 11111111-1111-4111-8111-111111111111 "hello"
 ```
 
-フェイクに属するものは `tests/Fake/Claude/` に閉じている:
+フェイクに属するものは `fake-claude/` (実体) と `fake-claude-tests/` (そのテスト) に閉じている:
 
 ```
-tests/Fake/Claude/bin/claude   実行可能な shim (4 行)
-tests/Fake/Claude/*.php        名前空間 NaokiTsuchiya\AgentBridge\Tests\Fake\Claude の実体
+fake-claude/bin/claude     実行可能な shim (4 行)
+fake-claude/*.php          名前空間 NaokiTsuchiya\AgentBridge\FakeClaude の実体
+fake-claude-tests/*.php    同じ名前空間のテスト (testsuite "fake-claude")
 ```
 
-`bin/claude` が拡張子を持たないのは意図的で、`mago.toml` の `[source] paths` は `tests` 配下を走査するが拡張子なしのファイルは対象外になる。ロジックは同じディレクトリの名前空間付き `*.php` に置き、この 1 本は autoload して `FakeClaudeCli::main()` を呼ぶだけの shim に留めている (そちらは lint / analyze の網に載る)。フェイクを別の CLI にも用意するなら `tests/Fake/<名前>/` を隣に並べる。
+`bin/claude` が拡張子を持たないのは意図的で、`mago.toml` の `[source] paths` は `fake-claude` 配下を走査するが拡張子なしのファイルは対象外になる。ロジックは同じディレクトリの名前空間付き `*.php` に置き、この 1 本は autoload して `FakeClaudeCli::main()` を呼ぶだけの shim に留めている (そちらは lint / analyze の網に載る)。フェイクを別の CLI にも用意するなら `fake-<名前>/` と `fake-<名前>-tests/` を隣に並べる。
 
 ### 再現している挙動
 
@@ -53,7 +54,7 @@ tests/Fake/Claude/*.php        名前空間 NaokiTsuchiya\AgentBridge\Tests\Fake
 
 ターンの出力順は `system/init` (毎ターン再送) → (`stream_event` 群) → (`tool_use` と `tool_result`) → `assistant` (本文) → **`result`** (ターンの最終行)。
 
-**値を取るフラグの一覧は `tests/Fake/Claude/FakeArgs.php` にある。** 未知のフラグを真偽フラグとして無視する以上、値を取るフラグを知らないとその値がプロンプトに混入する (`--allowedTools Bash` の `Bash` がプロンプトになる)。新しく値付きフラグを渡すときはこの一覧に足すこと。
+**値を取るフラグの一覧は `fake-claude/FakeArgs.php` にある。** 未知のフラグを真偽フラグとして無視する以上、値を取るフラグを知らないとその値がプロンプトに混入する (`--allowedTools Bash` の `Bash` がプロンプトになる)。新しく値付きフラグを渡すときはこの一覧に足すこと。
 
 ## 3. 環境変数
 
@@ -114,9 +115,11 @@ turns.jsonl                        ターンの開始/終了 1 件につき 1 �
 
 | ファイル | 群 | バイナリ |
 |---|---|---|
-| `tests/Contract/ClaudeCliContractTestCase.php` | (抽象・収集されない) | 本体 |
-| `tests/Contract/FakeClaudeCliContractTest.php` | unit | `tests/Fake/Claude/bin/claude` |
+| `fake-claude-tests/ClaudeCliContractTestCase.php` | (抽象・収集されない) | 本体 |
+| `fake-claude-tests/` の `FakeClaudeCliContractTest.php` | fake-claude | `fake-claude/bin/claude` |
 | `tests/Integration/RealClaudeCliContractTest.php` | integration | `AGENT_BRIDGE_CLAUDE_BIN` が指すもの (既定は `claude`) |
+
+**テスト本体はフェイク側に置く。** 契約はフェイクが実 `claude` に対して立てている約束なので、その本体は `fake-claude-tests/` に属する。こうするとフェイクのテストスイートは本体パッケージの `NaokiTsuchiya\AgentBridge\Tests\` 名前空間を継承しなくて済み、境界を跨ぐのは integration 側 (`tests/` → `FakeClaude`) だけになる — `tests/` が `fake-claude/` に依存する向きは実行層のテストで既にできている。
 
 確かめているのは 7 項目:
 
@@ -138,20 +141,21 @@ turns.jsonl                        ターンの開始/終了 1 件につき 1 �
 |---|---|---|
 | `AGENT_BRIDGE_CLAUDE_BIN` | `claude` (PATH 上の実 CLI) | **integration 群**が起動するバイナリ。フェイクのパスを指せば、ログイン済み Claude Code の無い環境でも同じテスト本体が回る |
 
-unit 群 (`FakeClaudeCliContractTest`) は**この変数を見ない**。見ると `composer test:unit` がログイン済み Claude Code を要求しうる構成になり、「CI で回せる」という性質そのものが失われるため、フェイク固定にしてある。
+fake-claude 群 (`FakeClaudeCliContractTest`) は**この変数を見ない**。見ると `composer test:fake-claude` がログイン済み Claude Code を要求しうる構成になり、「CI で回せる」という性質そのものが失われるため、フェイク固定にしてある。
 
 フェイクは `--version` に答える (`0.0.0 (Fake Claude Code)`)。integration 群の前提ガード (`ClaudeCliTest`) がバージョンを引けることを条件にしているので、フェイクを指したときもガードが通る。
 
 ### 回し方
 
 ```bash
-composer test:unit         # フェイク側を含む。ログイン済み Claude Code は不要
+composer test:unit         # 実行層のテスト。ログイン済み Claude Code は不要
+composer test:fake-claude  # フェイク自身のテストと、契約テストのフェイク側
 
 # 実 claude に対して契約を確かめる (ログインと課金が要る。約 35 秒)
 composer test:integration
 
 # 同じ integration 群をフェイクに対して回す (ログイン不要、1 秒未満)
-AGENT_BRIDGE_CLAUDE_BIN="$PWD/tests/Fake/Claude/bin/claude" composer test:integration
+AGENT_BRIDGE_CLAUDE_BIN="$PWD/fake-claude/bin/claude" composer test:integration
 ```
 
-CI (`.github/workflows/ci.yml`) は unit 群に加えて、**integration 群をフェイクに対して**回している (`AGENT_BRIDGE_CLAUDE_BIN` にフェイクのパスを渡す step)。実 `claude` に対する実行は課金とログインが要るので CI では行わない — **手元で定期的に回すもの**で、落ちたらフェイクを実 CLI に合わせて直す (2 章の原則)。
+CI (`.github/workflows/ci.yml`) は unit 群と fake-claude 群に加えて、**integration 群をフェイクに対して**回している (`AGENT_BRIDGE_CLAUDE_BIN` にフェイクのパスを渡す step)。実 `claude` に対する実行は課金とログインが要るので CI では行わない — **手元で定期的に回すもの**で、落ちたらフェイクを実 CLI に合わせて直す (2 章の原則)。

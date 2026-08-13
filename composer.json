@@ -23,7 +23,11 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "NaokiTsuchiya\\AgentBridge\\Tests\\": "tests/"
+            "NaokiTsuchiya\\AgentBridge\\Tests\\": "tests/",
+            "NaokiTsuchiya\\AgentBridge\\FakeClaude\\": [
+                "fake-claude/",
+                "fake-claude-tests/"
+            ]
         }
     },
     "minimum-stability": "dev",
@@ -34,6 +38,7 @@
     "scripts": {
         "test": [
             "@test:unit",
+            "@test:fake-claude",
             "@test:integration"
         ],
         "compile": [
@@ -42,7 +47,8 @@
         ],
         "compile:serve": "@php vendor/bin/ray-di-compile bootstrap.php \"$PWD\" serve",
         "compile:slack": "@php vendor/bin/ray-di-compile bootstrap.php \"$PWD\" slack",
-        "test:unit": "phpunit --exclude-group integration --testdox",
+        "test:unit": "phpunit --testsuite agent-bridge --exclude-group integration --testdox",
+        "test:fake-claude": "phpunit --testsuite fake-claude --testdox",
         "test:integration": "phpunit --group integration --testdox",
         "lint": "mago lint",
         "analyze": "mago analyze",

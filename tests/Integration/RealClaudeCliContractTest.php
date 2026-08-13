@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NaokiTsuchiya\AgentBridge\Tests\Integration;
 
-use NaokiTsuchiya\AgentBridge\Tests\Contract\ClaudeCliContractTestCase;
+use NaokiTsuchiya\AgentBridge\FakeClaude\ClaudeCliContractTestCase;
 use NaokiTsuchiya\AgentBridge\Tests\Support\ClaudeBinary;
 use Override;
 use PHPUnit\Framework\Attributes\Group;
