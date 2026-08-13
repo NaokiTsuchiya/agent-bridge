@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace NaokiTsuchiya\AgentBridge\Slack;
 
+use NaokiTsuchiya\AgentBridge\Json;
 use Swoole\Coroutine\Channel;
 
-use function is_array;
-use function is_string;
 use function json_decode;
 use function json_encode;
 
@@ -42,7 +41,7 @@ final class FrameRouter
      */
     public function route(string $frame, SocketModeConnectionInterface $connection): bool
     {
-        $decoded = self::asObject(json_decode($frame, associative: true));
+        $decoded = Json::asObject(json_decode($frame, associative: true));
 
         if ($decoded === null) {
             $this->logger->log('discarded a frame that is not a JSON object');
@@ -50,7 +49,7 @@ final class FrameRouter
             return true;
         }
 
-        return match (self::text($decoded, 'type')) {
+        return match (Json::text($decoded, 'type')) {
             'hello' => $this->hello(),
             'events_api' => $this->event($decoded, $connection),
             'disconnect' => $this->disconnect($decoded),
@@ -69,7 +68,7 @@ final class FrameRouter
     /** @param array<array-key, mixed> $frame */
     private function disconnect(array $frame): bool
     {
-        $reason = self::text($frame, 'reason') ?? 'none given';
+        $reason = Json::text($frame, 'reason') ?? 'none given';
         $this->logger->log("Slack asked for a reconnect ({$reason})");
 
         return false;
@@ -97,7 +96,7 @@ final class FrameRouter
      */
     private function event(array $frame, SocketModeConnectionInterface $connection): bool
     {
-        $id = self::text($frame, 'envelope_id');
+        $id = Json::text($frame, 'envelope_id');
 
         if ($id === null || $id === '') {
             $this->logger->log('discarded an events_api frame without an envelope_id');
@@ -135,7 +134,7 @@ final class FrameRouter
             return true;
         }
 
-        $payload = self::object($frame, 'payload');
+        $payload = Json::object($frame, 'payload');
 
         if ($payload === null) {
             $this->logger->log("acknowledged {$id}, which carries no payload object");
@@ -150,42 +149,5 @@ final class FrameRouter
         }
 
         return true;
-    }
-
-    /**
-     * Whatever `json_decode` answered with, as an object, or null when it is anything else.
-     *
-     * Taking the decoded value as an argument rather than a variable is what keeps its type off a
-     * `mixed` assignment, which is the whole reason the decode is not written inline.
-     *
-     * @return array<array-key, mixed>|null
-     *
-     * @pure
-     */
-    private static function asObject(mixed $decoded): ?array
-    {
-        return is_array($decoded) ? $decoded : null;
-    }
-
-    /**
-     * @param array<array-key, mixed> $node
-     *
-     * @pure
-     */
-    private static function text(array $node, string $key): ?string
-    {
-        return is_string($node[$key] ?? null) ? $node[$key] : null;
-    }
-
-    /**
-     * @param array<array-key, mixed> $node
-     *
-     * @return array<array-key, mixed>|null
-     *
-     * @pure
-     */
-    private static function object(array $node, string $key): ?array
-    {
-        return is_array($node[$key] ?? null) ? $node[$key] : null;
     }
 }
