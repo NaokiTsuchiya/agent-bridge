@@ -1,0 +1,10 @@
+# `informational: true` makes Codecov post the status without ever failing the check, which is what
+# lets coverage be measured before the project is at the number it wants to gate on.
+coverage:
+  status:
+    project:
+      default:
+        informational: true
+    patch:
+      default:
+        informational: true

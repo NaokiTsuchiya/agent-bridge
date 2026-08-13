@@ -50,6 +50,7 @@
         "test:unit": "phpunit --testsuite agent-bridge --exclude-group integration --testdox",
         "test:fake-claude": "phpunit --testsuite fake-claude --testdox",
         "test:integration": "phpunit --group integration --testdox",
+        "test:coverage": "phpunit --coverage-clover=var/coverage/clover.xml --coverage-text --testdox",
         "lint": "mago lint",
         "analyze": "mago analyze",
         "fmt": "mago format",

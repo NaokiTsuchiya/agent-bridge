@@ -23,7 +23,7 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           extensions: swoole
-          coverage: none
+          coverage: pcov
 
       - name: Cache Composer downloads
         uses: actions/cache@v4
@@ -57,17 +57,29 @@ jobs:
             exit 1
           fi
 
-      - run: composer test:unit
-
-      - run: composer test:fake-claude
-
+      # One run for every suite, with coverage, on every matrix leg: the report then covers
+      # everything the suites cover, and each supported PHP version is measured.
+      #
       # The integration group needs a binary that speaks the CLI's protocol, not a logged-in one.
-      # Aimed at the fake it runs here, where no Claude Code exists; the same command without the
-      # variable is what a developer runs locally to check the fake against the real CLI.
-      - name: Integration group against the fake CLI
-        run: composer test:integration
+      # It is aimed at the fake it runs here, where no Claude Code exists; the same command without
+      # the variable is what a developer runs locally to check the fake against the real CLI.
+      - name: Every test suite with coverage, against the fake CLI
+        run: composer test:coverage
         env:
           AGENT_BRIDGE_CLAUDE_BIN: ${{ github.workspace }}/fake-claude/bin/claude
+
+      # Uploaded from one leg only: the legs run the same tests, and a second upload of the same
+      # numbers would have Codecov count them twice.
+      #
+      # No token: the repository is public, so the action uploads tokenless. Failure to upload is
+      # left non-fatal (the action's default) because a rate-limited tokenless upload must not turn
+      # a green suite red; the paths this step depends on are pinned by CoverageReportingTest.
+      - name: Upload coverage to Codecov
+        if: matrix.php == '8.5'
+        uses: codecov/codecov-action@v7
+        with:
+          files: var/coverage/clover.xml
+          disable_search: true
 
       - run: composer lint
 
