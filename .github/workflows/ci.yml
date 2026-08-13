@@ -86,3 +86,27 @@ jobs:
       - run: composer analyze
 
       - run: composer fmt-check
+
+  # The single check branch protection is meant to require. Naming the matrix legs there instead
+  # would tie the settings to the PHP versions: adding 8.6 would leave the new leg unguarded, and
+  # dropping 8.4 would leave behind a required check that never reports and blocks every PR. This
+  # job's name never changes, and it depends on the whole matrix, so it is green only when every
+  # leg is.
+  all-checks:
+    name: All checks passed
+    runs-on: ubuntu-latest
+
+    # `always()` is what makes this a gate: without it the job is skipped when the matrix fails,
+    # and a skipped required check counts as passing.
+    needs: checks
+    if: always()
+
+    steps:
+      # `needs.checks.result` is the matrix taken as a whole — `success` only when every leg
+      # succeeded, otherwise `failure`, `cancelled` or `skipped`.
+      - name: Every matrix leg succeeded
+        env:
+          RESULT: ${{ needs.checks.result }}
+        run: |
+          echo "checks: $RESULT"
+          [ "$RESULT" = 'success' ]
