@@ -7,6 +7,7 @@ namespace NaokiTsuchiya\AgentBridge\Tests\Support;
 use PHPUnit\Framework\Assert;
 
 use function exec;
+use function str_contains;
 use function symlink;
 
 use const PHP_BINARY;
@@ -32,6 +33,13 @@ final class ExecutablePath
     private const string PHP = 'php';
 
     /**
+     * What the real `claude` shells out to for a stored session, on the one platform that has it
+     * ({@see linkIfPresent}). Not on the platform's `PATH` at all is a fine outcome — the fake
+     * never calls it, and the real `claude` in that case would fail its own way, on its own.
+     */
+    private const string SECURITY = 'security';
+
+    /**
      * @param string $directory an empty directory of the case's own to fill
      * @param string $binary    what `claude` is to resolve to
      *
@@ -39,7 +47,7 @@ final class ExecutablePath
      */
     public static function answering(string $directory, string $binary): string
     {
-        self::link($directory, self::AGENT, $binary);
+        self::link($directory, self::AGENT, self::resolved($binary));
 
         return self::onlyThe($directory);
     }
@@ -64,6 +72,7 @@ final class ExecutablePath
     {
         self::link($directory, self::GIT, self::which(self::GIT));
         self::link($directory, self::PHP, PHP_BINARY);
+        self::linkIfPresent($directory, self::SECURITY);
 
         return $directory;
     }
@@ -78,14 +87,42 @@ final class ExecutablePath
     /** @return string where the tool is, which the machine running this has to have */
     private static function which(string $tool): string
     {
+        $path = self::found($tool);
+        Assert::assertNotNull($path, "This machine has no \"{$tool}\".");
+
+        return $path;
+    }
+
+    /** Puts $name into the directory only when this machine has one to point it at. */
+    private static function linkIfPresent(string $directory, string $name): void
+    {
+        $found = self::found($name);
+
+        if ($found !== null) {
+            self::link($directory, $name, $found);
+        }
+    }
+
+    /** @return string|null where the tool is, or null when this machine has none by that name */
+    private static function found(string $tool): ?string
+    {
         $output = [];
         $exitCode = 1;
         exec("command -v {$tool} 2>/dev/null", $output, $exitCode);
 
         $path = $output[0] ?? '';
-        Assert::assertSame(0, $exitCode, "This machine has no \"{$tool}\".");
-        Assert::assertNotSame('', $path);
 
-        return $path;
+        return $exitCode === 0 && $path !== '' ? $path : null;
+    }
+
+    /**
+     * `symlink()` writes whatever string it is given as the link's target, unresolved — a bare
+     * command name would become a link that names itself, since the shell only resolves bare
+     * names by searching `PATH`, and `symlink()` does not shell out. An absolute path already
+     * names one file and is returned as it is; a bare name is looked up first.
+     */
+    private static function resolved(string $binary): string
+    {
+        return str_contains($binary, '/') ? $binary : self::which($binary);
     }
 }
