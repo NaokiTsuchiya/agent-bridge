@@ -1,6 +1,6 @@
 # Slack Socket Mode — 手動スモークテスト
 
-このリポジトリの Socket Mode クライアントは、実 WebSocket と実トークンを要求しない範囲まで自動テストで覆ってある (`tests/Slack/`)。**覆えないのは 3 つの I/O だけ** — `apps.connections.open` の HTTP 呼び出し、WSS への upgrade、フレームの送受信そのもの。この 3 つを人間が 1 回確かめるための手順書である。
+このリポジトリの Socket Mode クライアントは、実 WebSocket と実トークンを要求しない範囲まで自動テストで覆ってある (`tests/Slack/`)。**元々覆えなかったのは 3 つの I/O** — `apps.connections.open` の HTTP 呼び出し、WSS への upgrade、フレームの送受信そのもの — だったが、このうち `apps.connections.open` への到達・upgrade・ack 到達の 3 つは、TLS 対応のスタブ (`stub-slack/`) を使った integration テスト (`tests/Integration/SocketModeStubTest.php`、`composer test:integration`) が自動で確認するようになった。**残るのは keepalive の pong と、実ワークスペース相手の再接続・実トークンでの疎通** — この手順書はそれを人間が 1 回確かめるためのものである。
 
 自動判定の対象外。CI では回さない。Slack アプリを作り直したとき、Slack 側の仕様が変わったとき、`src/Slack/SwooleSocketModeConnector.php` か `src/Slack/SwooleSocketModeConnection.php` を触ったときに、この手順を人手で通す。
 
@@ -114,10 +114,10 @@ php /tmp/socket-mode-smoke.php
 
 ## 付録: この手順が確かめているもの
 
-| 手順 | 自動テストでは触れない部分 |
-|---|---|
-| 4 | `apps.connections.open` に正しいメソッド・ヘッダで到達しているか、返った URL で upgrade できるか |
-| 5 | 送った ack を Slack が受け取っているか (再送が来ないことでしか分からない) |
-| 6 | keepalive の ping に pong を返せているか、切断後に張り直せるか |
+| 手順 | 自動テストでは触れない部分 | `SocketModeStubTest` (`stub-slack/`) が自動で確かめるもの |
+|---|---|---|
+| 4 | 実 Slack へ正しいメソッド・ヘッダで到達しているか、実トークンで拒否されないか | `apps.connections.open` への到達と、返った URL での upgrade (スタブ相手) |
+| 5 | 実ワークスペースで、送った ack を Slack が受け取っているか (再送が来ないことでしか分からない) | ack がスタブ側に届いたことそのもの (スタブ側の記録で確認) |
+| 6 | keepalive の ping に pong を返せているか、切断後に張り直せるか | 触れていない — 実ネットワーク相手の長時間の挙動なので、この手順書でしか確かめられない |
 
-応答本文の解釈 (`ConnectionOpenResponse`)、URL の分解 (`WebsocketEndpoint`)、受信結果の分類 (`ReceivedFrame`)、フレームの分岐・ack・重複排除・バックオフ (`FrameRouter` / `SocketModeClient` / `EnvelopeLog` / `Backoff`) は、いずれも `tests/Slack/` が実接続なしで覆っている。**この手順書で人が見るのは、その外側の I/O だけである。**
+応答本文の解釈 (`ConnectionOpenResponse`)、URL の分解 (`WebsocketEndpoint`)、受信結果の分類 (`ReceivedFrame`)、フレームの分岐・ack・重複排除・バックオフ (`FrameRouter` / `SocketModeClient` / `EnvelopeLog` / `Backoff`) は、いずれも `tests/Slack/` が実接続なしで覆っている。`apps.connections.open` への到達・upgrade・ack 到達は `tests/Integration/SocketModeStubTest.php` がスタブ相手に実 TLS ソケットで覆っている。**この手順書で人が見る必要が残るのは、実ワークスペース・実トークンでの疎通と、keepalive・長時間再接続の実挙動だけである。**

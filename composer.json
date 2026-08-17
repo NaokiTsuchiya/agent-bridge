@@ -27,6 +27,10 @@
             "NaokiTsuchiya\\AgentBridge\\FakeClaude\\": [
                 "fake-claude/",
                 "fake-claude-tests/"
+            ],
+            "NaokiTsuchiya\\AgentBridge\\StubSlack\\": [
+                "stub-slack/",
+                "stub-slack-tests/"
             ]
         }
     },
@@ -39,6 +43,7 @@
         "test": [
             "@test:unit",
             "@test:fake-claude",
+            "@test:stub-slack",
             "@test:integration"
         ],
         "compile": [
@@ -49,6 +54,7 @@
         "compile:slack": "@php vendor/bin/ray-di-compile bootstrap.php \"$PWD\" slack",
         "test:unit": "phpunit --testsuite agent-bridge --exclude-group integration --testdox",
         "test:fake-claude": "phpunit --testsuite fake-claude --testdox",
+        "test:stub-slack": "phpunit --testsuite stub-slack --testdox",
         "test:integration": "phpunit --group integration --testdox",
         "test:coverage": "phpunit --coverage-clover=var/coverage/clover.xml --coverage-text --testdox",
         "lint": "mago lint",
