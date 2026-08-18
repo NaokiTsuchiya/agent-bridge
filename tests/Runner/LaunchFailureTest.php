@@ -27,7 +27,6 @@ use Swoole\Runtime;
 use Throwable;
 
 use function iterator_to_array;
-use function putenv;
 
 use const SWOOLE_HOOK_PROC;
 use const SWOOLE_HOOK_STREAM_FUNCTION;
@@ -72,7 +71,7 @@ final class LaunchFailureTest extends TestCase
     {
         $this->home = TempDir::make('launch-fail-home');
         $this->cwd = TempDir::make('launch-fail-cwd');
-        putenv("FAKE_CLAUDE_HOME={$this->home}");
+        FakeCliHome::activate($this->home);
         $this->binary = ClaudeBinary::fromEnvironment();
         Runtime::setHookFlags(self::$hookFlags | SWOOLE_HOOK_PROC | SWOOLE_HOOK_STREAM_FUNCTION);
     }
@@ -81,7 +80,7 @@ final class LaunchFailureTest extends TestCase
     #[Override]
     protected function tearDown(): void
     {
-        putenv('FAKE_CLAUDE_HOME');
+        FakeCliHome::deactivate();
         TempDir::remove($this->home);
         TempDir::remove($this->cwd);
         Runtime::setHookFlags(self::$hookFlags | SWOOLE_HOOK_PROC | SWOOLE_HOOK_STREAM_FUNCTION);

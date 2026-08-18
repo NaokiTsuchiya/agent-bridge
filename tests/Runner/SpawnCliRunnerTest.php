@@ -10,8 +10,6 @@ use NaokiTsuchiya\AgentBridge\Event\AgentError;
 use NaokiTsuchiya\AgentBridge\Event\ClaudeCliEventParser;
 use NaokiTsuchiya\AgentBridge\Event\TextDelta;
 use NaokiTsuchiya\AgentBridge\Event\TurnCompleted;
-use NaokiTsuchiya\AgentBridge\FakeClaude\FakeHome;
-use NaokiTsuchiya\AgentBridge\FakeClaude\SessionStore;
 use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliCommand;
 use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliSettings;
 use NaokiTsuchiya\AgentBridge\Runner\SpawnCliRunner;
@@ -19,25 +17,19 @@ use NaokiTsuchiya\AgentBridge\Runner\TurnLocks;
 use NaokiTsuchiya\AgentBridge\Tests\Support\ClaudeBinary;
 use NaokiTsuchiya\AgentBridge\Tests\Support\Coro;
 use NaokiTsuchiya\AgentBridge\Tests\Support\Json;
-use NaokiTsuchiya\AgentBridge\Tests\Support\TempDir;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadDerivation;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
 use Override;
 use PHPUnit\Framework\Attributes\Test;
-use PHPUnit\Framework\TestCase;
 use Swoole\Coroutine;
 use Swoole\Coroutine\Channel;
 use Throwable;
 
 use function chmod;
 use function count;
-use function file_get_contents;
 use function file_put_contents;
-use function json_encode;
 use function microtime;
 use function posix_kill;
-use function putenv;
-use function realpath;
 use function substr_count;
 
 /**
@@ -54,36 +46,13 @@ use function substr_count;
  *
  * @mago-expect lint:too-many-methods
  */
-final class SpawnCliRunnerTest extends TestCase
+final class SpawnCliRunnerTest extends FakeCliRunnerTestCase
 {
-    /** Where the fake keeps this case's sessions and recordings. */
-    private string $home = '';
-
-    /** The directory the children are started in, resolved because the fake keys sessions by it. */
-    private string $cwd = '';
-
-    /** A home and a working directory of this case's own, and the fake pointed at them. */
+    /** @return string names this case's temp directories, so a stray one is easy to place */
     #[Override]
-    protected function setUp(): void
+    protected function homePrefix(): string
     {
-        $this->home = TempDir::make('spawn-home');
-        $cwd = realpath(TempDir::make('spawn-cwd'));
-        // macOS hands a process /private/var where the test saw /var, and the fake keys its
-        // sessions by sha1(getcwd()); seeding one under the unresolved path would never match.
-        self::assertIsString($cwd);
-        $this->cwd = $cwd;
-
-        putenv("FAKE_CLAUDE_HOME={$this->home}");
-    }
-
-    /** The environment is process-wide, so it is put back the way it was found. */
-    #[Override]
-    protected function tearDown(): void
-    {
-        putenv('FAKE_CLAUDE_HOME');
-        putenv('FAKE_CLAUDE_SCENARIO');
-        TempDir::remove($this->home);
-        TempDir::remove($this->cwd);
+        return 'spawn';
     }
 
     /**
@@ -623,44 +592,6 @@ final class SpawnCliRunnerTest extends TestCase
         return [$first, $second];
     }
 
-    /** Puts the thread's derived session in place, so that the first `--resume` finds it. */
-    private function seedSession(ThreadId $thread): void
-    {
-        $store = new SessionStore(FakeHome::fromEnvironment(), $this->cwd);
-        $store->create(ThreadDerivation::sessionId($thread));
-    }
-
-    /** @param array<string, mixed> $specification what the fake should do, turn by turn */
-    private function useScenario(array $specification): void
-    {
-        $path = "{$this->home}/scenario.json";
-        $json = json_encode($specification);
-        self::assertIsString($json);
-        file_put_contents($path, $json);
-        putenv("FAKE_CLAUDE_SCENARIO={$path}");
-    }
-
-    /**
-     * A `claude`-shaped binary that records every start and refuses the first two.
-     *
-     * @param string $counter the file it appends one line to per start
-     *
-     * @return string the path to the binary
-     */
-    private function countingBinary(string $counter): string
-    {
-        $path = "{$this->home}/counting-claude";
-        file_put_contents($path, <<<SH
-            #!/bin/sh
-            printf '%s\\n' "\$*" >> '{$counter}'
-            if [ "\$(wc -l < '{$counter}' | tr -d ' ')" -le 2 ]; then exit 1; fi
-            printf '{"type":"result","subtype":"success","is_error":false,"session_id":"x","result":"late"}\\n'
-            SH);
-        chmod($path, permissions: 0o755);
-
-        return $path;
-    }
-
     /**
      * A `claude`-shaped binary that answers only once its input has ended.
      *
@@ -681,30 +612,5 @@ final class SpawnCliRunnerTest extends TestCase
         chmod($path, permissions: 0o755);
 
         return $path;
-    }
-
-    /** @return FakeCliRecords what the fake wrote down about this case */
-    private function records(): FakeCliRecords
-    {
-        return new FakeCliRecords($this->home);
-    }
-
-    /** @return int the pid of the last child the fake recorded */
-    private function lastPid(): int
-    {
-        $starts = $this->records()->starts();
-        $pid = Json::integer($starts[count($starts) - 1] ?? [], 'pid');
-        self::assertIsInt($pid, 'No child was recorded.');
-
-        return $pid;
-    }
-
-    /** @return string the file's contents, asserted to be readable */
-    private static function read(string $path): string
-    {
-        $contents = file_get_contents($path);
-        self::assertIsString($contents, "Could not read {$path}.");
-
-        return $contents;
     }
 }

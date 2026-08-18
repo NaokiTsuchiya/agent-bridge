@@ -8,8 +8,6 @@ use InvalidArgumentException;
 use NaokiTsuchiya\AgentBridge\Event\AgentError;
 use NaokiTsuchiya\AgentBridge\Event\AgentEvent;
 use NaokiTsuchiya\AgentBridge\Event\TurnCompleted;
-use NaokiTsuchiya\AgentBridge\FakeClaude\FakeHome;
-use NaokiTsuchiya\AgentBridge\FakeClaude\SessionStore;
 use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliSettings;
 use NaokiTsuchiya\AgentBridge\Runner\LifecycleSettings;
 use NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner;
@@ -18,12 +16,10 @@ use NaokiTsuchiya\AgentBridge\Tests\Support\ClaudeBinary;
 use NaokiTsuchiya\AgentBridge\Tests\Support\Coro;
 use NaokiTsuchiya\AgentBridge\Tests\Support\Json;
 use NaokiTsuchiya\AgentBridge\Tests\Support\Parallel;
-use NaokiTsuchiya\AgentBridge\Tests\Support\TempDir;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadDerivation;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
 use Override;
 use PHPUnit\Framework\Attributes\Test;
-use PHPUnit\Framework\TestCase;
 use Swoole\Coroutine;
 use Swoole\Coroutine\Channel;
 use Throwable;
@@ -31,12 +27,9 @@ use Throwable;
 use function chmod;
 use function file_put_contents;
 use function in_array;
-use function json_encode;
 use function memory_get_usage;
 use function microtime;
 use function posix_kill;
-use function putenv;
-use function realpath;
 
 /**
  * What the runner does with its children over time: one turn at a time, no more of them than
@@ -56,36 +49,13 @@ use function realpath;
  * @mago-expect lint:cyclomatic-complexity
  * @mago-expect lint:kan-defect
  */
-final class ProcessLifecycleTest extends TestCase
+final class ProcessLifecycleTest extends FakeCliRunnerTestCase
 {
-    /** Where the fake keeps this case's sessions and recordings. */
-    private string $home = '';
-
-    /** The directory the children are started in, resolved because the fake keys sessions by it. */
-    private string $cwd = '';
-
-    /** A home and a working directory of this case's own, and the fake pointed at them. */
+    /** @return string names this case's temp directories, so a stray one is easy to place */
     #[Override]
-    protected function setUp(): void
+    protected function homePrefix(): string
     {
-        $this->home = TempDir::make('lifecycle-home');
-        $cwd = realpath(TempDir::make('lifecycle-cwd'));
-        // macOS hands a process /private/var where the test saw /var, and the fake keys its
-        // sessions by sha1(getcwd()); seeding one under the unresolved path would never match.
-        self::assertIsString($cwd);
-        $this->cwd = $cwd;
-
-        putenv("FAKE_CLAUDE_HOME={$this->home}");
-    }
-
-    /** The environment is process-wide, so it is put back the way it was found. */
-    #[Override]
-    protected function tearDown(): void
-    {
-        putenv('FAKE_CLAUDE_HOME');
-        putenv('FAKE_CLAUDE_SCENARIO');
-        TempDir::remove($this->home);
-        TempDir::remove($this->cwd);
+        return 'lifecycle';
     }
 
     /**
@@ -932,8 +902,7 @@ final class ProcessLifecycleTest extends TestCase
     private function thread(string $id): ThreadId
     {
         $thread = new ThreadId($id);
-        $store = new SessionStore(FakeHome::fromEnvironment(), $this->cwd);
-        $store->create(ThreadDerivation::sessionId($thread));
+        $this->seedSession($thread);
 
         return $thread;
     }
@@ -948,22 +917,6 @@ final class ProcessLifecycleTest extends TestCase
         foreach ($threads as $thread) {
             $runner->close($thread);
         }
-    }
-
-    /** @param array<string, mixed> $specification what the fake should do, turn by turn */
-    private function useScenario(array $specification): void
-    {
-        $path = "{$this->home}/scenario.json";
-        $json = json_encode($specification);
-        self::assertIsString($json);
-        file_put_contents($path, $json);
-        putenv("FAKE_CLAUDE_SCENARIO={$path}");
-    }
-
-    /** @return FakeCliRecords what the fake wrote down about this case */
-    private function records(): FakeCliRecords
-    {
-        return new FakeCliRecords($this->home);
     }
 
     /** @return int the pid of the last process started for this thread's session */
