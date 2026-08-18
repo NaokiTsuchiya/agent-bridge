@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace NaokiTsuchiya\AgentBridge\Thread;
 
-use function assert;
 use function bin2hex;
 use function chr;
 use function hex2bin;
@@ -45,8 +44,12 @@ final class ThreadDerivation
     /** RFC 9562 version 5 (SHA-1, name based) UUID under {@see self::NAMESPACE_UUID}. */
     private static function uuidV5(string $name): string
     {
-        $namespaceBytes = hex2bin(strtr(self::NAMESPACE_UUID, ['-' => '']));
-        assert($namespaceBytes !== false, description: 'NAMESPACE_UUID must be 32 hexadecimal digits plus dashes.');
+        // hex2bin only refuses an odd length or a non-hex character. self::NAMESPACE_UUID is a
+        // fixed 32-digit hex literal (dashes stripped) pinned byte-for-byte by
+        // ThreadDerivationTest::namespaceUuidIsTheAgreedConstant, so this never actually returns
+        // false; the cast keeps the type checker honest about the signature without making every
+        // caller declare an exception that can never be thrown.
+        $namespaceBytes = (string) hex2bin(strtr(self::NAMESPACE_UUID, ['-' => '']));
 
         $hash = sha1($namespaceBytes . $name, binary: true);
 
