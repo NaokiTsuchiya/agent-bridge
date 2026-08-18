@@ -112,17 +112,19 @@ final class CoverageReportingTest extends TestCase
         self::assertStringContainsString("'{$leg}'", self::capture('#php: \[([^\]]+)\]#', $workflow));
     }
 
-    /** One status left as a gate is enough to fail a pull request for lowering coverage. */
+    /** Target at 100% and zero threshold make both project and patch statuses strict gates. */
     #[Test]
-    public function keepsBothCodecovStatusesInformational(): void
+    public function gatesBothCodecovStatusesAtFullCoverage(): void
     {
         $codecov = self::read('codecov.yml');
+
+        self::assertStringNotContainsString('informational', $codecov);
 
         foreach (['project', 'patch'] as $status) {
             self::assertSame(
                 1,
-                preg_match("#{$status}:\s+default:\s+informational: true#", $codecov),
-                "{$status} status is not informational",
+                preg_match("#{$status}:\s+default:\s+target:\s*100%\s+threshold:\s*0%#", $codecov),
+                "{$status} status is not gated at 100% with 0% threshold",
             );
         }
     }
