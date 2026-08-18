@@ -30,7 +30,6 @@ use function file_put_contents;
 use function filesize;
 use function is_string;
 use function iterator_to_array;
-use function putenv;
 use function shell_exec;
 use function str_contains;
 use function trim;
@@ -75,7 +74,7 @@ final class TurnSettlementTest extends TestCase
     {
         $this->home = TempDir::make('turn-settle-home');
         $this->cwd = TempDir::make('turn-settle-cwd');
-        putenv("FAKE_CLAUDE_HOME={$this->home}");
+        FakeCliHome::activate($this->home);
         Runtime::setHookFlags(self::$hookFlags | SWOOLE_HOOK_PROC | SWOOLE_HOOK_STREAM_FUNCTION);
     }
 
@@ -83,7 +82,7 @@ final class TurnSettlementTest extends TestCase
     #[Override]
     protected function tearDown(): void
     {
-        putenv('FAKE_CLAUDE_HOME');
+        FakeCliHome::deactivate();
         TempDir::remove($this->home);
         TempDir::remove($this->cwd);
     }

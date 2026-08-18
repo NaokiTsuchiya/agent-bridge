@@ -7,35 +7,23 @@ namespace NaokiTsuchiya\AgentBridge\Tests\Runner;
 use Closure;
 use InvalidArgumentException;
 use NaokiTsuchiya\AgentBridge\Event\AgentError;
-use NaokiTsuchiya\AgentBridge\Event\AgentEvent;
 use NaokiTsuchiya\AgentBridge\Event\TextDelta;
 use NaokiTsuchiya\AgentBridge\Event\TurnCompleted;
-use NaokiTsuchiya\AgentBridge\FakeClaude\FakeHome;
-use NaokiTsuchiya\AgentBridge\FakeClaude\SessionStore;
 use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliSettings;
 use NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner;
 use NaokiTsuchiya\AgentBridge\Tests\Support\ClaudeBinary;
 use NaokiTsuchiya\AgentBridge\Tests\Support\Coro;
 use NaokiTsuchiya\AgentBridge\Tests\Support\Json;
-use NaokiTsuchiya\AgentBridge\Tests\Support\TempDir;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadDerivation;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
 use Override;
 use PHPUnit\Framework\Attributes\Test;
-use PHPUnit\Framework\TestCase;
 use Swoole\Coroutine;
 use Swoole\Coroutine\Channel;
 use Throwable;
 
-use function chmod;
-use function count;
-use function file_get_contents;
-use function file_put_contents;
-use function json_encode;
 use function microtime;
 use function posix_kill;
-use function putenv;
-use function realpath;
 use function substr_count;
 
 /**
@@ -48,36 +36,13 @@ use function substr_count;
  *
  * @mago-expect lint:too-many-methods
  */
-final class PersistentCliRunnerTest extends TestCase
+final class PersistentCliRunnerTest extends FakeCliRunnerTestCase
 {
-    /** Where the fake keeps this case's sessions and recordings. */
-    private string $home = '';
-
-    /** The directory the children are started in, resolved because the fake keys sessions by it. */
-    private string $cwd = '';
-
-    /** A home and a working directory of this case's own, and the fake pointed at them. */
+    /** @return string names this case's temp directories, so a stray one is easy to place */
     #[Override]
-    protected function setUp(): void
+    protected function homePrefix(): string
     {
-        $this->home = TempDir::make('runner-home');
-        $cwd = realpath(TempDir::make('runner-cwd'));
-        // macOS hands a process /private/var where the test saw /var, and the fake keys its
-        // sessions by sha1(getcwd()); seeding one under the unresolved path would never match.
-        self::assertIsString($cwd);
-        $this->cwd = $cwd;
-
-        putenv("FAKE_CLAUDE_HOME={$this->home}");
-    }
-
-    /** The environment is process-wide, so it is put back the way it was found. */
-    #[Override]
-    protected function tearDown(): void
-    {
-        putenv('FAKE_CLAUDE_HOME');
-        putenv('FAKE_CLAUDE_SCENARIO');
-        TempDir::remove($this->home);
-        TempDir::remove($this->cwd);
+        return 'runner';
     }
 
     /**
@@ -93,17 +58,17 @@ final class PersistentCliRunnerTest extends TestCase
         $thread = new ThreadId('slack:1700000001.000100');
 
         Coro::run(static function () use ($runner, $thread): void {
-            $events = self::collect($runner->send($thread, 'hello there'));
+            $events = Events::collect($runner->send($thread, 'hello there'));
             $runner->close($thread);
 
-            self::assertGreaterThan(0, self::tally($events, TextDelta::class), 'No text arrived.');
-            self::assertSame(1, self::tally($events, TurnCompleted::class));
-            self::assertSame(0, self::tally($events, AgentError::class));
+            self::assertGreaterThan(0, Events::tally($events, TextDelta::class), 'No text arrived.');
+            self::assertSame(1, Events::tally($events, TurnCompleted::class));
+            self::assertSame(0, Events::tally($events, AgentError::class));
 
-            $last = self::last($events);
+            $last = Events::last($events);
             self::assertInstanceOf(TurnCompleted::class, $last, 'The turn boundary must come last.');
             self::assertTrue($last->success);
-            self::assertStringContainsString('hello there', self::text($events));
+            self::assertStringContainsString('hello there', Events::text($events));
         });
     }
 
@@ -121,11 +86,11 @@ final class PersistentCliRunnerTest extends TestCase
         $this->seedSession($thread);
 
         Coro::run(static function () use ($runner, $thread): void {
-            self::collect($runner->send($thread, 'the word is banana'));
-            $second = self::collect($runner->send($thread, 'what was the word?'));
+            Events::collect($runner->send($thread, 'the word is banana'));
+            $second = Events::collect($runner->send($thread, 'what was the word?'));
             $runner->close($thread);
 
-            self::assertStringContainsString('banana', self::text($second));
+            self::assertStringContainsString('banana', Events::text($second));
         });
 
         $records = $this->records();
@@ -151,7 +116,7 @@ final class PersistentCliRunnerTest extends TestCase
         $this->seedSession($thread);
 
         Coro::run(static function () use ($runner, $thread): void {
-            self::collect($runner->send($thread, 'hello'));
+            Events::collect($runner->send($thread, 'hello'));
             $runner->close($thread);
         });
 
@@ -173,7 +138,7 @@ final class PersistentCliRunnerTest extends TestCase
         $this->seedSession($thread);
 
         Coro::run(static function () use ($runner, $thread): void {
-            self::collect($runner->send($thread, 'hello'));
+            Events::collect($runner->send($thread, 'hello'));
             $runner->close($thread);
         });
 
@@ -208,13 +173,13 @@ final class PersistentCliRunnerTest extends TestCase
         $thread = new ThreadId('slack:1700000005.000100');
 
         Coro::run(static function () use ($runner, $thread): void {
-            $events = self::collect($runner->send($thread, 'pineapple please'));
+            $events = Events::collect($runner->send($thread, 'pineapple please'));
             $runner->close($thread);
 
-            $last = self::last($events);
+            $last = Events::last($events);
             self::assertInstanceOf(TurnCompleted::class, $last);
             self::assertTrue($last->success, 'The held prompt must be answered by the second process.');
-            self::assertStringContainsString('pineapple please', self::text($events));
+            self::assertStringContainsString('pineapple please', Events::text($events));
         });
 
         $records = $this->records();
@@ -245,11 +210,11 @@ final class PersistentCliRunnerTest extends TestCase
         $runner = $this->runner();
 
         Coro::run(static function () use ($runner, $thread): void {
-            $events = self::collect($runner->send($thread, 'hello'));
+            $events = Events::collect($runner->send($thread, 'hello'));
             $runner->close($thread);
 
             self::assertCount(1, $events);
-            $completed = self::last($events);
+            $completed = Events::last($events);
             self::assertInstanceOf(TurnCompleted::class, $completed);
             self::assertFalse($completed->success);
         });
@@ -272,12 +237,12 @@ final class PersistentCliRunnerTest extends TestCase
         $runner = $this->runner();
 
         Coro::run(static function () use ($runner, $thread): void {
-            self::collect($runner->send($thread, 'hello'));
-            $events = self::collect($runner->send($thread, 'and again'));
+            Events::collect($runner->send($thread, 'hello'));
+            $events = Events::collect($runner->send($thread, 'and again'));
             $runner->close($thread);
 
             self::assertCount(1, $events);
-            $completed = self::last($events);
+            $completed = Events::last($events);
             self::assertInstanceOf(TurnCompleted::class, $completed);
             self::assertFalse($completed->success);
         });
@@ -299,21 +264,21 @@ final class PersistentCliRunnerTest extends TestCase
         $runner = $this->runner();
 
         Coro::run(function () use ($runner, $thread): void {
-            self::collect($runner->send($thread, 'first apricot'));
+            Events::collect($runner->send($thread, 'first apricot'));
             self::assertCount(2, $this->records()->starts());
 
-            $crashed = self::collect($runner->send($thread, 'second mango'));
-            self::assertSame(0, self::tally($crashed, TurnCompleted::class), 'The turn never finished.');
-            self::assertInstanceOf(AgentError::class, self::last($crashed));
+            $crashed = Events::collect($runner->send($thread, 'second mango'));
+            self::assertSame(0, Events::tally($crashed, TurnCompleted::class), 'The turn never finished.');
+            self::assertInstanceOf(AgentError::class, Events::last($crashed));
             self::assertCount(2, $this->records()->starts(), 'A dead process is not replaced mid-turn.');
 
-            $recovered = self::collect($runner->send($thread, 'third question'));
+            $recovered = Events::collect($runner->send($thread, 'third question'));
             $runner->close($thread);
 
-            $last = self::last($recovered);
+            $last = Events::last($recovered);
             self::assertInstanceOf(TurnCompleted::class, $last);
             self::assertTrue($last->success);
-            self::assertStringContainsString('mango', self::text($recovered), 'The context is in the transcript.');
+            self::assertStringContainsString('mango', Events::text($recovered), 'The context is in the transcript.');
         });
 
         $records = $this->records();
@@ -335,7 +300,7 @@ final class PersistentCliRunnerTest extends TestCase
 
         $elapsed = 0.0;
         Coro::run(static function () use ($runner, $thread, &$elapsed): void {
-            self::collect($runner->send($thread, 'hello'));
+            Events::collect($runner->send($thread, 'hello'));
             $started = microtime(true);
             $runner->close($thread);
             $elapsed = microtime(true) - $started;
@@ -380,7 +345,7 @@ final class PersistentCliRunnerTest extends TestCase
             };
 
             $start(static function () use ($runner, $closing, &$order, &$elapsed): void {
-                self::collect($runner->send($closing, 'first'));
+                Events::collect($runner->send($closing, 'first'));
                 // Deliberately not read: the turn is under way, and this one never finishes.
                 $runner->send($closing, 'second');
                 $started = microtime(true);
@@ -390,8 +355,8 @@ final class PersistentCliRunnerTest extends TestCase
             });
 
             $start(static function () use ($runner, $other, &$order): void {
-                $events = self::collect($runner->send($other, 'other thread'));
-                $last = self::last($events);
+                $events = Events::collect($runner->send($other, 'other thread'));
+                $last = Events::last($events);
                 self::assertInstanceOf(TurnCompleted::class, $last);
                 self::assertTrue($last->success);
                 $runner->close($other);
@@ -428,16 +393,16 @@ final class PersistentCliRunnerTest extends TestCase
         $this->seedSession($thread);
 
         Coro::run(static function () use ($runner, $thread): void {
-            self::collect($runner->send($thread, 'the word is kiwi'));
+            Events::collect($runner->send($thread, 'the word is kiwi'));
             $runner->close($thread);
 
-            $events = self::collect($runner->send($thread, 'what was the word?'));
+            $events = Events::collect($runner->send($thread, 'what was the word?'));
             $runner->close($thread);
 
-            $last = self::last($events);
+            $last = Events::last($events);
             self::assertInstanceOf(TurnCompleted::class, $last);
             self::assertTrue($last->success);
-            self::assertStringContainsString('kiwi', self::text($events));
+            self::assertStringContainsString('kiwi', Events::text($events));
         });
 
         $records = $this->records();
@@ -507,11 +472,11 @@ final class PersistentCliRunnerTest extends TestCase
         $thread = new ThreadId('slack:1700000014.000100');
 
         Coro::run(static function () use ($runner, $thread): void {
-            $events = self::collect($runner->send($thread, 'hello'));
+            $events = Events::collect($runner->send($thread, 'hello'));
             $runner->close($thread);
 
             self::assertCount(1, $events);
-            self::assertInstanceOf(AgentError::class, self::last($events));
+            self::assertInstanceOf(AgentError::class, Events::last($events));
         });
     }
 
@@ -533,11 +498,11 @@ final class PersistentCliRunnerTest extends TestCase
         $thread = new ThreadId('slack:1700000015.000100');
 
         Coro::run(static function () use ($runner, $thread): void {
-            $events = self::collect($runner->send($thread, 'hello'));
+            $events = Events::collect($runner->send($thread, 'hello'));
             $runner->close($thread);
 
             self::assertCount(1, $events);
-            self::assertInstanceOf(AgentError::class, self::last($events));
+            self::assertInstanceOf(AgentError::class, Events::last($events));
         });
 
         self::assertSame(2, substr_count(self::read($counter), needle: "\n"), 'Exactly two attempts, then done.');
@@ -562,131 +527,5 @@ final class PersistentCliRunnerTest extends TestCase
                 closeGraceSeconds: $grace,
             ),
         );
-    }
-
-    /** Puts the thread's derived session in place, so that the first `--resume` finds it. */
-    private function seedSession(ThreadId $thread): void
-    {
-        $store = new SessionStore(FakeHome::fromEnvironment(), $this->cwd);
-        $store->create(ThreadDerivation::sessionId($thread));
-    }
-
-    /** @param array<string, mixed> $specification what the fake should do, turn by turn */
-    private function useScenario(array $specification): void
-    {
-        $path = "{$this->home}/scenario.json";
-        $json = json_encode($specification);
-        self::assertIsString($json);
-        file_put_contents($path, $json);
-        putenv("FAKE_CLAUDE_SCENARIO={$path}");
-    }
-
-    /**
-     * A `claude`-shaped binary that records every start and refuses the first two.
-     *
-     * @param string $counter the file it appends one line to per start
-     *
-     * @return string the path to the binary
-     */
-    private function countingBinary(string $counter): string
-    {
-        $path = "{$this->home}/counting-claude";
-        file_put_contents($path, <<<SH
-            #!/bin/sh
-            printf '%s\\n' "\$*" >> '{$counter}'
-            if [ "\$(wc -l < '{$counter}' | tr -d ' ')" -le 2 ]; then exit 1; fi
-            printf '{"type":"result","subtype":"success","is_error":false,"session_id":"x","result":"late"}\\n'
-            cat > /dev/null
-            SH);
-        chmod($path, permissions: 0o755);
-
-        return $path;
-    }
-
-    /** @return FakeCliRecords what the fake wrote down about this case */
-    private function records(): FakeCliRecords
-    {
-        return new FakeCliRecords($this->home);
-    }
-
-    /** @return int the pid of the last child the fake recorded */
-    private function lastPid(): int
-    {
-        $starts = $this->records()->starts();
-        $pid = Json::integer($starts[count($starts) - 1] ?? [], 'pid');
-        self::assertIsInt($pid, 'No child was recorded.');
-
-        return $pid;
-    }
-
-    /**
-     * @param iterable<AgentEvent> $events
-     *
-     * @return list<AgentEvent>
-     */
-    private static function collect(iterable $events): array
-    {
-        $collected = [];
-        foreach ($events as $event) {
-            $collected[] = $event;
-        }
-
-        return $collected;
-    }
-
-    /**
-     * @param list<AgentEvent>     $events
-     * @param class-string<AgentEvent> $class
-     */
-    private static function tally(array $events, string $class): int
-    {
-        $found = 0;
-        foreach ($events as $event) {
-            if (!$event instanceof $class) {
-                continue;
-            }
-
-            $found++;
-        }
-
-        return $found;
-    }
-
-    /**
-     * @param list<AgentEvent> $events
-     *
-     * @return string every fragment of the reply, joined
-     */
-    private static function text(array $events): string
-    {
-        $text = '';
-        foreach ($events as $event) {
-            if (!$event instanceof TextDelta) {
-                continue;
-            }
-
-            $text .= $event->text;
-        }
-
-        return $text;
-    }
-
-    /**
-     * @param list<AgentEvent> $events
-     *
-     * @return AgentEvent|null the last one, or null when nothing arrived at all
-     */
-    private static function last(array $events): ?AgentEvent
-    {
-        return $events[count($events) - 1] ?? null;
-    }
-
-    /** @return string the file's contents, asserted to be readable */
-    private static function read(string $path): string
-    {
-        $contents = file_get_contents($path);
-        self::assertIsString($contents, "Could not read {$path}.");
-
-        return $contents;
     }
 }
