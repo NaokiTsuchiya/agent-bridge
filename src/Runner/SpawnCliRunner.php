@@ -43,9 +43,6 @@ use const SWOOLE_HOOK_STREAM_FUNCTION;
  */
 final class SpawnCliRunner implements AgentRunner
 {
-    /** How long a child that would not end on its own is given after it is asked to. */
-    private const float TERMINATION_GRACE = 2.0;
-
     /**
      * @param WorkingDirectoryResolver $directories where each thread's process is started
      * @param ClaudeCliCommand         $command     how the binary is asked to answer one prompt
@@ -150,7 +147,11 @@ final class SpawnCliRunner implements AgentRunner
         } finally {
             // Reached by a caller that stopped reading too, since abandoning a generator runs this
             // on the way out — which is the whole reason the release lives here.
-            self::letGo($process);
+            //
+            // Asked to stop rather than waited on: its input reached its end before the turn began,
+            // so a child still here is not one that is about to finish reading — it is one that is
+            // not leaving.
+            ProcessRelease::kill($process);
         }
 
         return $events->getReturn();
@@ -180,7 +181,9 @@ final class SpawnCliRunner implements AgentRunner
 
             foreach ($this->parser->parse($line) as $event) {
                 $completed = $event instanceof TurnCompleted ? $event : null;
-                $wrongGuess = $completed !== null && !$restarted && MissingSession::suspected($process, $completed);
+                // The judgment lives in {@see TurnEvents::isWrongGuess()}, the one place it
+                // exists.
+                $wrongGuess = TurnEvents::isWrongGuess($process, $completed, $restarted);
                 if ($wrongGuess) {
                     return true;
                 }
@@ -208,20 +211,5 @@ final class SpawnCliRunner implements AgentRunner
         $process?->closeInput();
 
         return $process;
-    }
-
-    /**
-     * Ends the child and collects it, which nothing else does.
-     *
-     * Asked to stop rather than waited on: its input reached its end before the turn began, so a
-     * child still here is not one that is about to finish reading — it is one that is not leaving.
-     * Collecting is not optional, and it happens here alone, so that nothing races with the wait
-     * inside {@see AgentProcess::release()} (the same rule {@see ProcessRelease} states).
-     */
-    private static function letGo(AgentProcess $process): void
-    {
-        $process->terminate();
-        $process->awaitExit(self::TERMINATION_GRACE);
-        $process->release();
     }
 }

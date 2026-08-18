@@ -19,6 +19,11 @@ use NaokiTsuchiya\AgentBridge\Event\TurnCompleted;
  * ending a turn costs — those belong to whoever owns the pool and the thread's lock, and arrive
  * as the two closures below.
  *
+ * The one judgment in here that a second {@see AgentRunner} needs too — whether a completion says
+ * the guessed session was never there — lives in {@see isWrongGuess()}, kept public and static so
+ * {@see SpawnCliRunner} can ask the same question without taking on the pool, the turn, or a way
+ * to start a second process.
+ *
  * @api
  */
 final class TurnEvents
@@ -104,7 +109,7 @@ final class TurnEvents
     {
         foreach ($this->parser->parse($line) as $event) {
             $completed = $event instanceof TurnCompleted ? $event : null;
-            $wrongGuess = $completed !== null && !$restarted && MissingSession::suspected($process, $completed);
+            $wrongGuess = self::isWrongGuess($process, $completed, $restarted);
             if ($wrongGuess) {
                 return true;
             }
@@ -123,6 +128,21 @@ final class TurnEvents
         }
 
         return false;
+    }
+
+    /**
+     * Whether a completion says the guessed session was never there.
+     *
+     * The one line both {@see AgentRunner} implementations need to agree on: it decides whether a
+     * turn that just completed gets a second process. Shared rather than copied so that fixing it
+     * in one place fixes it everywhere it is asked.
+     *
+     * @param TurnCompleted|null $completed the event just read, or null when it was not one
+     * @param bool                $restarted whether this is already the turn's second process
+     */
+    public static function isWrongGuess(AgentProcess $process, ?TurnCompleted $completed, bool $restarted): bool
+    {
+        return $completed !== null && !$restarted && MissingSession::suspected($process, $completed);
     }
 
     /**
