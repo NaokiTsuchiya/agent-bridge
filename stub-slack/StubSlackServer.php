@@ -11,6 +11,8 @@ use Swoole\Http\Request;
 use Swoole\Http\Response;
 use Swoole\WebSocket\Frame;
 
+use function is_array;
+use function json_decode;
 use function json_encode;
 
 /**
@@ -42,6 +44,8 @@ final class StubSlackServer
      * @param Closure(string): void $onAck the raw ack frame's text, once one arrives
      *
      * @throws Exception when the TLS listener cannot be bound
+     *
+     * @mago-expect lint:excessive-parameter-list
      */
     public function __construct(
         string $host,
@@ -49,6 +53,7 @@ final class StubSlackServer
         SelfSignedCertificate $certificate,
         private readonly StubSlackScenario $scenario,
         private readonly Closure $onAck,
+        private readonly StubSlackApi $api,
     ) {
         $this->server = new Server($host, $port, ssl: true);
         $this->server->set([
@@ -57,6 +62,14 @@ final class StubSlackServer
         ]);
         $this->server->handle(self::OPEN_PATH, $this->connectionsOpen(...));
         $this->server->handle(self::SOCKET_MODE_PATH, $this->socketMode(...));
+
+        foreach (StubSlackApi::METHODS as $method) {
+            $this->server->handle("/api/{$method}", function (Request $request, Response $response) use (
+                $method,
+            ): void {
+                $this->webApi($method, $request, $response);
+            });
+        }
     }
 
     /** Blocks until {@see shutdown()} is called (or the process is killed) accepting connections. */
@@ -112,5 +125,55 @@ final class StubSlackServer
         }
 
         ($this->onAck)($ack->data);
+    }
+
+    /**
+     * Answers one Web API call from {@see StubSlackApi}, whatever it decides for this `$method`.
+     *
+     * The body is decoded and handed over as an array rather than left as raw JSON: every caller
+     * that scripts an answer through {@see StubSlackApi} reads what a call carried, and none of
+     * them wants to repeat that decoding themselves.
+     */
+    private function webApi(string $method, Request $request, Response $response): void
+    {
+        $raw = $request->getContent();
+        $answer = $this->api->answer($method, self::arguments($raw === false ? '' : $raw));
+
+        foreach ($answer->headers as $name => $value) {
+            $response->header($name, $value);
+        }
+
+        $response->header('Content-Type', 'application/json');
+        $response->status($answer->status);
+        $body = json_encode($answer->body);
+        // A canned answer built from known-good scalars and arrays cannot fail to encode.
+        $response->end($body === false ? '' : $body);
+    }
+
+    /**
+     * Whatever `json_decode` answered with, as an object, or empty when it is anything else.
+     *
+     * Taking the decoded value as a parameter rather than a local variable is what keeps its type
+     * off a `mixed` assignment — the same reason {@see \NaokiTsuchiya\AgentBridge\Json::asObject()}
+     * is written the way it is; this stub does not depend on that class only because it lives in a
+     * separate package (`stub-slack/`) with its own, deliberately small, set of dependencies.
+     *
+     * @return array<array-key, mixed>
+     *
+     * @pure
+     */
+    private static function arguments(string $raw): array
+    {
+        return self::decoded(json_decode($raw, associative: true));
+    }
+
+    /**
+     * @return array<array-key, mixed>
+     *
+     * @pure
+     */
+    private static function decoded(mixed $value): array
+    {
+        return is_array($value) ? $value : [];
     }
 }

@@ -89,6 +89,7 @@ final class StubSlackServerTest extends TestCase
             SelfSignedCertificate::generate(),
             self::ignoringAcks(),
             static function (string $_ack): void {},
+            new StubSlackApi(),
         );
 
         Coroutine::create($server->start(...));
@@ -118,6 +119,7 @@ final class StubSlackServerTest extends TestCase
             SelfSignedCertificate::generate(),
             self::ignoringAcks(),
             static function (string $_ack): void {},
+            new StubSlackApi(),
         );
 
         Coroutine::create($server->start(...));
@@ -148,6 +150,7 @@ final class StubSlackServerTest extends TestCase
             static function (string $ack) use (&$captured): void {
                 $captured = $ack;
             },
+            new StubSlackApi(),
         );
 
         Coroutine::create($server->start(...));
