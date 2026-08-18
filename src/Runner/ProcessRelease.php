@@ -12,8 +12,11 @@ namespace NaokiTsuchiya\AgentBridge\Runner;
  * {@see AgentProcess::release()} — two collectors of one child leave one of them collecting a
  * stranger, and a child nobody collects stays in the process table as a defunct entry.
  *
- * Both ways yield while they wait, so the caller must have taken the process out of
- * {@see ProcessTable} first.
+ * Both ways yield while they wait. A process that came from {@see ProcessPool} must be taken out
+ * of {@see ProcessTable} first, which is why {@see stop()} stays an instance method reached only
+ * through the pool's own {@see ProcessRelease} — but {@see kill()} touches nothing of the pool's,
+ * so it is `static` and {@see SpawnCliRunner}, whose processes never go into a `ProcessTable` at
+ * all, calls it directly.
  *
  * @api
  */
@@ -38,7 +41,7 @@ final readonly class ProcessRelease
         $process->closeInput();
         $ended = $process->awaitExit($this->closeGraceSeconds);
         if (!$ended) {
-            $this->kill($process);
+            self::kill($process);
 
             return;
         }
@@ -47,7 +50,7 @@ final readonly class ProcessRelease
     }
 
     /** Ends the child where it stands, for when waiting on it is what went wrong. */
-    public function kill(AgentProcess $process): void
+    public static function kill(AgentProcess $process): void
     {
         $process->terminate();
         $process->awaitExit(self::TERMINATION_GRACE);
