@@ -76,6 +76,7 @@ final class StubSlackCli
                         fwrite(STDOUT, data: "ACK {$ack}\n");
                         fflush(STDOUT);
                     },
+                    new StubSlackApi(),
                 );
 
                 fwrite(STDOUT, data: "READY\n");
