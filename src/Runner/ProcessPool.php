@@ -8,8 +8,6 @@ use Closure;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
 use Swoole\Coroutine\Channel;
 
-use function microtime;
-
 /**
  * The children the runner is holding on to, and the rules for letting them go.
  *
@@ -111,18 +109,14 @@ final class ProcessPool
         if ($process === null) {
             return;
         }
-
-        $process->busy = true;
+        $process->beginTurn();
     }
 
     /** Marks the turn as over, which starts the idle clock and lets a waiting start proceed. */
     public function endTurn(ThreadId $thread): void
     {
         $process = $this->table->get($thread->value);
-        if ($process !== null) {
-            $process->busy = false;
-            $process->lastUsedAt = microtime(true);
-        }
+        $process?->endTurn();
 
         $this->freed();
     }

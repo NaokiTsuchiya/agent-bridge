@@ -188,7 +188,7 @@ final class SpawnCliRunner implements AgentRunner
                     return true;
                 }
 
-                $process->emitted = true;
+                $process->recordEmission();
 
                 yield $event;
 

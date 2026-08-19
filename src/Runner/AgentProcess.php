@@ -41,14 +41,14 @@ final class AgentProcess
     /** Kept because `proc_get_status()` reports the real code once and -1 from then on. */
     private ?int $exitCode = null;
 
-    /** Whether anything read from this child has reached the caller, set from the outside. */
-    public bool $emitted = false;
+    /** Whether anything read from this child has reached the caller. */
+    private bool $emitted = false;
 
-    /** Whether a turn is being answered right now, kept by {@see ProcessPool}. */
-    public bool $busy = false;
+    /** Whether a turn is being answered right now. */
+    private bool $busy = false;
 
-    /** When a turn on this child last began or ended, kept by {@see ProcessPool}. */
-    public float $lastUsedAt;
+    /** When a turn on this child last began or ended. */
+    private float $lastUsedAt;
 
     /**
      * @param resource      $handle the process itself
@@ -212,6 +212,55 @@ final class AgentProcess
         $reason = $tail === '' ? '' : " {$tail}";
 
         return "The agent ended before finishing the turn (exit code {$code}).{$reason}";
+    }
+
+    /** Marks that an event read from this child has reached the caller. */
+    public function recordEmission(): void
+    {
+        $this->emitted = true;
+    }
+
+    /**
+     * @return bool whether anything read from this child has reached the caller
+     *
+     * @mutation-free
+     */
+    public function hasEmitted(): bool
+    {
+        return $this->emitted;
+    }
+
+    /** Marks the process as answering a turn, keeping it out of reach of reclaiming. */
+    public function beginTurn(): void
+    {
+        $this->busy = true;
+    }
+
+    /** Marks the turn as over and updates when the process was last used. */
+    public function endTurn(): void
+    {
+        $this->busy = false;
+        $this->lastUsedAt = microtime(true);
+    }
+
+    /**
+     * @return bool whether a turn is being answered right now
+     *
+     * @mutation-free
+     */
+    public function isBusy(): bool
+    {
+        return $this->busy;
+    }
+
+    /**
+     * @return float when a turn on this child last began or ended
+     *
+     * @mutation-free
+     */
+    public function lastUsedAt(): float
+    {
+        return $this->lastUsedAt;
     }
 
     /** Waits a moment, giving up the processor to other coroutines when there are any. */

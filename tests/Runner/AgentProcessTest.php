@@ -116,4 +116,50 @@ final class AgentProcessTest extends TestCase
         $process->release();
         self::assertSame([], ChildProcesses::all());
     }
+
+    /**
+     * Recording an emission changes the emission state from false to true.
+     */
+    #[Test]
+    public function recordingEmissionChangesEmissionState(): void
+    {
+        $process = AgentProcess::start(['/bin/cat'], '', HistoryStart::Beginning);
+        self::assertNotNull($process);
+
+        self::assertFalse($process->hasEmitted());
+        $process->recordEmission();
+        self::assertTrue($process->hasEmitted());
+
+        $process->closeInput();
+        self::assertTrue($process->awaitExit(2.0));
+        $process->release();
+        self::assertSame([], ChildProcesses::all());
+    }
+
+    /**
+     * Beginning and ending turns manages busy flag and advances last-used timestamp.
+     */
+    #[Test]
+    public function turnLifecycleUpdatesBusyAndLastUsedAt(): void
+    {
+        $beforeStart = microtime(true);
+        $process = AgentProcess::start(['/bin/cat'], '', HistoryStart::Beginning);
+        self::assertNotNull($process);
+
+        self::assertFalse($process->isBusy());
+        self::assertGreaterThanOrEqual($beforeStart, $process->lastUsedAt());
+
+        $process->beginTurn();
+        self::assertTrue($process->isBusy());
+
+        $beforeEnd = microtime(true);
+        $process->endTurn();
+        self::assertFalse($process->isBusy());
+        self::assertGreaterThanOrEqual($beforeEnd, $process->lastUsedAt());
+
+        $process->closeInput();
+        self::assertTrue($process->awaitExit(2.0));
+        $process->release();
+        self::assertSame([], ChildProcesses::all());
+    }
 }

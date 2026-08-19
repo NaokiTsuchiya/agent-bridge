@@ -114,7 +114,7 @@ final class TurnEvents
                 return true;
             }
 
-            $process->emitted = true;
+            $process->recordEmission();
 
             if ($completed !== null) {
                 ($this->end)($process);

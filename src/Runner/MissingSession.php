@@ -42,7 +42,7 @@ final class MissingSession
         // Anything already handed to the caller settles it: this process was talking to a real
         // session, so a later death is a death, not a wrong guess, and re-sending the prompt to
         // a fresh process would repeat what the caller has seen.
-        if ($process->start !== HistoryStart::Continuing || $process->emitted) {
+        if ($process->start !== HistoryStart::Continuing || $process->hasEmitted()) {
             return false;
         }
 
