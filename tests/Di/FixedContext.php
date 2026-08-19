@@ -9,7 +9,6 @@ use NaokiTsuchiya\RayDiContext\ContextInterface;
 use NaokiTsuchiya\RayDiContext\ContextProviderInterface;
 use Override;
 use Ray\Di\AbstractModule;
-use Ray\Di\InjectorInterface;
 use Throwable;
 
 /**
@@ -24,14 +23,10 @@ use Throwable;
  */
 final class FixedContext implements ContextInterface, ContextProviderInterface
 {
-    /** The injector handed out, which answers with the prepared instances. */
-    private FixedInjector $injector;
-
-    /** @param array<class-string, object|Throwable> $prepared what the injector answers with */
-    public function __construct(array $prepared = [])
-    {
-        $this->injector = new FixedInjector($prepared);
-    }
+    /** @param array<class-string, object|Throwable> $prepared what the module binds */
+    public function __construct(
+        private readonly array $prepared = [],
+    ) {}
 
     /** {@inheritDoc} */
     #[Override]
@@ -44,20 +39,6 @@ final class FixedContext implements ContextInterface, ContextProviderInterface
     #[Override]
     public function __invoke(): AbstractModule
     {
-        return new EmptyModule();
-    }
-
-    /** {@inheritDoc} */
-    #[Override]
-    public function getInjectorInstance(): InjectorInterface
-    {
-        return $this->injector;
-    }
-
-    /** {@inheritDoc} */
-    #[Override]
-    public function getSavedSingleton(): array
-    {
-        return [];
+        return new FixedModule($this->prepared);
     }
 }

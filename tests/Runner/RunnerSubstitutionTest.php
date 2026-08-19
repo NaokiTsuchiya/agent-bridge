@@ -15,6 +15,7 @@ use NaokiTsuchiya\AgentBridge\Tests\Di\CompiledServe;
 use NaokiTsuchiya\AgentBridge\Tests\Di\SpawnRunnerModule;
 use NaokiTsuchiya\RayDiContext\Exception\CompileDirUnavailable;
 use NaokiTsuchiya\RayDiContext\Exception\InvalidAppMeta;
+use NaokiTsuchiya\RayDiContext\InjectorBuilder;
 use Override;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -90,7 +91,8 @@ final class RunnerSubstitutionTest extends TestCase
     #[Test]
     public function theSwappedWiringResolvesTheSpawnRunner(): void
     {
-        $injector = new ServeContext(CompiledServe::spawnMeta())->getInjectorInstance();
+        $meta = CompiledServe::spawnMeta();
+        $injector = (new InjectorBuilder())(new ServeContext($meta), $meta);
 
         self::assertInstanceOf(SpawnCliRunner::class, $injector->getInstance(AgentRunner::class));
     }
@@ -104,7 +106,8 @@ final class RunnerSubstitutionTest extends TestCase
     #[Test]
     public function theDeploymentStillGetsTheResidentRunner(): void
     {
-        $injector = new ServeContext(CompiledServe::meta())->getInjectorInstance();
+        $meta = CompiledServe::meta();
+        $injector = (new InjectorBuilder())(new ServeContext($meta), $meta);
 
         self::assertInstanceOf(PersistentCliRunner::class, $injector->getInstance(AgentRunner::class));
     }

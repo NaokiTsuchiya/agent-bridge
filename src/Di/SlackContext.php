@@ -4,12 +4,10 @@ declare(strict_types=1);
 
 namespace NaokiTsuchiya\AgentBridge\Di;
 
-use Be\Framework\BecomingInterface;
 use Be\Framework\Module\BeModule;
-use BEAR\Resource\ResourceInterface;
 use NaokiTsuchiya\AgentBridge\AgentBridge;
-use NaokiTsuchiya\AgentBridge\Runner\AgentRunner;
-use NaokiTsuchiya\RayDiContext\AbstractCompiledContext;
+use NaokiTsuchiya\RayDiContext\AbstractContext;
+use NaokiTsuchiya\RayDiContext\CompiledContextInterface;
 use Override;
 use Ray\Di\AbstractModule;
 
@@ -20,9 +18,16 @@ use Ray\Di\AbstractModule;
  * process has is decided once, when it starts, and a process that could be either would have to
  * build both — including a Web API client for a workspace nobody configured.
  *
+ * Ahead-of-time compiled singletons in {@see SlackModule} (including Scope::SINGLETON providers such as
+ * {@see \NaokiTsuchiya\AgentBridge\Slack\SlackApiClientProvider} and {@see \NaokiTsuchiya\AgentBridge\Slack\EnvelopeChannelProvider})
+ * are pre-instantiated during warmup without performing network I/O or opening sockets on startup:
+ * actual Slack API socket connections are opened exclusively by {@see \NaokiTsuchiya\AgentBridge\Slack\SocketModeConnectorInterface}
+ * (via {@see \NaokiTsuchiya\AgentBridge\Slack\SocketModeConnectorProvider}), which is bound without singleton scope
+ * and therefore excluded from warmup. Consequently, warming up all singletons on boot does not trigger connection attempts.
+ *
  * @api
  */
-final class SlackContext extends AbstractCompiledContext
+final class SlackContext extends AbstractContext implements CompiledContextInterface
 {
     /**
      * The context name, which is also one path segment of the compile and tmp directories.
@@ -35,21 +40,8 @@ final class SlackContext extends AbstractCompiledContext
 
     /** {@inheritDoc} */
     #[Override]
-    protected function appModule(): AbstractModule
+    public function __invoke(): AbstractModule
     {
         return new BeModule(AgentBridge::SEMANTIC_NAMESPACE, new SlackModule());
-    }
-
-    /**
-     * {@inheritDoc}
-     *
-     * The same three as {@see ServeContext}, and deliberately no more: the Slack side of this
-     * context reads tokens as it is built, and a warmup that touched it would turn every start into
-     * a connection attempt before the process had said it was up.
-     */
-    #[Override]
-    public function getSavedSingleton(): array
-    {
-        return [ResourceInterface::class, BecomingInterface::class, AgentRunner::class];
     }
 }

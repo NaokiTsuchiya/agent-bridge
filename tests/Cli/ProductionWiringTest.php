@@ -21,6 +21,7 @@ use NaokiTsuchiya\AgentBridge\Tests\Di\CompiledServe;
 use NaokiTsuchiya\AgentBridge\Worktree\WorktreeManager;
 use NaokiTsuchiya\RayDiContext\Exception\CompileDirUnavailable;
 use NaokiTsuchiya\RayDiContext\Exception\InvalidAppMeta;
+use NaokiTsuchiya\RayDiContext\InjectorBuilder;
 use Override;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -226,7 +227,8 @@ final class ProductionWiringTest extends TestCase
     private static function injector(): InjectorInterface
     {
         if (self::$injector === null) {
-            self::$injector = new ServeContext(CompiledServe::meta())->getInjectorInstance();
+            $meta = CompiledServe::meta();
+            self::$injector = (new InjectorBuilder())(new ServeContext($meta), $meta);
         }
 
         return self::$injector;
