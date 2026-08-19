@@ -5,18 +5,18 @@ declare(strict_types=1);
 namespace NaokiTsuchiya\AgentBridge\Tests\Di;
 
 use NaokiTsuchiya\RayDiContext\AppMeta;
+use NaokiTsuchiya\RayDiContext\CompiledContextInterface;
 use NaokiTsuchiya\RayDiContext\ContextInterface;
 use NaokiTsuchiya\RayDiContext\ContextProviderInterface;
 use Override;
 use Ray\Di\AbstractModule;
 
 /**
- * A context that counts how often it is requested from the provider.
+ * A compiled context spy that counts how often it is requested from the provider.
  *
- * It is a provider as well as a context so that one object can be handed to
- * {@see \NaokiTsuchiya\AgentBridge\Di\Boot} and read afterwards.
+ * @internal
  */
-final class SpyContext implements ContextInterface, ContextProviderInterface
+final class SpyCompiledContext implements CompiledContextInterface, ContextProviderInterface
 {
     /** How many times get() has been called. */
     public int $contextCalls = 0;

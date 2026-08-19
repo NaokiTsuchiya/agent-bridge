@@ -8,7 +8,7 @@
         "ext-swoole": "*",
         "be-framework/be": "0.x-dev",
         "bear/resource": "^1.33",
-        "naoki-tsuchiya/ray-di-context": "^0.2",
+        "naoki-tsuchiya/ray-di-context": "^0.3",
         "ray/di": "^2.22"
     },
     "require-dev": {

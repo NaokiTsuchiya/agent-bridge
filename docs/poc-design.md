@@ -104,7 +104,7 @@ Swoole Server (常駐 1 プロセス)
 
 依存: `bear/resource` / `ray/di` / `naoki-tsuchiya/ray-di-context`
 
-#### ray-di-context 0.2.0 の実 API (実測済み)
+#### ray-di-context 0.3.0 の実 API (実測済み)
 
 ```php
 // AppMeta は 4 引数。appDir は絶対パス必須
@@ -119,16 +119,18 @@ $provider = new MapContextProvider(['serve' => ServeContext::class]);
 $context  = $provider->get($meta);
 
 // ContextInterface: __invoke(): AbstractModule
-//                   getInjectorInstance(): InjectorInterface
-//                   getSavedSingleton(): array
-$injector = $context->getInjectorInstance();   // ★ 起動時 1 回だけ呼ぶ
+// CompiledContextInterface: マーカーインタフェース
+// InjectorBuilder: ($context, $meta) で WarmableInjectorInterface を構築
+$builder  = new InjectorBuilder();
+$injector = $builder($context, $meta);
+$injector->warmup(); // ★ 起動時に 1 回呼ぶ (compiled なら singletons.json を元に事前構築)
 ```
 
-**重要な契約:** `getInjectorInstance()` は繰り返し呼んで同じインスタンスが返る保証が無い。`AbstractCompiledContext` は実際に**呼ぶたびに `new CompiledInjector` を返す**。1 回だけ呼んで使い回すのは呼び出し側の責務。
+**重要な契約:** `InjectorBuilder` は `CompiledContextInterface` を持つコンテキストに対して `CompiledWarmableInjector` を返し、それ以外には `RuntimeWarmableInjector` を返す。`warmup()` はコンパイル時に記録された `singletons.json` を元に singleton を事前構築する。1 回だけ呼んで使い回すのは呼び出し側の責務。
 
 その他:
 
-- コンテキストクラスは `AbstractContext` を継承 (コンストラクタは `final`、`AppMeta` のみを受ける)。コンパイル済み Injector が欲しければ `AbstractCompiledContext` を継承して `appModule()` を実装する
+- コンテキストクラスは `AbstractContext` を継承 (コンストラクタは `final`、`AppMeta` のみを受ける)。コンパイル済み Injector が欲しければ `CompiledContextInterface` を実装して `__invoke(): AbstractModule` を実装する
 - **`compileDir` は作られるが `tmpDir` は作られない。** 事前に mkdir が要る。無いと Ray.Di が黙って `sys_get_temp_dir()` へフォールバックする
 - `var/di/` と `var/tmp/` を `.gitignore` に入れる
 - コンパイル用 CLI `bin/ray-di-compile` が同梱
@@ -523,7 +525,7 @@ Slack の `thread_ts` が無いメッセージは、そのメッセージの `ts
 | 3 | CLI 直叩き | Agent SDK | PHP に SDK がない。認証経路も CLI が素直 |
 | 3b | 常駐プロセス (`--input-format stream-json`) | メッセージごとに都度起動 | 起動コストが消える。割り込みが将来足せる |
 | 3c | `AgentRunner` で抽象化 | CLI 直結 | 認証や配布形態が変われば API に移る必要がある |
-| 4 | Injector を起動時 1 回 | リクエスト毎に構築 | 常駐前提。`getInjectorInstance()` は毎回 new を返す契約なので、呼ぶのは 1 回だけ |
+| 4 | Injector を起動時 1 回 | リクエスト毎に構築 | 常駐前提。Injector の構築と warmup は起動時に 1 回だけ行う |
 | 5 | `bear/resource` + ray-di-context | `bear/skeleton` / `bear/package` | 入り口が HTTP でないため |
 | 6 | narrow waist を使わない | envelope → 擬似 `$server` 変換 | 不要な間接層になる |
 | 7 | ThreadId から session_id を決定的に導出 + コマンド分岐 | 対応表を永続化 | 実測で `--session-id` が新規専用と判明したが、`--resume` 先行で導出方式は維持できる |

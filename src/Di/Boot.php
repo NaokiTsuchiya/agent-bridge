@@ -7,6 +7,7 @@ namespace NaokiTsuchiya\AgentBridge\Di;
 use NaokiTsuchiya\RayDiContext\AppMeta;
 use NaokiTsuchiya\RayDiContext\ContextProviderInterface;
 use NaokiTsuchiya\RayDiContext\Exception\ExceptionInterface;
+use NaokiTsuchiya\RayDiContext\InjectorBuilder;
 use Ray\Di\InjectorInterface;
 
 use function is_dir;
@@ -17,8 +18,7 @@ use function sprintf;
 
 /**
  * Brings a process up to the point where it can serve, once.
- *
- * The one thing this exists to guarantee is that `getInjectorInstance()` is called a single time
+ * The one thing this exists to guarantee is that the injector is built and warmed up a single time
  * per process. It is not a factory that happens to return an injector: the contract says repeated
  * calls need not give the same instance — and the compiled context does return a new one each time
  * — so warming up against one and then serving from another would leave the warmup behind.
@@ -49,11 +49,8 @@ final class Boot
         $this->createTmpDir();
 
         $context = $this->contexts->get($this->meta);
-        $injector = $context->getInjectorInstance();
-
-        foreach ($context->getSavedSingleton() as $class) {
-            $injector->getInstance($class);
-        }
+        $injector = (new InjectorBuilder())($context, $this->meta);
+        $injector->warmup();
 
         return $injector;
     }

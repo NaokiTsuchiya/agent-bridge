@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace NaokiTsuchiya\AgentBridge\Tests\Di;
 
-use Be\Framework\BecomingInterface;
 use Be\Framework\Module\BeModule;
-use BEAR\Resource\ResourceInterface;
 use NaokiTsuchiya\AgentBridge\AgentBridge;
 use NaokiTsuchiya\AgentBridge\Di\AppModule;
 use NaokiTsuchiya\AgentBridge\Di\ServeContext;
-use NaokiTsuchiya\AgentBridge\Runner\AgentRunner;
-use NaokiTsuchiya\RayDiContext\AbstractCompiledContext;
+use NaokiTsuchiya\RayDiContext\AbstractContext;
+use NaokiTsuchiya\RayDiContext\CompiledContextInterface;
 use Override;
 use Ray\Di\AbstractModule;
 
@@ -23,22 +21,15 @@ use Ray\Di\AbstractModule;
  * into is the entire substitution — `bin/agent-bridge-cli` and the production {@see ServeContext}
  * are used unchanged, and neither knows which runner it got.
  *
- * It repeats {@see ServeContext}'s two methods rather than extending it, because that one is final,
+ * It repeats {@see ServeContext}'s contract rather than extending it, because that one is final,
  * and deliberately so: a deployment ships one context.
  */
-final class SpawnServeContext extends AbstractCompiledContext
+final class SpawnServeContext extends AbstractContext implements CompiledContextInterface
 {
     /** {@inheritDoc} */
     #[Override]
-    protected function appModule(): AbstractModule
+    public function __invoke(): AbstractModule
     {
         return new BeModule(AgentBridge::SEMANTIC_NAMESPACE, new SpawnRunnerModule(new AppModule()));
-    }
-
-    /** {@inheritDoc} */
-    #[Override]
-    public function getSavedSingleton(): array
-    {
-        return [ResourceInterface::class, BecomingInterface::class, AgentRunner::class];
     }
 }

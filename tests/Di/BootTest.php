@@ -4,30 +4,51 @@ declare(strict_types=1);
 
 namespace NaokiTsuchiya\AgentBridge\Tests\Di;
 
-use Be\Framework\BecomingInterface;
-use BEAR\Resource\ResourceInterface;
 use NaokiTsuchiya\AgentBridge\Di\Boot;
 use NaokiTsuchiya\AgentBridge\Di\BootException;
 use NaokiTsuchiya\AgentBridge\Di\ServeContext;
 use NaokiTsuchiya\AgentBridge\Tests\Support\TempDir;
 use NaokiTsuchiya\RayDiContext\AppMeta;
+use NaokiTsuchiya\RayDiContext\CompiledWarmableInjector;
+use NaokiTsuchiya\RayDiContext\Exception\CompileDirUnavailable;
 use NaokiTsuchiya\RayDiContext\Exception\ExceptionInterface;
 use NaokiTsuchiya\RayDiContext\Exception\InvalidAppMeta;
+use NaokiTsuchiya\RayDiContext\Exception\WarmupNotCompiled;
+use NaokiTsuchiya\RayDiContext\MapContextProvider;
+use NaokiTsuchiya\RayDiContext\RuntimeWarmableInjector;
 use Override;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Swoole\Runtime;
 
 use function file_put_contents;
 use function mkdir;
 
 /**
- * The boot sequence, driven against a spy context so that the two things it must get right are
- * observable: the injector is asked for once, and the tmp dir exists afterwards.
+ * The boot sequence, driven against test contexts so that its lifecycle guarantees are observable:
+ * the context is resolved once, the tmp dir exists, and injectors are built and warmed up.
  *
  * @mago-expect lint:too-many-methods
  */
 final class BootTest extends TestCase
 {
+    /** Swoole's hook flags as they were before this class ran. */
+    private static int $hookFlags = 0;
+
+    /** {@inheritDoc} */
+    #[Override]
+    public static function setUpBeforeClass(): void
+    {
+        self::$hookFlags = Runtime::getHookFlags();
+    }
+
+    /** {@inheritDoc} */
+    #[Override]
+    public static function tearDownAfterClass(): void
+    {
+        Runtime::setHookFlags(self::$hookFlags);
+    }
+
     /** The throwaway app dir of the case being run. */
     private string $appDir = '';
 
@@ -46,69 +67,104 @@ final class BootTest extends TestCase
     }
 
     /**
-     * The contract allows a different instance per call, so a second call would quietly hand the
-     * process an injector nothing had been warmed up in.
+     * The boot process asks the provider for the context exactly once.
      *
      * @throws BootException
      * @throws ExceptionInterface
      */
     #[Test]
-    public function asksForTheInjectorExactlyOnce(): void
-    {
-        $context = new SpyContext([ResourceInterface::class, BecomingInterface::class]);
-
-        (new Boot($this->meta(), $context))();
-
-        self::assertSame(1, $context->injectorCalls);
-    }
-
-    /**
-     * The warmup is what the list is for; naming classes and never building them is the failure
-     * this case exists to catch.
-     *
-     * @throws BootException
-     * @throws ExceptionInterface
-     */
-    #[Test]
-    public function warmsUpEverythingTheContextNames(): void
-    {
-        $context = new SpyContext([ResourceInterface::class, BecomingInterface::class]);
-
-        (new Boot($this->meta(), $context))();
-
-        self::assertSame([ResourceInterface::class, BecomingInterface::class], $context->injector->asked);
-    }
-
-    /**
-     * The other side of the same rule: nothing is built that the context did not ask for.
-     *
-     * @throws BootException
-     * @throws ExceptionInterface
-     */
-    #[Test]
-    public function warmsUpNothingWhenTheContextNamesNothing(): void
+    public function asksForTheContextExactlyOnce(): void
     {
         $context = new SpyContext();
 
         (new Boot($this->meta(), $context))();
 
-        self::assertSame([], $context->injector->asked);
+        self::assertSame(1, $context->contextCalls);
     }
 
     /**
-     * Warming up one injector and returning another would leave the warmup behind.
+     * A non-compiled context receives a runtime injector whose warmup is a no-op.
      *
      * @throws BootException
      * @throws ExceptionInterface
      */
     #[Test]
-    public function handsBackTheInjectorItWarmedUp(): void
+    public function buildsAndWarmsUpRuntimeInjector(): void
     {
-        $context = new SpyContext([ResourceInterface::class]);
+        $context = new SpyContext();
 
         $injector = (new Boot($this->meta(), $context))();
 
-        self::assertSame($context->injector, $injector);
+        self::assertInstanceOf(RuntimeWarmableInjector::class, $injector);
+    }
+
+    /**
+     * A compiled context with valid scripts builds a compiled injector and executes warmup.
+     *
+     * @throws BootException
+     * @throws ExceptionInterface
+     */
+    #[Test]
+    public function buildsAndWarmsUpCompiledInjector(): void
+    {
+        $meta = CompiledServe::meta();
+        $provider = new MapContextProvider([ServeContext::NAME => ServeContext::class]);
+
+        $injector = (new Boot($meta, $provider))();
+
+        self::assertInstanceOf(CompiledWarmableInjector::class, $injector);
+    }
+
+    /**
+     * A compiled context refuses to start when its compile directory does not exist.
+     *
+     * @throws BootException
+     * @throws ExceptionInterface
+     */
+    #[Test]
+    public function refusesToStartWhenCompileDirIsUnavailable(): void
+    {
+        $meta = $this->meta();
+        $context = new SpyCompiledContext();
+
+        $this->expectException(CompileDirUnavailable::class);
+
+        (new Boot($meta, $context))();
+    }
+
+    /**
+     * A compiled context refuses to start when its compile directory holds no singleton metadata.
+     *
+     * @throws BootException
+     * @throws ExceptionInterface
+     */
+    #[Test]
+    public function refusesToStartWhenCompiledScriptsLackSingletonMetadata(): void
+    {
+        $meta = $this->meta();
+        self::assertTrue(mkdir($meta->compileDir, permissions: 0o755, recursive: true));
+        $context = new SpyCompiledContext();
+
+        $this->expectException(WarmupNotCompiled::class);
+
+        (new Boot($meta, $context))();
+    }
+
+    /**
+     * Context resolution failure propagates to the caller.
+     *
+     * @throws BootException
+     * @throws ExceptionInterface
+     */
+    #[Test]
+    public function propagatesContextResolutionFailure(): void
+    {
+        $meta = $this->meta();
+        $provider = new MapContextProvider([]);
+
+        $this->expectException(ExceptionInterface::class);
+
+        (new Boot($meta, $provider))();
     }
 
     /**

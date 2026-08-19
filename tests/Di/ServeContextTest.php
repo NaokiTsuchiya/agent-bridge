@@ -11,17 +11,23 @@ use NaokiTsuchiya\AgentBridge\AgentBridge;
 use NaokiTsuchiya\AgentBridge\Di\ServeContext;
 use NaokiTsuchiya\AgentBridge\Runner\AgentRunner;
 use NaokiTsuchiya\AgentBridge\Slack\SocketModeClient;
+use NaokiTsuchiya\RayDiContext\CompiledContextInterface;
 use NaokiTsuchiya\RayDiContext\ContextInterface;
 use NaokiTsuchiya\RayDiContext\Exception\CompileDirUnavailable;
 use NaokiTsuchiya\RayDiContext\Exception\InvalidAppMeta;
+use NaokiTsuchiya\RayDiContext\Exception\WarmupNotCompiled;
+use NaokiTsuchiya\RayDiContext\InjectorBuilder;
+use Override;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Ray\Di\AbstractModule;
 use ReflectionClass;
 use ReflectionException;
-use ReflectionMethod;
 use ReflectionParameter;
+use Swoole\Runtime;
 
+use function file_get_contents;
+use function json_decode;
 use function str_starts_with;
 
 /**
@@ -29,6 +35,23 @@ use function str_starts_with;
  */
 final class ServeContextTest extends TestCase
 {
+    /** Swoole's hook flags as they were before this class ran. */
+    private static int $hookFlags = 0;
+
+    /** {@inheritDoc} */
+    #[Override]
+    public static function setUpBeforeClass(): void
+    {
+        self::$hookFlags = Runtime::getHookFlags();
+    }
+
+    /** {@inheritDoc} */
+    #[Override]
+    public static function tearDownAfterClass(): void
+    {
+        Runtime::setHookFlags(self::$hookFlags);
+    }
+
     /** The binding name Be publishes its namespace under. */
     private const string SEMANTIC_NAMESPACE = 'semantic_namespace';
 
@@ -43,6 +66,7 @@ final class ServeContextTest extends TestCase
         $context = new ServeContext(CompiledServe::meta());
 
         self::assertInstanceOf(ContextInterface::class, $context);
+        self::assertInstanceOf(CompiledContextInterface::class, $context);
         self::assertInstanceOf(AbstractModule::class, $context());
     }
 
@@ -56,9 +80,9 @@ final class ServeContextTest extends TestCase
     #[Test]
     public function composesBe(): void
     {
-        $appModule = new ReflectionMethod(ServeContext::class, 'appModule');
+        $context = new ServeContext(CompiledServe::meta());
 
-        self::assertInstanceOf(BeModule::class, $appModule->invoke(new ServeContext(CompiledServe::meta())));
+        self::assertInstanceOf(BeModule::class, $context());
     }
 
     /**
@@ -71,7 +95,8 @@ final class ServeContextTest extends TestCase
     #[Test]
     public function pointsBeAtThisApplicationsSemanticNamespace(): void
     {
-        $injector = new ServeContext(CompiledServe::meta())->getInjectorInstance();
+        $meta = CompiledServe::meta();
+        $injector = (new InjectorBuilder())(new ServeContext($meta), $meta);
 
         self::assertSame(AgentBridge::SEMANTIC_NAMESPACE, $injector->getInstance('', self::SEMANTIC_NAMESPACE));
     }
@@ -94,16 +119,20 @@ final class ServeContextTest extends TestCase
     /**
      * A compiled injector never unserializes an instance, so anything holding a resource is warmed up.
      *
+     * @throws CompileDirUnavailable
      * @throws InvalidAppMeta
+     * @throws WarmupNotCompiled
      */
     #[Test]
     public function warmsUpTheResourceLayerBeAndTheExecutionLayer(): void
     {
-        $warmup = new ServeContext(CompiledServe::meta())->getSavedSingleton();
+        $meta = CompiledServe::meta();
+        $injector = (new InjectorBuilder())(new ServeContext($meta), $meta);
+        $injector->warmup();
 
-        self::assertContains(ResourceInterface::class, $warmup);
-        self::assertContains(BecomingInterface::class, $warmup);
-        self::assertContains(AgentRunner::class, $warmup);
+        self::assertInstanceOf(ResourceInterface::class, $injector->getInstance(ResourceInterface::class));
+        self::assertInstanceOf(BecomingInterface::class, $injector->getInstance(BecomingInterface::class));
+        self::assertInstanceOf(AgentRunner::class, $injector->getInstance(AgentRunner::class));
     }
 
     /**
@@ -117,8 +146,16 @@ final class ServeContextTest extends TestCase
     public function warmsUpNothingOfSlacks(): void
     {
         $slack = new ReflectionClass(SocketModeClient::class)->getNamespaceName();
+        $singletonsFile = CompiledServe::meta()->compileDir . '/singletons.json';
+        self::assertFileExists($singletonsFile);
+        $raw = file_get_contents($singletonsFile);
+        self::assertIsString($raw);
+        /** @var list<string> $singletons */
+        $singletons = json_decode($raw, associative: true);
+        self::assertIsArray($singletons);
 
-        foreach (new ServeContext(CompiledServe::meta())->getSavedSingleton() as $class) {
+        foreach ($singletons as $class) {
+            self::assertIsString($class);
             self::assertFalse(str_starts_with($class, $slack), message: "{$class} is Slack's, and is warmed up.");
         }
     }

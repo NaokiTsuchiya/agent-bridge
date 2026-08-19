@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "cb0235ebf9ae4c8fc1bd5046ce7a1c26",
+    "content-hash": "23833dca57605431ea0c261fe99dfc30",
     "packages": [
         {
             "name": "be-framework/be",
@@ -589,25 +589,26 @@
         },
         {
             "name": "naoki-tsuchiya/ray-di-context",
-            "version": "0.2.0",
+            "version": "0.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/NaokiTsuchiya/RayDiContext.git",
-                "reference": "ea1eab1bb45a3006f12fbf095d21452dd7425ad5"
+                "reference": "59570b3ab97f2ee5a5b95a3959c5ed8db1c6cd30"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/NaokiTsuchiya/RayDiContext/zipball/ea1eab1bb45a3006f12fbf095d21452dd7425ad5",
-                "reference": "ea1eab1bb45a3006f12fbf095d21452dd7425ad5",
+                "url": "https://api.github.com/repos/NaokiTsuchiya/RayDiContext/zipball/59570b3ab97f2ee5a5b95a3959c5ed8db1c6cd30",
+                "reference": "59570b3ab97f2ee5a5b95a3959c5ed8db1c6cd30",
                 "shasum": ""
             },
             "require": {
                 "php": "~8.2.0 || ~8.3.0 || ~8.4.0 || ~8.5.0",
-                "ray/compiler": "^1.14",
+                "ray/compiler": "^1.15",
                 "ray/di": "^2.19"
             },
             "require-dev": {
-                "carthage-software/mago": "1.45.0",
+                "carthage-software/mago": "1.46.0",
+                "infection/infection": "0.32.6",
                 "phpunit/phpunit": "11.5.56"
             },
             "bin": [
@@ -640,7 +641,7 @@
                 "issues": "https://github.com/NaokiTsuchiya/RayDiContext/issues",
                 "source": "https://github.com/NaokiTsuchiya/RayDiContext"
             },
-            "time": "2026-08-05T04:04:36+00:00"
+            "time": "2026-08-15T06:12:35+00:00"
         },
         {
             "name": "phpdocumentor/reflection-common",
