@@ -18,9 +18,12 @@ use NaokiTsuchiya\AgentBridge\Resource\App\Health;
 use NaokiTsuchiya\AgentBridge\Runner\AgentRunner;
 use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliCommand;
 use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliSettings;
+use NaokiTsuchiya\AgentBridge\Runner\CloseGraceSeconds;
 use NaokiTsuchiya\AgentBridge\Runner\LifecycleSettings;
 use NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner;
+use NaokiTsuchiya\AgentBridge\Runner\ProcessPool;
 use NaokiTsuchiya\AgentBridge\Runner\TurnLocks;
+use NaokiTsuchiya\AgentBridge\Runner\TurnSeconds;
 use NaokiTsuchiya\AgentBridge\Runner\WorkingDirectoryResolver;
 use NaokiTsuchiya\AgentBridge\Runner\WorktreeWorkingDirectory;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadIdFactory;
@@ -83,12 +86,15 @@ final class AppModule extends AbstractModule
         $this->bind(ThreadIdFactory::class);
         $this->bind(ClaudeCliSettings::class);
         $this->bind(LifecycleSettings::class);
+        $this->bind('')->annotatedWith(TurnSeconds::class)->toProvider(TurnSecondsProvider::class);
+        $this->bind('')->annotatedWith(CloseGraceSeconds::class)->toProvider(CloseGraceSecondsProvider::class);
         // The parts an execution layer is assembled from, rather than ones it builds for itself.
         // Bound here and not where a runner is chosen, because they are the same parts whichever
         // runner that is, and a compiled injector answers only for what was bound.
         $this->bind(ClaudeCliEventParser::class);
         $this->bind(ClaudeCliCommand::class);
         $this->bind(TurnLocks::class);
+        $this->bind(ProcessPool::class);
         // Singleton because the runner is the pool: a second one would hold its own children and
         // neither would honour the other's limit.
         $this->bind(AgentRunner::class)->to(PersistentCliRunner::class)->in(Scope::SINGLETON);
