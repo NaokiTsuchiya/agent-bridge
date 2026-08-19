@@ -22,6 +22,7 @@ use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliSettings;
 use NaokiTsuchiya\AgentBridge\Runner\LifecycleSettings;
 use NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner;
 use NaokiTsuchiya\AgentBridge\Runner\ProcessPool;
+use NaokiTsuchiya\AgentBridge\Runner\ProcessRecipe;
 use NaokiTsuchiya\AgentBridge\Runner\TurnLocks;
 use NaokiTsuchiya\AgentBridge\Runner\WorktreeWorkingDirectory;
 use NaokiTsuchiya\AgentBridge\Tests\Chat\RecordingChatEgress;
@@ -502,8 +503,7 @@ final class BecomingChainTest extends TestCase
         $limits = new LifecycleSettings();
 
         return new PersistentCliRunner(
-            new WorktreeWorkingDirectory($worktrees),
-            new ClaudeCliCommand($settings),
+            new ProcessRecipe(new WorktreeWorkingDirectory($worktrees), new ClaudeCliCommand($settings)),
             new ClaudeCliEventParser(),
             new TurnLocks(),
             new ProcessPool($limits, $settings->closeGraceSeconds),

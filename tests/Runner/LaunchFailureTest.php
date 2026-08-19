@@ -12,6 +12,7 @@ use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliSettings;
 use NaokiTsuchiya\AgentBridge\Runner\LifecycleSettings;
 use NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner;
 use NaokiTsuchiya\AgentBridge\Runner\ProcessPool;
+use NaokiTsuchiya\AgentBridge\Runner\ProcessRecipe;
 use NaokiTsuchiya\AgentBridge\Runner\SpawnCliRunner;
 use NaokiTsuchiya\AgentBridge\Runner\TurnLocks;
 use NaokiTsuchiya\AgentBridge\Tests\Support\ChildProcesses;
@@ -105,8 +106,7 @@ final class LaunchFailureTest extends TestCase
             $settings = new ClaudeCliSettings(binary: $binary, closeGraceSeconds: 0.2);
             $limits = new LifecycleSettings(idleSeconds: 900.0, turnSeconds: 5.0, maxProcesses: 2);
             $runner = new PersistentCliRunner(
-                new HookOffBeforeLaunch($cwd, failFrom: 1),
-                new ClaudeCliCommand($settings),
+                new ProcessRecipe(new HookOffBeforeLaunch($cwd, failFrom: 1), new ClaudeCliCommand($settings)),
                 new ClaudeCliEventParser(),
                 new TurnLocks(),
                 new ProcessPool($limits, $settings->closeGraceSeconds),
@@ -181,8 +181,7 @@ final class LaunchFailureTest extends TestCase
             $settings = new ClaudeCliSettings(binary: $binary, closeGraceSeconds: 0.2);
             $limits = new LifecycleSettings(idleSeconds: 900.0, turnSeconds: 5.0, maxProcesses: 2);
             $runner = new PersistentCliRunner(
-                new HookOffBeforeLaunch($cwd, failFrom: 2),
-                new ClaudeCliCommand($settings),
+                new ProcessRecipe(new HookOffBeforeLaunch($cwd, failFrom: 2), new ClaudeCliCommand($settings)),
                 new ClaudeCliEventParser(),
                 new TurnLocks(),
                 new ProcessPool($limits, $settings->closeGraceSeconds),

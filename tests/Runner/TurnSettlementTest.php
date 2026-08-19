@@ -13,6 +13,7 @@ use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliSettings;
 use NaokiTsuchiya\AgentBridge\Runner\LifecycleSettings;
 use NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner;
 use NaokiTsuchiya\AgentBridge\Runner\ProcessPool;
+use NaokiTsuchiya\AgentBridge\Runner\ProcessRecipe;
 use NaokiTsuchiya\AgentBridge\Runner\TurnLocks;
 use NaokiTsuchiya\AgentBridge\Tests\Support\ChildProcesses;
 use NaokiTsuchiya\AgentBridge\Tests\Support\Coro;
@@ -116,8 +117,7 @@ final class TurnSettlementTest extends TestCase
             $settings = new ClaudeCliSettings(binary: $script, closeGraceSeconds: 0.2);
             $limits = new LifecycleSettings(idleSeconds: 900.0, turnSeconds: 5.0, maxProcesses: 2);
             $runner = new PersistentCliRunner(
-                new FixedWorkingDirectory($cwd),
-                new ClaudeCliCommand($settings),
+                new ProcessRecipe(new FixedWorkingDirectory($cwd), new ClaudeCliCommand($settings)),
                 new ClaudeCliEventParser(),
                 new TurnLocks(),
                 new ProcessPool($limits, $settings->closeGraceSeconds),
@@ -184,8 +184,7 @@ final class TurnSettlementTest extends TestCase
             $settings = new ClaudeCliSettings(binary: $script, closeGraceSeconds: 0.05);
             $limits = new LifecycleSettings(idleSeconds: 900.0, turnSeconds: 0.4, maxProcesses: 2);
             $runner = new PersistentCliRunner(
-                new FixedWorkingDirectory($cwd),
-                new ClaudeCliCommand($settings),
+                new ProcessRecipe(new FixedWorkingDirectory($cwd), new ClaudeCliCommand($settings)),
                 new ClaudeCliEventParser(),
                 new TurnLocks(),
                 new ProcessPool($limits, $settings->closeGraceSeconds),

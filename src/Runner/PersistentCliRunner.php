@@ -37,8 +37,6 @@ use const SWOOLE_HOOK_STREAM_FUNCTION;
  * Only usable from inside a coroutine: both the waiting for a thread's turn and the waiting for
  * room in the pool are done with channels.
  *
- * @mago-expect lint:excessive-parameter-list
- *
  * @api
  */
 final class PersistentCliRunner implements AgentRunner
@@ -47,20 +45,18 @@ final class PersistentCliRunner implements AgentRunner
     private array $turns = [];
 
     /**
-     * @param WorkingDirectoryResolver $directories where each thread's process is started
-     * @param ClaudeCliCommand         $command     how the binary is asked to run, and how a turn
-     *                                              is written to one that is running
-     * @param ClaudeCliEventParser     $parser      turns the binary's output into events
-     * @param TurnLocks                $locks       one mutex per thread, held for as long as that
-     *                                              thread's turn lasts
-     * @param ProcessPool              $pool        the processes, and the rules by which they are
-     *                                              reclaimed
-     * @param float                    $turnSeconds how long a turn may go without reaching its
-     *                                              completion event
+     * @param ProcessRecipe        $recipe      where each thread's process is started, and with
+     *                                          what arguments
+     * @param ClaudeCliEventParser $parser      turns the binary's output into events
+     * @param TurnLocks            $locks       one mutex per thread, held for as long as that
+     *                                          thread's turn lasts
+     * @param ProcessPool          $pool        the processes, and the rules by which they are
+     *                                          reclaimed
+     * @param float                $turnSeconds how long a turn may go without reaching its
+     *                                          completion event
      */
     public function __construct(
-        private WorkingDirectoryResolver $directories,
-        private ClaudeCliCommand $command,
+        private ProcessRecipe $recipe,
         private ClaudeCliEventParser $parser,
         private TurnLocks $locks,
         private ProcessPool $pool,
@@ -199,9 +195,6 @@ final class PersistentCliRunner implements AgentRunner
     /** @return AgentProcess|null null when the binary could not be started */
     private function launch(ThreadId $thread, HistoryStart $start): ?AgentProcess
     {
-        $command = $this->command->arguments($thread, $start);
-        $cwd = $this->directories->resolve($thread);
-
-        return $this->pool->admit($thread, static fn(): ?AgentProcess => AgentProcess::start($command, $cwd, $start));
+        return $this->pool->admit($thread, fn(): ?AgentProcess => $this->recipe->start($thread, $start));
     }
 }

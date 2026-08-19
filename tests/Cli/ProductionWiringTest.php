@@ -15,6 +15,7 @@ use NaokiTsuchiya\AgentBridge\Pipeline\CompletedTurn;
 use NaokiTsuchiya\AgentBridge\Pipeline\FailedTurn;
 use NaokiTsuchiya\AgentBridge\Pipeline\ResolvedThread;
 use NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner;
+use NaokiTsuchiya\AgentBridge\Runner\ProcessRecipe;
 use NaokiTsuchiya\AgentBridge\Runner\WorkingDirectoryResolver;
 use NaokiTsuchiya\AgentBridge\Runner\WorktreeWorkingDirectory;
 use NaokiTsuchiya\AgentBridge\Tests\Di\CompiledServe;
@@ -119,10 +120,11 @@ final class ProductionWiringTest extends TestCase
     #[Test]
     public function sendsTheRunnerToTheWorktreeManager(): void
     {
-        // Three links, each of which would let the runner work somewhere else if it were missing:
-        // the runner asks for a resolver, the deployment answers with the worktree one, and that
-        // one can only be built out of the manager.
-        self::assertSame(WorkingDirectoryResolver::class, self::firstParameterOf(PersistentCliRunner::class));
+        // Four links, each of which would let the runner work somewhere else if it were missing:
+        // the runner asks for a recipe, the recipe asks for a resolver, the deployment answers
+        // with the worktree one, and that one can only be built out of the manager.
+        self::assertSame(ProcessRecipe::class, self::firstParameterOf(PersistentCliRunner::class));
+        self::assertSame(WorkingDirectoryResolver::class, self::firstParameterOf(ProcessRecipe::class));
         self::assertInstanceOf(
             WorktreeWorkingDirectory::class,
             self::injector()->getInstance(WorkingDirectoryResolver::class),

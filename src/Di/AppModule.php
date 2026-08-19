@@ -22,6 +22,7 @@ use NaokiTsuchiya\AgentBridge\Runner\CloseGraceSeconds;
 use NaokiTsuchiya\AgentBridge\Runner\LifecycleSettings;
 use NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner;
 use NaokiTsuchiya\AgentBridge\Runner\ProcessPool;
+use NaokiTsuchiya\AgentBridge\Runner\ProcessRecipe;
 use NaokiTsuchiya\AgentBridge\Runner\TurnLocks;
 use NaokiTsuchiya\AgentBridge\Runner\TurnSeconds;
 use NaokiTsuchiya\AgentBridge\Runner\WorkingDirectoryResolver;
@@ -93,6 +94,7 @@ final class AppModule extends AbstractModule
         // runner that is, and a compiled injector answers only for what was bound.
         $this->bind(ClaudeCliEventParser::class);
         $this->bind(ClaudeCliCommand::class);
+        $this->bind(ProcessRecipe::class);
         $this->bind(TurnLocks::class);
         $this->bind(ProcessPool::class);
         // Singleton because the runner is the pool: a second one would hold its own children and

@@ -14,6 +14,7 @@ use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliSettings;
 use NaokiTsuchiya\AgentBridge\Runner\LifecycleSettings;
 use NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner;
 use NaokiTsuchiya\AgentBridge\Runner\ProcessPool;
+use NaokiTsuchiya\AgentBridge\Runner\ProcessRecipe;
 use NaokiTsuchiya\AgentBridge\Runner\TurnLocks;
 use NaokiTsuchiya\AgentBridge\Tests\Support\ChildProcesses;
 use NaokiTsuchiya\AgentBridge\Tests\Support\ClaudeBinary;
@@ -867,8 +868,7 @@ final class ProcessLifecycleTest extends FakeCliRunnerTestCase
         $settings = new ClaudeCliSettings(binary: $binary ?? ClaudeBinary::fake(), closeGraceSeconds: $grace);
 
         return new PersistentCliRunner(
-            new FixedWorkingDirectory($this->cwd),
-            new ClaudeCliCommand($settings),
+            new ProcessRecipe(new FixedWorkingDirectory($this->cwd), new ClaudeCliCommand($settings)),
             new ClaudeCliEventParser(),
             new TurnLocks(),
             new ProcessPool($actualLimits, $settings->closeGraceSeconds),
