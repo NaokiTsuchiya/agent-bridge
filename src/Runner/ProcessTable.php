@@ -102,11 +102,11 @@ final class ProcessTable
         $oldest = null;
         $found = null;
         foreach ($this->processes as $key => $process) {
-            if ($process->busy || $oldest !== null && $process->lastUsedAt >= $oldest) {
+            if ($process->isBusy() || $oldest !== null && $process->lastUsedAt() >= $oldest) {
                 continue;
             }
 
-            $oldest = $process->lastUsedAt;
+            $oldest = $process->lastUsedAt();
             $found = $key;
         }
 
@@ -133,8 +133,8 @@ final class ProcessTable
     {
         $soonest = null;
         foreach ($this->processes as $process) {
-            $deadline = $process->lastUsedAt + $idleSeconds;
-            if ($process->busy || $soonest !== null && $deadline >= $soonest) {
+            $deadline = $process->lastUsedAt() + $idleSeconds;
+            if ($process->isBusy() || $soonest !== null && $deadline >= $soonest) {
                 continue;
             }
 
@@ -154,6 +154,6 @@ final class ProcessTable
      */
     private static function idle(AgentProcess $process, float $idleSeconds, float $now): bool
     {
-        return !$process->busy && $now >= ($process->lastUsedAt + $idleSeconds);
+        return !$process->isBusy() && $now >= ($process->lastUsedAt() + $idleSeconds);
     }
 }
