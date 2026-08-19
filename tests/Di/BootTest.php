@@ -18,6 +18,7 @@ use NaokiTsuchiya\RayDiContext\MapContextProvider;
 use NaokiTsuchiya\RayDiContext\RuntimeWarmableInjector;
 use Override;
 use PHPUnit\Framework\Attributes\Test;
+use Swoole\Runtime;
 use PHPUnit\Framework\TestCase;
 
 use function file_put_contents;
@@ -31,6 +32,23 @@ use function mkdir;
  */
 final class BootTest extends TestCase
 {
+    /** Swoole's hook flags as they were before this class ran. */
+    private static int $hookFlags = 0;
+
+    /** {@inheritDoc} */
+    #[Override]
+    public static function setUpBeforeClass(): void
+    {
+        self::$hookFlags = Runtime::getHookFlags();
+    }
+
+    /** {@inheritDoc} */
+    #[Override]
+    public static function tearDownAfterClass(): void
+    {
+        Runtime::setHookFlags(self::$hookFlags);
+    }
+
     /** The throwaway app dir of the case being run. */
     private string $appDir = '';
 

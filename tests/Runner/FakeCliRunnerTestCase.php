@@ -11,6 +11,7 @@ use NaokiTsuchiya\AgentBridge\Tests\Support\TempDir;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadDerivation;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
 use Override;
+use Swoole\Runtime;
 use PHPUnit\Framework\TestCase;
 
 use function chmod;
@@ -34,6 +35,23 @@ use function realpath;
  */
 abstract class FakeCliRunnerTestCase extends TestCase
 {
+    /** Swoole's hook flags as they were before this class ran. */
+    private static int $hookFlags = 0;
+
+    /** {@inheritDoc} */
+    #[Override]
+    public static function setUpBeforeClass(): void
+    {
+        self::$hookFlags = Runtime::getHookFlags();
+    }
+
+    /** {@inheritDoc} */
+    #[Override]
+    public static function tearDownAfterClass(): void
+    {
+        Runtime::setHookFlags(self::$hookFlags);
+    }
+
     /** Where the fake keeps this case's sessions and recordings. */
     protected string $home = '';
 

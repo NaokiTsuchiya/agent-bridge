@@ -16,9 +16,11 @@ use NaokiTsuchiya\RayDiContext\ContextInterface;
 use NaokiTsuchiya\RayDiContext\Exception\CompileDirUnavailable;
 use NaokiTsuchiya\RayDiContext\Exception\InvalidAppMeta;
 use NaokiTsuchiya\RayDiContext\Exception\WarmupNotCompiled;
+use Override;
 use NaokiTsuchiya\RayDiContext\InjectorBuilder;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Swoole\Runtime;
 use Ray\Di\AbstractModule;
 use ReflectionClass;
 use ReflectionException;
@@ -33,6 +35,23 @@ use function str_starts_with;
  */
 final class ServeContextTest extends TestCase
 {
+    /** Swoole's hook flags as they were before this class ran. */
+    private static int $hookFlags = 0;
+
+    /** {@inheritDoc} */
+    #[Override]
+    public static function setUpBeforeClass(): void
+    {
+        self::$hookFlags = Runtime::getHookFlags();
+    }
+
+    /** {@inheritDoc} */
+    #[Override]
+    public static function tearDownAfterClass(): void
+    {
+        Runtime::setHookFlags(self::$hookFlags);
+    }
+
     /** The binding name Be publishes its namespace under. */
     private const string SEMANTIC_NAMESPACE = 'semantic_namespace';
 
