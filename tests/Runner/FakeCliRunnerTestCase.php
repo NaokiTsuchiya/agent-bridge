@@ -31,6 +31,8 @@ use function realpath;
  * {@see PersistentCliRunnerTest} assert about processes, not replies, and the two are not the
  * same assertions wearing a different binary — only the setup they start from is.
  *
+ *
+ * @mago-expect lint:too-many-methods
  * @internal
  */
 abstract class FakeCliRunnerTestCase extends TestCase
