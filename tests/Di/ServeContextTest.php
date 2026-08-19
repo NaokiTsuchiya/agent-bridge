@@ -16,15 +16,15 @@ use NaokiTsuchiya\RayDiContext\ContextInterface;
 use NaokiTsuchiya\RayDiContext\Exception\CompileDirUnavailable;
 use NaokiTsuchiya\RayDiContext\Exception\InvalidAppMeta;
 use NaokiTsuchiya\RayDiContext\Exception\WarmupNotCompiled;
-use Override;
 use NaokiTsuchiya\RayDiContext\InjectorBuilder;
+use Override;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-use Swoole\Runtime;
 use Ray\Di\AbstractModule;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionParameter;
+use Swoole\Runtime;
 
 use function file_get_contents;
 use function json_decode;

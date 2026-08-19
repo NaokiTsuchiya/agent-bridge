@@ -11,8 +11,8 @@ use NaokiTsuchiya\AgentBridge\Tests\Support\TempDir;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadDerivation;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
 use Override;
-use Swoole\Runtime;
 use PHPUnit\Framework\TestCase;
+use Swoole\Runtime;
 
 use function chmod;
 use function count;

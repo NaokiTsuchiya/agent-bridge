@@ -18,8 +18,8 @@ use NaokiTsuchiya\RayDiContext\MapContextProvider;
 use NaokiTsuchiya\RayDiContext\RuntimeWarmableInjector;
 use Override;
 use PHPUnit\Framework\Attributes\Test;
-use Swoole\Runtime;
 use PHPUnit\Framework\TestCase;
+use Swoole\Runtime;
 
 use function file_put_contents;
 use function mkdir;
