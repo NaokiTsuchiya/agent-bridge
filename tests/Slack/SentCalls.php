@@ -2,10 +2,9 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Slack;
+namespace NaokiTsuchiya\AgentBridge\Slack;
 
-use NaokiTsuchiya\AgentBridge\Slack\StreamChunks;
-use NaokiTsuchiya\AgentBridge\Tests\Support\Json;
+use NaokiTsuchiya\AgentBridge\Support\Json;
 
 use function count;
 

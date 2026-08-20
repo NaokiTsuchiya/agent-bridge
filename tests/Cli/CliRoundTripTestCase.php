@@ -2,17 +2,16 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Cli;
+namespace NaokiTsuchiya\AgentBridge\Cli;
 
-use NaokiTsuchiya\AgentBridge\Cli\CliCommand;
 use NaokiTsuchiya\AgentBridge\Di\BaseRepositoryProvider;
-use NaokiTsuchiya\AgentBridge\Tests\Runner\FakeCliRecords;
-use NaokiTsuchiya\AgentBridge\Tests\Support\ClaudeBinary;
-use NaokiTsuchiya\AgentBridge\Tests\Support\CliProcess;
-use NaokiTsuchiya\AgentBridge\Tests\Support\ExecutablePath;
-use NaokiTsuchiya\AgentBridge\Tests\Support\GitRepository;
-use NaokiTsuchiya\AgentBridge\Tests\Support\Json;
-use NaokiTsuchiya\AgentBridge\Tests\Support\TempDir;
+use NaokiTsuchiya\AgentBridge\Runner\FakeCliRecords;
+use NaokiTsuchiya\AgentBridge\Support\ClaudeBinary;
+use NaokiTsuchiya\AgentBridge\Support\CliProcess;
+use NaokiTsuchiya\AgentBridge\Support\ExecutablePath;
+use NaokiTsuchiya\AgentBridge\Support\GitRepository;
+use NaokiTsuchiya\AgentBridge\Support\Json;
+use NaokiTsuchiya\AgentBridge\Support\TempDir;
 use NaokiTsuchiya\RayDiContext\Exception\InvalidAppMeta;
 use Override;
 use PHPUnit\Framework\Attributes\DataProvider;

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace NaokiTsuchiya\AgentBridge\FakeClaude;
 
-use NaokiTsuchiya\AgentBridge\Tests\Support\CliProcess;
-use NaokiTsuchiya\AgentBridge\Tests\Support\Json;
-use NaokiTsuchiya\AgentBridge\Tests\Support\TempDir;
-use NaokiTsuchiya\AgentBridge\Tests\Support\Uuid;
+use NaokiTsuchiya\AgentBridge\Support\CliProcess;
+use NaokiTsuchiya\AgentBridge\Support\Json;
+use NaokiTsuchiya\AgentBridge\Support\TempDir;
+use NaokiTsuchiya\AgentBridge\Support\Uuid;
 use Override;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -29,7 +29,7 @@ use function implode;
  *
  * It is the fake's promise, so it lives with the fake rather than in `tests/`: that keeps the
  * fake's suite from reaching into the host package's test namespace, and leaves the real side
- * ({@see \NaokiTsuchiya\AgentBridge\Tests\Integration\RealClaudeCliContractTest}) as the one
+ * ({@see \NaokiTsuchiya\AgentBridge\Integration\RealClaudeCliContractTest}) as the one
  * crossing over — the direction `tests/` already depends in.
  *
  * @internal

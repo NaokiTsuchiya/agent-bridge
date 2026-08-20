@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NaokiTsuchiya\AgentBridge\FakeClaude;
 
-use NaokiTsuchiya\AgentBridge\Tests\Support\Json;
+use NaokiTsuchiya\AgentBridge\Support\Json;
 
 /**
  * What one turn of the fake should do, once a {@see Scenario} has merged the defaults in.

@@ -2,24 +2,16 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Runner;
+namespace NaokiTsuchiya\AgentBridge\Runner;
 
 use InvalidArgumentException;
 use NaokiTsuchiya\AgentBridge\Event\AgentError;
 use NaokiTsuchiya\AgentBridge\Event\ClaudeCliEventParser;
-use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliCommand;
-use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliSettings;
-use NaokiTsuchiya\AgentBridge\Runner\LifecycleSettings;
-use NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner;
-use NaokiTsuchiya\AgentBridge\Runner\ProcessPool;
-use NaokiTsuchiya\AgentBridge\Runner\ProcessRecipe;
-use NaokiTsuchiya\AgentBridge\Runner\SpawnCliRunner;
-use NaokiTsuchiya\AgentBridge\Runner\TurnLocks;
-use NaokiTsuchiya\AgentBridge\Tests\Support\ChildProcesses;
-use NaokiTsuchiya\AgentBridge\Tests\Support\ClaudeBinary;
-use NaokiTsuchiya\AgentBridge\Tests\Support\Coro;
-use NaokiTsuchiya\AgentBridge\Tests\Support\TempDir;
-use NaokiTsuchiya\AgentBridge\Tests\Support\Warnings;
+use NaokiTsuchiya\AgentBridge\Support\ChildProcesses;
+use NaokiTsuchiya\AgentBridge\Support\ClaudeBinary;
+use NaokiTsuchiya\AgentBridge\Support\Coro;
+use NaokiTsuchiya\AgentBridge\Support\TempDir;
+use NaokiTsuchiya\AgentBridge\Support\Warnings;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
 use Override;
 use PHPUnit\Framework\Attributes\Test;

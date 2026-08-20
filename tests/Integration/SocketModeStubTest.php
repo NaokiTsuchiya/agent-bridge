@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Integration;
+namespace NaokiTsuchiya\AgentBridge\Integration;
 
 use InvalidArgumentException;
 use NaokiTsuchiya\AgentBridge\Slack\Backoff;
@@ -11,17 +11,17 @@ use NaokiTsuchiya\AgentBridge\Slack\EnvelopeLog;
 use NaokiTsuchiya\AgentBridge\Slack\FrameRouter;
 use NaokiTsuchiya\AgentBridge\Slack\MtRandomSource;
 use NaokiTsuchiya\AgentBridge\Slack\ReconnectDelay;
+use NaokiTsuchiya\AgentBridge\Slack\RecordingLogger;
 use NaokiTsuchiya\AgentBridge\Slack\SlackAppToken;
 use NaokiTsuchiya\AgentBridge\Slack\SocketModeClient;
 use NaokiTsuchiya\AgentBridge\Slack\SwooleHttpClientFactory;
 use NaokiTsuchiya\AgentBridge\Slack\SwooleSocketModeConnector;
 use NaokiTsuchiya\AgentBridge\StubSlack\FreePort;
 use NaokiTsuchiya\AgentBridge\StubSlack\StubSlackException;
-use NaokiTsuchiya\AgentBridge\Tests\Slack\RecordingLogger;
-use NaokiTsuchiya\AgentBridge\Tests\Support\ChildProcesses;
-use NaokiTsuchiya\AgentBridge\Tests\Support\CliProcess;
-use NaokiTsuchiya\AgentBridge\Tests\Support\Coro;
-use NaokiTsuchiya\AgentBridge\Tests\Support\Json;
+use NaokiTsuchiya\AgentBridge\Support\ChildProcesses;
+use NaokiTsuchiya\AgentBridge\Support\CliProcess;
+use NaokiTsuchiya\AgentBridge\Support\Coro;
+use NaokiTsuchiya\AgentBridge\Support\Json;
 use Override;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;

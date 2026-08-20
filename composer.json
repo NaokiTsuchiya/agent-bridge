@@ -23,7 +23,7 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "NaokiTsuchiya\\AgentBridge\\Tests\\": "tests/",
+            "NaokiTsuchiya\\AgentBridge\\": "tests/",
             "NaokiTsuchiya\\AgentBridge\\FakeClaude\\": [
                 "fake-claude/",
                 "fake-claude-tests/"

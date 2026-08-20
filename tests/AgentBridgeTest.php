@@ -2,9 +2,8 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests;
+namespace NaokiTsuchiya\AgentBridge;
 
-use NaokiTsuchiya\AgentBridge\AgentBridge;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

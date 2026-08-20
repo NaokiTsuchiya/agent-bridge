@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Cli;
+namespace NaokiTsuchiya\AgentBridge\Cli;
 
 use Be\Framework\BecomingInterface;
 use NaokiTsuchiya\AgentBridge\Di\BaseRepositoryProvider;
@@ -12,13 +12,13 @@ use NaokiTsuchiya\AgentBridge\Di\ServeContext;
 use NaokiTsuchiya\AgentBridge\Pipeline\CompletedTurn;
 use NaokiTsuchiya\AgentBridge\Pipeline\IncomingMessage;
 use NaokiTsuchiya\AgentBridge\Runner\AgentRunner;
-use NaokiTsuchiya\AgentBridge\Tests\Runner\FakeCliRecords;
-use NaokiTsuchiya\AgentBridge\Tests\Support\ClaudeBinary;
-use NaokiTsuchiya\AgentBridge\Tests\Support\Coro;
-use NaokiTsuchiya\AgentBridge\Tests\Support\ExecutablePath;
-use NaokiTsuchiya\AgentBridge\Tests\Support\GitRepository;
-use NaokiTsuchiya\AgentBridge\Tests\Support\Json;
-use NaokiTsuchiya\AgentBridge\Tests\Support\TempDir;
+use NaokiTsuchiya\AgentBridge\Runner\FakeCliRecords;
+use NaokiTsuchiya\AgentBridge\Support\ClaudeBinary;
+use NaokiTsuchiya\AgentBridge\Support\Coro;
+use NaokiTsuchiya\AgentBridge\Support\ExecutablePath;
+use NaokiTsuchiya\AgentBridge\Support\GitRepository;
+use NaokiTsuchiya\AgentBridge\Support\Json;
+use NaokiTsuchiya\AgentBridge\Support\TempDir;
 use NaokiTsuchiya\RayDiContext\AppMeta;
 use NaokiTsuchiya\RayDiContext\ContextProviderInterface;
 use NaokiTsuchiya\RayDiContext\Exception\ContextClassNotFound;

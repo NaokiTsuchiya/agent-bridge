@@ -119,7 +119,7 @@ turns.jsonl                        ターンの開始/終了 1 件につき 1 �
 | `fake-claude-tests/` の `FakeClaudeCliContractTest.php` | fake-claude | `fake-claude/bin/claude` |
 | `tests/Integration/RealClaudeCliContractTest.php` | integration | `AGENT_BRIDGE_CLAUDE_BIN` が指すもの (既定は `claude`) |
 
-**テスト本体はフェイク側に置く。** 契約はフェイクが実 `claude` に対して立てている約束なので、その本体は `fake-claude-tests/` に属する。こうするとフェイクのテストスイートは本体パッケージの `NaokiTsuchiya\AgentBridge\Tests\` 名前空間を継承しなくて済み、境界を跨ぐのは integration 側 (`tests/` → `FakeClaude`) だけになる — `tests/` が `fake-claude/` に依存する向きは実行層のテストで既にできている。
+**テスト本体はフェイク側に置く。** 契約はフェイクが実 `claude` に対して立てている約束なので、その本体は `fake-claude-tests/` に属する。こうするとフェイクのテストスイートは本体パッケージの `NaokiTsuchiya\AgentBridge\` 名前空間を継承しなくて済み、境界を跨ぐのは integration 側 (`tests/` → `FakeClaude`) だけになる — `tests/` が `fake-claude/` に依存する向きは実行層のテストで既にできている。
 
 確かめているのは 7 項目:
 

@@ -2,16 +2,11 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Runner;
+namespace NaokiTsuchiya\AgentBridge\Runner;
 
 use InvalidArgumentException;
-use NaokiTsuchiya\AgentBridge\Runner\AgentProcess;
-use NaokiTsuchiya\AgentBridge\Runner\HistoryStart;
-use NaokiTsuchiya\AgentBridge\Runner\LifecycleSettings;
-use NaokiTsuchiya\AgentBridge\Runner\ProcessPool;
-use NaokiTsuchiya\AgentBridge\Runner\ProcessTable;
-use NaokiTsuchiya\AgentBridge\Tests\Support\ChildProcesses;
-use NaokiTsuchiya\AgentBridge\Tests\Support\Coro;
+use NaokiTsuchiya\AgentBridge\Support\ChildProcesses;
+use NaokiTsuchiya\AgentBridge\Support\Coro;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
 use Override;
 use PHPUnit\Framework\Attributes\Test;

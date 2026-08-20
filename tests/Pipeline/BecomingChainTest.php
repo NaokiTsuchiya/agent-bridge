@@ -2,36 +2,32 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Pipeline;
+namespace NaokiTsuchiya\AgentBridge\Pipeline;
 
 use Be\Framework\BecomingInterface;
 use Be\Framework\Module\BeModule;
 use InvalidArgumentException;
 use NaokiTsuchiya\AgentBridge\AgentBridge;
+use NaokiTsuchiya\AgentBridge\Chat\RecordingChatEgress;
 use NaokiTsuchiya\AgentBridge\Event\ClaudeCliEventParser;
 use NaokiTsuchiya\AgentBridge\Event\TextDelta;
 use NaokiTsuchiya\AgentBridge\Event\ToolCompleted;
 use NaokiTsuchiya\AgentBridge\Event\TurnCompleted;
-use NaokiTsuchiya\AgentBridge\Pipeline\CompletedTurn;
-use NaokiTsuchiya\AgentBridge\Pipeline\FailedTurn;
-use NaokiTsuchiya\AgentBridge\Pipeline\IncomingMessage;
-use NaokiTsuchiya\AgentBridge\Pipeline\Turn;
 use NaokiTsuchiya\AgentBridge\Runner\AgentRunner;
 use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliCommand;
 use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliSettings;
+use NaokiTsuchiya\AgentBridge\Runner\FakeCliRecords;
 use NaokiTsuchiya\AgentBridge\Runner\LifecycleSettings;
 use NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner;
 use NaokiTsuchiya\AgentBridge\Runner\ProcessPool;
 use NaokiTsuchiya\AgentBridge\Runner\ProcessRecipe;
 use NaokiTsuchiya\AgentBridge\Runner\TurnLocks;
 use NaokiTsuchiya\AgentBridge\Runner\WorktreeWorkingDirectory;
-use NaokiTsuchiya\AgentBridge\Tests\Chat\RecordingChatEgress;
-use NaokiTsuchiya\AgentBridge\Tests\Runner\FakeCliRecords;
-use NaokiTsuchiya\AgentBridge\Tests\Support\ClaudeBinary;
-use NaokiTsuchiya\AgentBridge\Tests\Support\Coro;
-use NaokiTsuchiya\AgentBridge\Tests\Support\GitRepository;
-use NaokiTsuchiya\AgentBridge\Tests\Support\Json;
-use NaokiTsuchiya\AgentBridge\Tests\Support\TempDir;
+use NaokiTsuchiya\AgentBridge\Support\ClaudeBinary;
+use NaokiTsuchiya\AgentBridge\Support\Coro;
+use NaokiTsuchiya\AgentBridge\Support\GitRepository;
+use NaokiTsuchiya\AgentBridge\Support\Json;
+use NaokiTsuchiya\AgentBridge\Support\TempDir;
 use Override;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;

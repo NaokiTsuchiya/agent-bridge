@@ -2,13 +2,12 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Di;
+namespace NaokiTsuchiya\AgentBridge\Di;
 
 use Be\Framework\BecomingInterface;
 use Be\Framework\Module\BeModule;
 use BEAR\Resource\ResourceInterface;
 use NaokiTsuchiya\AgentBridge\AgentBridge;
-use NaokiTsuchiya\AgentBridge\Di\ServeContext;
 use NaokiTsuchiya\AgentBridge\Runner\AgentRunner;
 use NaokiTsuchiya\AgentBridge\Slack\SocketModeClient;
 use NaokiTsuchiya\RayDiContext\CompiledContextInterface;

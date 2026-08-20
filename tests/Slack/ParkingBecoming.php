@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Slack;
+namespace NaokiTsuchiya\AgentBridge\Slack;
 
 use Be\Framework\BecomingInterface;
 use NaokiTsuchiya\AgentBridge\Pipeline\IncomingMessage;

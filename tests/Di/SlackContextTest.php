@@ -2,12 +2,11 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Di;
+namespace NaokiTsuchiya\AgentBridge\Di;
 
 use Be\Framework\BecomingInterface;
-use NaokiTsuchiya\AgentBridge\Di\SlackContext;
 use NaokiTsuchiya\AgentBridge\Slack\SlackServer;
-use NaokiTsuchiya\AgentBridge\Tests\Support\TempDir;
+use NaokiTsuchiya\AgentBridge\Support\TempDir;
 use NaokiTsuchiya\RayDiContext\AppMeta;
 use NaokiTsuchiya\RayDiContext\CompiledContextInterface;
 use NaokiTsuchiya\RayDiContext\ContextInterface;

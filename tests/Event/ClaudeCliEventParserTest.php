@@ -2,15 +2,8 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Event;
+namespace NaokiTsuchiya\AgentBridge\Event;
 
-use NaokiTsuchiya\AgentBridge\Event\AgentError;
-use NaokiTsuchiya\AgentBridge\Event\AgentEvent;
-use NaokiTsuchiya\AgentBridge\Event\ClaudeCliEventParser;
-use NaokiTsuchiya\AgentBridge\Event\TextDelta;
-use NaokiTsuchiya\AgentBridge\Event\ToolCompleted;
-use NaokiTsuchiya\AgentBridge\Event\ToolStarted;
-use NaokiTsuchiya\AgentBridge\Event\TurnCompleted;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

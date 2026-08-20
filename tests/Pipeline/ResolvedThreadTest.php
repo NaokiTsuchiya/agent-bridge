@@ -2,12 +2,11 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Pipeline;
+namespace NaokiTsuchiya\AgentBridge\Pipeline;
 
 use InvalidArgumentException;
 use NaokiTsuchiya\AgentBridge\Git\Git;
-use NaokiTsuchiya\AgentBridge\Pipeline\ResolvedThread;
-use NaokiTsuchiya\AgentBridge\Tests\Support\GitRepository;
+use NaokiTsuchiya\AgentBridge\Support\GitRepository;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadIdFactory;
 use NaokiTsuchiya\AgentBridge\Worktree\WorktreeException;
 use NaokiTsuchiya\AgentBridge\Worktree\WorktreeManager;

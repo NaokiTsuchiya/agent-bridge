@@ -2,19 +2,12 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Slack;
+namespace NaokiTsuchiya\AgentBridge\Slack;
 
 use InvalidArgumentException;
+use NaokiTsuchiya\AgentBridge\Di\FixedContext;
 use NaokiTsuchiya\AgentBridge\Di\SlackContext;
-use NaokiTsuchiya\AgentBridge\Slack\SlackCommand;
-use NaokiTsuchiya\AgentBridge\Slack\SlackException;
-use NaokiTsuchiya\AgentBridge\Slack\SlackIdentity;
-use NaokiTsuchiya\AgentBridge\Slack\SlackIngress;
-use NaokiTsuchiya\AgentBridge\Slack\SlackServer;
-use NaokiTsuchiya\AgentBridge\Slack\SocketModeException;
-use NaokiTsuchiya\AgentBridge\Slack\ThreadChannels;
-use NaokiTsuchiya\AgentBridge\Tests\Di\FixedContext;
-use NaokiTsuchiya\AgentBridge\Tests\Support\TempDir;
+use NaokiTsuchiya\AgentBridge\Support\TempDir;
 use NaokiTsuchiya\RayDiContext\ContextProviderInterface;
 use NaokiTsuchiya\RayDiContext\Exception\ExceptionInterface;
 use NaokiTsuchiya\RayDiContext\MapContextProvider;

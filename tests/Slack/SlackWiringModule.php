@@ -2,13 +2,10 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Slack;
+namespace NaokiTsuchiya\AgentBridge\Slack;
 
 use InvalidArgumentException;
 use NaokiTsuchiya\AgentBridge\Di\SlackModule;
-use NaokiTsuchiya\AgentBridge\Slack\SlackApiClient;
-use NaokiTsuchiya\AgentBridge\Slack\SlackIdentity;
-use NaokiTsuchiya\AgentBridge\Slack\SocketModeConnectorInterface;
 use Override;
 use Ray\Di\AbstractModule;
 

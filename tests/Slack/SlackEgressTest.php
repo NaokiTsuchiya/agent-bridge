@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Slack;
+namespace NaokiTsuchiya\AgentBridge\Slack;
 
 use Be\Framework\BecomingInterface;
 use Be\Framework\Module\BeModule;
@@ -17,16 +17,10 @@ use NaokiTsuchiya\AgentBridge\Event\ToolStarted;
 use NaokiTsuchiya\AgentBridge\Event\TurnCompleted;
 use NaokiTsuchiya\AgentBridge\Pipeline\CompletedTurn;
 use NaokiTsuchiya\AgentBridge\Pipeline\IncomingMessage;
-use NaokiTsuchiya\AgentBridge\Slack\SlackEgress;
-use NaokiTsuchiya\AgentBridge\Slack\SlackMessage;
-use NaokiTsuchiya\AgentBridge\Slack\SlackReply;
-use NaokiTsuchiya\AgentBridge\Slack\SlackStream;
-use NaokiTsuchiya\AgentBridge\Slack\StreamingSettings;
-use NaokiTsuchiya\AgentBridge\Slack\ThreadChannels;
-use NaokiTsuchiya\AgentBridge\Tests\Pipeline\PipelineModule;
-use NaokiTsuchiya\AgentBridge\Tests\Pipeline\StubAgentRunner;
-use NaokiTsuchiya\AgentBridge\Tests\Support\Coro;
-use NaokiTsuchiya\AgentBridge\Tests\Support\GitRepository;
+use NaokiTsuchiya\AgentBridge\Pipeline\PipelineModule;
+use NaokiTsuchiya\AgentBridge\Pipeline\StubAgentRunner;
+use NaokiTsuchiya\AgentBridge\Support\Coro;
+use NaokiTsuchiya\AgentBridge\Support\GitRepository;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
 use Override;
 use PHPUnit\Framework\Attributes\Test;

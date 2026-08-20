@@ -2,12 +2,8 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Slack;
+namespace NaokiTsuchiya\AgentBridge\Slack;
 
-use NaokiTsuchiya\AgentBridge\Slack\RetryingSlackApiClient;
-use NaokiTsuchiya\AgentBridge\Slack\SlackApiResult;
-use NaokiTsuchiya\AgentBridge\Slack\SlackStream;
-use NaokiTsuchiya\AgentBridge\Slack\StreamingSettings;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

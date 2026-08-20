@@ -2,17 +2,8 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Slack;
+namespace NaokiTsuchiya\AgentBridge\Slack;
 
-use NaokiTsuchiya\AgentBridge\Slack\ClockInterface;
-use NaokiTsuchiya\AgentBridge\Slack\RetryingSlackApiClient;
-use NaokiTsuchiya\AgentBridge\Slack\SlackApiClient;
-use NaokiTsuchiya\AgentBridge\Slack\SlackApiResult;
-use NaokiTsuchiya\AgentBridge\Slack\SlackReply;
-use NaokiTsuchiya\AgentBridge\Slack\SlackStream;
-use NaokiTsuchiya\AgentBridge\Slack\SlackStreamingReply;
-use NaokiTsuchiya\AgentBridge\Slack\StreamingSettings;
-use NaokiTsuchiya\AgentBridge\Slack\Throttle;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

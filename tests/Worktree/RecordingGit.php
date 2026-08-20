@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Worktree;
+namespace NaokiTsuchiya\AgentBridge\Worktree;
 
 use NaokiTsuchiya\AgentBridge\Git\GitInterface;
 use Override;

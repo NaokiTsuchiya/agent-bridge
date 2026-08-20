@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Pipeline;
+namespace NaokiTsuchiya\AgentBridge\Pipeline;
 
 use NaokiTsuchiya\AgentBridge\Event\AgentEvent;
 use NaokiTsuchiya\AgentBridge\Runner\AgentRunner;

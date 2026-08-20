@@ -2,13 +2,11 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Worktree;
+namespace NaokiTsuchiya\AgentBridge\Worktree;
 
 use InvalidArgumentException;
 use NaokiTsuchiya\AgentBridge\Git\Git;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
-use NaokiTsuchiya\AgentBridge\Worktree\WorktreeException;
-use NaokiTsuchiya\AgentBridge\Worktree\WorktreeManager;
 use Override;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;

@@ -2,9 +2,8 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Di;
+namespace NaokiTsuchiya\AgentBridge\Di;
 
-use NaokiTsuchiya\AgentBridge\Di\ServeContext;
 use NaokiTsuchiya\RayDiContext\AppMeta;
 use NaokiTsuchiya\RayDiContext\Exception\InvalidAppMeta;
 use PHPUnit\Framework\Assert;

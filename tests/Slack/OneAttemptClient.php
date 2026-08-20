@@ -2,15 +2,9 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Slack;
+namespace NaokiTsuchiya\AgentBridge\Slack;
 
 use InvalidArgumentException;
-use NaokiTsuchiya\AgentBridge\Slack\Backoff;
-use NaokiTsuchiya\AgentBridge\Slack\EnvelopeLog;
-use NaokiTsuchiya\AgentBridge\Slack\FrameRouter;
-use NaokiTsuchiya\AgentBridge\Slack\ReconnectDelay;
-use NaokiTsuchiya\AgentBridge\Slack\SlackLoggerInterface;
-use NaokiTsuchiya\AgentBridge\Slack\SocketModeClient;
 use PHPUnit\Framework\Assert;
 use Swoole\Coroutine\Channel;
 

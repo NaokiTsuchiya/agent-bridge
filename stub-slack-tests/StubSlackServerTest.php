@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NaokiTsuchiya\AgentBridge\StubSlack;
 
-use NaokiTsuchiya\AgentBridge\Tests\Support\Coro;
+use NaokiTsuchiya\AgentBridge\Support\Coro;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Swoole\Coroutine;
@@ -17,7 +17,7 @@ use function json_encode;
 
 /**
  * Drives {@see StubSlackServer} directly with a raw coroutine HTTP client — no production Socket
- * Mode code involved. That round trip is {@see \NaokiTsuchiya\AgentBridge\Tests\Integration\SocketModeStubTest}'s
+ * Mode code involved. That round trip is {@see \NaokiTsuchiya\AgentBridge\Integration\SocketModeStubTest}'s
  * job; this is the stub answering for itself.
  *
  * @internal

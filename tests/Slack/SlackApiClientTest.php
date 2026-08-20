@@ -2,14 +2,9 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Slack;
+namespace NaokiTsuchiya\AgentBridge\Slack;
 
 use InvalidArgumentException;
-use NaokiTsuchiya\AgentBridge\Slack\SlackApiClient;
-use NaokiTsuchiya\AgentBridge\Slack\SlackApiResponse;
-use NaokiTsuchiya\AgentBridge\Slack\SlackAppToken;
-use NaokiTsuchiya\AgentBridge\Slack\SlackBotToken;
-use NaokiTsuchiya\AgentBridge\Slack\SwooleSlackApiClient;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

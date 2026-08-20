@@ -2,20 +2,18 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Cli;
+namespace NaokiTsuchiya\AgentBridge\Cli;
 
 use InvalidArgumentException;
-use NaokiTsuchiya\AgentBridge\Cli\CliCommand;
-use NaokiTsuchiya\AgentBridge\Cli\Conversation;
+use NaokiTsuchiya\AgentBridge\Di\FixedContext;
 use NaokiTsuchiya\AgentBridge\Di\ServeContext;
 use NaokiTsuchiya\AgentBridge\Pipeline\Completed;
 use NaokiTsuchiya\AgentBridge\Pipeline\CompletedTurn;
 use NaokiTsuchiya\AgentBridge\Pipeline\Failed;
 use NaokiTsuchiya\AgentBridge\Pipeline\FailedTurn;
 use NaokiTsuchiya\AgentBridge\Pipeline\IncomingMessage;
-use NaokiTsuchiya\AgentBridge\Tests\Di\FixedContext;
-use NaokiTsuchiya\AgentBridge\Tests\Pipeline\StubAgentRunner;
-use NaokiTsuchiya\AgentBridge\Tests\Support\TempDir;
+use NaokiTsuchiya\AgentBridge\Pipeline\StubAgentRunner;
+use NaokiTsuchiya\AgentBridge\Support\TempDir;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadWorkspace;
 use NaokiTsuchiya\RayDiContext\ContextProviderInterface;

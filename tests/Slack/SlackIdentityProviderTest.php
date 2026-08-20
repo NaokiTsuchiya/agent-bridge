@@ -2,15 +2,12 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Slack;
+namespace NaokiTsuchiya\AgentBridge\Slack;
 
 use Be\Framework\Module\BeModule;
 use InvalidArgumentException;
 use NaokiTsuchiya\AgentBridge\AgentBridge;
 use NaokiTsuchiya\AgentBridge\Di\SlackModule;
-use NaokiTsuchiya\AgentBridge\Slack\SlackException;
-use NaokiTsuchiya\AgentBridge\Slack\SlackIdentity;
-use NaokiTsuchiya\AgentBridge\Slack\SlackIdentityProvider;
 use Override;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;

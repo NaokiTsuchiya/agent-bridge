@@ -2,21 +2,13 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Slack;
+namespace NaokiTsuchiya\AgentBridge\Slack;
 
 use Be\Framework\Module\BeModule;
 use NaokiTsuchiya\AgentBridge\AgentBridge;
 use NaokiTsuchiya\AgentBridge\Chat\ChatEgress;
 use NaokiTsuchiya\AgentBridge\Di\SlackContext;
-use NaokiTsuchiya\AgentBridge\Slack\ClockInterface;
-use NaokiTsuchiya\AgentBridge\Slack\SlackCommand;
-use NaokiTsuchiya\AgentBridge\Slack\SlackEgress;
-use NaokiTsuchiya\AgentBridge\Slack\SlackIngress;
-use NaokiTsuchiya\AgentBridge\Slack\SlackServer;
-use NaokiTsuchiya\AgentBridge\Slack\StreamingSettings;
-use NaokiTsuchiya\AgentBridge\Slack\SystemClock;
-use NaokiTsuchiya\AgentBridge\Slack\ThreadChannels;
-use NaokiTsuchiya\AgentBridge\Tests\Support\Coro;
+use NaokiTsuchiya\AgentBridge\Support\Coro;
 use Override;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;

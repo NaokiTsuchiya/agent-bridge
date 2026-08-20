@@ -16,7 +16,7 @@ use function stream_get_contents;
 /**
  * Only the reject side of `StubSlackCli::main()` — no port, no server — is reachable here. The
  * accept side enters `Swoole\Coroutine\run()` and blocks until the process is killed, so it can
- * only be exercised as a real child process; {@see \NaokiTsuchiya\AgentBridge\Tests\Integration\SocketModeStubTest}
+ * only be exercised as a real child process; {@see \NaokiTsuchiya\AgentBridge\Integration\SocketModeStubTest}
  * is that other half.
  *
  * @internal

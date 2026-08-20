@@ -2,10 +2,9 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Cli;
+namespace NaokiTsuchiya\AgentBridge\Cli;
 
 use NaokiTsuchiya\AgentBridge\Chat\ChatIngress;
-use NaokiTsuchiya\AgentBridge\Cli\StandardInputIngress;
 use NaokiTsuchiya\AgentBridge\Pipeline\IncomingMessage;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;

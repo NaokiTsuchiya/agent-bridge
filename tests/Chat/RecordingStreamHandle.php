@@ -2,9 +2,8 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Chat;
+namespace NaokiTsuchiya\AgentBridge\Chat;
 
-use NaokiTsuchiya\AgentBridge\Chat\StreamHandle;
 use Override;
 
 use function implode;

@@ -2,12 +2,9 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Slack;
+namespace NaokiTsuchiya\AgentBridge\Slack;
 
 use InvalidArgumentException;
-use NaokiTsuchiya\AgentBridge\Slack\SlackAppToken;
-use NaokiTsuchiya\AgentBridge\Slack\SlackAppTokenFactory;
-use NaokiTsuchiya\AgentBridge\Slack\SocketModeException;
 use Override;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;

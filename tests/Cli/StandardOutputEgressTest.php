@@ -2,11 +2,10 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Cli;
+namespace NaokiTsuchiya\AgentBridge\Cli;
 
 use InvalidArgumentException;
 use NaokiTsuchiya\AgentBridge\Chat\ChatEgress;
-use NaokiTsuchiya\AgentBridge\Cli\StandardOutputEgress;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
