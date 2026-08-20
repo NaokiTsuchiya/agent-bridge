@@ -4,16 +4,15 @@ declare(strict_types=1);
 
 namespace NaokiTsuchiya\AgentBridge\Slack;
 
-use NaokiTsuchiya\AgentBridge\Di\Boot;
 use NaokiTsuchiya\AgentBridge\Di\BootException;
 use NaokiTsuchiya\AgentBridge\Di\SlackContext;
-use NaokiTsuchiya\RayDiContext\AppMeta;
+use NaokiTsuchiya\AgentBridge\Process\AppBoot;
+use NaokiTsuchiya\AgentBridge\Process\ErrorStream;
+use NaokiTsuchiya\AgentBridge\Process\ExitCode;
 use NaokiTsuchiya\RayDiContext\ContextProviderInterface;
 use NaokiTsuchiya\RayDiContext\Exception\ExceptionInterface;
-use Throwable;
 
 use function count;
-use function fwrite;
 use function Swoole\Coroutine\run;
 
 /**
@@ -33,15 +32,6 @@ use function Swoole\Coroutine\run;
  */
 final class SlackCommand
 {
-    /** The server was stopped without anything having gone wrong. */
-    private const int OK = 0;
-
-    /** Nothing was attempted: the command line says something this program does not take. */
-    private const int BAD_INVOCATION = 2;
-
-    /** Nothing was attempted: this process cannot be brought up at all. */
-    private const int CANNOT_START = 3;
-
     /** What a caller who got the command line wrong is told, newline included. */
     private const string USAGE = <<<'TEXT'
         usage: agent-bridge-slack [APP_DIR]
@@ -54,6 +44,12 @@ final class SlackCommand
 
         TEXT;
 
+    /** Where a refusal is written. */
+    private ErrorStream $errors;
+
+    /** How this process is brought up. */
+    private AppBoot $boot;
+
     /**
      * @param ContextProviderInterface $contexts    the context-name-to-context mapping, as
      *                                              bootstrap.php returns it
@@ -62,10 +58,13 @@ final class SlackCommand
      * @param resource                 $errors      where a refusal is explained
      */
     public function __construct(
-        private ContextProviderInterface $contexts,
+        ContextProviderInterface $contexts,
         private string $projectRoot,
-        private mixed $errors,
-    ) {}
+        mixed $errors,
+    ) {
+        $this->errors = new ErrorStream($errors);
+        $this->boot = new AppBoot($contexts);
+    }
 
     /**
      * @param list<string> $argv the process argv, including the program name at index 0
@@ -74,19 +73,25 @@ final class SlackCommand
      */
     public function run(array $argv): int
     {
+        return $this->outcome($argv)->value;
+    }
+
+    /** @param list<string> $argv the process argv, including the program name at index 0 */
+    private function outcome(array $argv): ExitCode
+    {
         // One optional argument and no more: a second one is somebody expecting this to take
         // something it does not, and guessing which of the two they meant would be worse.
         if (count($argv) > 2) {
-            $this->complain(self::USAGE);
+            $this->errors->complain(self::USAGE);
 
-            return self::BAD_INVOCATION;
+            return ExitCode::BadInvocation;
         }
 
         $named = $argv[1] ?? '';
         $server = $this->server($named === '' ? $this->projectRoot : $named);
 
         if ($server === null) {
-            return self::CANNOT_START;
+            return ExitCode::CannotStart;
         }
 
         // The connection, the queue and every turn wait on channels, so there has to be one
@@ -95,7 +100,7 @@ final class SlackCommand
             $server->run();
         });
 
-        return self::OK;
+        return ExitCode::Ok;
     }
 
     /**
@@ -109,26 +114,13 @@ final class SlackCommand
     private function server(string $appDir): ?SlackServer
     {
         try {
-            $injector = (new Boot(AppMeta::fromAppDir($appDir, SlackContext::NAME), $this->contexts))();
+            $injector = $this->boot->injector($appDir, SlackContext::NAME);
 
             return $injector->getInstance(SlackServer::class);
         } catch (BootException|ExceptionInterface|SlackException|SocketModeException $failure) {
-            $this->explain($failure);
+            $this->errors->explain($failure);
 
             return null;
         }
-    }
-
-    /** Says why nothing more will happen. */
-    private function explain(Throwable $failure): void
-    {
-        $reason = $failure->getMessage();
-        $this->complain("{$reason}\n");
-    }
-
-    /** Writes to the error stream, which is where everything that is not an answer goes. */
-    private function complain(string $text): void
-    {
-        fwrite($this->errors, $text);
     }
 }
