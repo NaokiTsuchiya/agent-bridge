@@ -101,6 +101,17 @@ final class SpawnCliRunner implements AgentRunner
     public function close(ThreadId $thread): void {}
 
     /**
+     * {@inheritDoc}
+     *
+     * Nothing is kept between turns, so the answer is always zero.
+     */
+    #[Override]
+    public function liveProcesses(): int
+    {
+        return 0;
+    }
+
+    /**
      * One turn, which is one process, or two when the derived session was not there.
      *
      * @return Generator<int, AgentEvent> the turn, ending with the event that says it is over
