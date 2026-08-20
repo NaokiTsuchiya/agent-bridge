@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Cli;
+namespace NaokiTsuchiya\AgentBridge\Cli;
 
 use NaokiTsuchiya\AgentBridge\Event\ClaudeCliEventParser;
 use NaokiTsuchiya\AgentBridge\Runner\AgentRunner;
@@ -12,7 +12,7 @@ use NaokiTsuchiya\AgentBridge\Runner\LifecycleSettings;
 use NaokiTsuchiya\AgentBridge\Runner\SpawnCliRunner;
 use NaokiTsuchiya\AgentBridge\Runner\TurnLocks;
 use NaokiTsuchiya\AgentBridge\Runner\WorkingDirectoryResolver;
-use NaokiTsuchiya\AgentBridge\Tests\Support\ClaudeBinary;
+use NaokiTsuchiya\AgentBridge\Support\ClaudeBinary;
 use Override;
 
 /** The same promise about streaming, kept by a runner that starts a process per turn. */

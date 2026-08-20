@@ -2,11 +2,8 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Slack;
+namespace NaokiTsuchiya\AgentBridge\Slack;
 
-use NaokiTsuchiya\AgentBridge\Slack\ConnectionState;
-use NaokiTsuchiya\AgentBridge\Slack\FrameOutcome;
-use NaokiTsuchiya\AgentBridge\Slack\ReceivedFrame;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Swoole\WebSocket\CloseFrame;

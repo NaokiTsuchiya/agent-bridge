@@ -2,10 +2,8 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Chat;
+namespace NaokiTsuchiya\AgentBridge\Chat;
 
-use NaokiTsuchiya\AgentBridge\Chat\ChatEgress;
-use NaokiTsuchiya\AgentBridge\Chat\StreamHandle;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
 use Override;
 use PHPUnit\Framework\Assert;

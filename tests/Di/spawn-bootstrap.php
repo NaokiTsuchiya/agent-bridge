@@ -11,7 +11,7 @@ declare(strict_types=1);
  */
 
 use NaokiTsuchiya\AgentBridge\Di\ServeContext;
-use NaokiTsuchiya\AgentBridge\Tests\Di\SpawnServeContext;
+use NaokiTsuchiya\AgentBridge\Di\SpawnServeContext;
 use NaokiTsuchiya\RayDiContext\MapContextProvider;
 
 return new MapContextProvider([ServeContext::NAME => SpawnServeContext::class]);

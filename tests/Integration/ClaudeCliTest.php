@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Integration;
+namespace NaokiTsuchiya\AgentBridge\Integration;
 
-use NaokiTsuchiya\AgentBridge\Tests\Support\ClaudeBinary;
+use NaokiTsuchiya\AgentBridge\Support\ClaudeBinary;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

@@ -2,12 +2,10 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Runner;
+namespace NaokiTsuchiya\AgentBridge\Runner;
 
-use NaokiTsuchiya\AgentBridge\Runner\AgentProcess;
-use NaokiTsuchiya\AgentBridge\Runner\HistoryStart;
-use NaokiTsuchiya\AgentBridge\Tests\Support\ChildProcesses;
-use NaokiTsuchiya\AgentBridge\Tests\Support\Warnings;
+use NaokiTsuchiya\AgentBridge\Support\ChildProcesses;
+use NaokiTsuchiya\AgentBridge\Support\Warnings;
 use Override;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Integration;
+namespace NaokiTsuchiya\AgentBridge\Integration;
 
 use InvalidArgumentException;
+use NaokiTsuchiya\AgentBridge\Slack\RecordingLogger;
+use NaokiTsuchiya\AgentBridge\Slack\RecordingSleeper;
 use NaokiTsuchiya\AgentBridge\Slack\RetryingSlackApiClient;
 use NaokiTsuchiya\AgentBridge\Slack\SlackBotToken;
 use NaokiTsuchiya\AgentBridge\Slack\SlackEgress;
@@ -22,10 +24,8 @@ use NaokiTsuchiya\AgentBridge\StubSlack\StubSlackApi;
 use NaokiTsuchiya\AgentBridge\StubSlack\StubSlackException;
 use NaokiTsuchiya\AgentBridge\StubSlack\StubSlackScenario;
 use NaokiTsuchiya\AgentBridge\StubSlack\StubSlackServer;
-use NaokiTsuchiya\AgentBridge\Tests\Slack\RecordingLogger;
-use NaokiTsuchiya\AgentBridge\Tests\Slack\RecordingSleeper;
-use NaokiTsuchiya\AgentBridge\Tests\Support\Coro;
-use NaokiTsuchiya\AgentBridge\Tests\Support\Json;
+use NaokiTsuchiya\AgentBridge\Support\Coro;
+use NaokiTsuchiya\AgentBridge\Support\Json;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;

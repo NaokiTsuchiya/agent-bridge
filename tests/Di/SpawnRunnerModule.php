@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Di;
+namespace NaokiTsuchiya\AgentBridge\Di;
 
 use NaokiTsuchiya\AgentBridge\Runner\AgentRunner;
 use NaokiTsuchiya\AgentBridge\Runner\SpawnCliRunner;

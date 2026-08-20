@@ -2,18 +2,17 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Cli;
+namespace NaokiTsuchiya\AgentBridge\Cli;
 
 use InvalidArgumentException;
 use NaokiTsuchiya\AgentBridge\Chat\ChatIngress;
-use NaokiTsuchiya\AgentBridge\Cli\Conversation;
 use NaokiTsuchiya\AgentBridge\Event\TurnCompleted;
 use NaokiTsuchiya\AgentBridge\Pipeline\Completed;
 use NaokiTsuchiya\AgentBridge\Pipeline\CompletedTurn;
 use NaokiTsuchiya\AgentBridge\Pipeline\Failed;
 use NaokiTsuchiya\AgentBridge\Pipeline\FailedTurn;
 use NaokiTsuchiya\AgentBridge\Pipeline\IncomingMessage;
-use NaokiTsuchiya\AgentBridge\Tests\Pipeline\StubAgentRunner;
+use NaokiTsuchiya\AgentBridge\Pipeline\StubAgentRunner;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadWorkspace;
 use PHPUnit\Framework\Attributes\Test;

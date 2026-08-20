@@ -2,12 +2,9 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Cli;
+namespace NaokiTsuchiya\AgentBridge\Cli;
 
-use NaokiTsuchiya\AgentBridge\Cli\CliException;
-use NaokiTsuchiya\AgentBridge\Cli\StandardOutputEgress;
-use NaokiTsuchiya\AgentBridge\Cli\StandardStreamsProvider;
-use NaokiTsuchiya\AgentBridge\Tests\Support\RefusingStream;
+use NaokiTsuchiya\AgentBridge\Support\RefusingStream;
 use Override;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

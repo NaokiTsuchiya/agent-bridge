@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Slack;
+namespace NaokiTsuchiya\AgentBridge\Slack;
 
 /**
  * What a finished run of the server left behind.

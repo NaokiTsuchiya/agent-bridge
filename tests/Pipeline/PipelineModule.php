@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Pipeline;
+namespace NaokiTsuchiya\AgentBridge\Pipeline;
 
 use NaokiTsuchiya\AgentBridge\Chat\ChatEgress;
 use NaokiTsuchiya\AgentBridge\Git\Git;

@@ -2,12 +2,11 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Runner;
+namespace NaokiTsuchiya\AgentBridge\Runner;
 
-use NaokiTsuchiya\AgentBridge\Runner\ProcessOutput;
-use NaokiTsuchiya\AgentBridge\Tests\Support\ChildProcesses;
-use NaokiTsuchiya\AgentBridge\Tests\Support\Coro;
-use NaokiTsuchiya\AgentBridge\Tests\Support\Warnings;
+use NaokiTsuchiya\AgentBridge\Support\ChildProcesses;
+use NaokiTsuchiya\AgentBridge\Support\Coro;
+use NaokiTsuchiya\AgentBridge\Support\Warnings;
 use Override;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

@@ -2,15 +2,14 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Runner;
+namespace NaokiTsuchiya\AgentBridge\Runner;
 
 use InvalidArgumentException;
 use NaokiTsuchiya\AgentBridge\Git\Git;
-use NaokiTsuchiya\AgentBridge\Runner\WorktreeWorkingDirectory;
-use NaokiTsuchiya\AgentBridge\Tests\Support\TempDir;
-use NaokiTsuchiya\AgentBridge\Tests\Worktree\RecordingGit;
+use NaokiTsuchiya\AgentBridge\Support\TempDir;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadDerivation;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
+use NaokiTsuchiya\AgentBridge\Worktree\RecordingGit;
 use NaokiTsuchiya\AgentBridge\Worktree\WorktreeException;
 use NaokiTsuchiya\AgentBridge\Worktree\WorktreeManager;
 use Override;

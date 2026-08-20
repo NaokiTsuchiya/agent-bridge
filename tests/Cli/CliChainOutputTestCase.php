@@ -2,22 +2,21 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Cli;
+namespace NaokiTsuchiya\AgentBridge\Cli;
 
 use Be\Framework\BecomingInterface;
 use Be\Framework\Module\BeModule;
 use NaokiTsuchiya\AgentBridge\AgentBridge;
-use NaokiTsuchiya\AgentBridge\Cli\StandardOutputEgress;
 use NaokiTsuchiya\AgentBridge\Pipeline\CompletedTurn;
 use NaokiTsuchiya\AgentBridge\Pipeline\IncomingMessage;
+use NaokiTsuchiya\AgentBridge\Pipeline\PipelineModule;
 use NaokiTsuchiya\AgentBridge\Runner\AgentRunner;
 use NaokiTsuchiya\AgentBridge\Runner\WorkingDirectoryResolver;
 use NaokiTsuchiya\AgentBridge\Runner\WorktreeWorkingDirectory;
-use NaokiTsuchiya\AgentBridge\Tests\Pipeline\PipelineModule;
-use NaokiTsuchiya\AgentBridge\Tests\Support\Coro;
-use NaokiTsuchiya\AgentBridge\Tests\Support\GitRepository;
-use NaokiTsuchiya\AgentBridge\Tests\Support\RecordingStream;
-use NaokiTsuchiya\AgentBridge\Tests\Support\TempDir;
+use NaokiTsuchiya\AgentBridge\Support\Coro;
+use NaokiTsuchiya\AgentBridge\Support\GitRepository;
+use NaokiTsuchiya\AgentBridge\Support\RecordingStream;
+use NaokiTsuchiya\AgentBridge\Support\TempDir;
 use Override;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

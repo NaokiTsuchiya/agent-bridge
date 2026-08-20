@@ -2,10 +2,8 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Runner;
+namespace NaokiTsuchiya\AgentBridge\Runner;
 
-use NaokiTsuchiya\AgentBridge\Runner\AgentRunner;
-use NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;

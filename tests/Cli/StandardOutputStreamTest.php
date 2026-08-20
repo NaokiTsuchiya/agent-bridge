@@ -2,11 +2,10 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Cli;
+namespace NaokiTsuchiya\AgentBridge\Cli;
 
 use NaokiTsuchiya\AgentBridge\Chat\StreamHandle;
-use NaokiTsuchiya\AgentBridge\Cli\StandardOutputStream;
-use NaokiTsuchiya\AgentBridge\Tests\Support\RecordingStream;
+use NaokiTsuchiya\AgentBridge\Support\RecordingStream;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

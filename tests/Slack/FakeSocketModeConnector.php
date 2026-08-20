@@ -2,12 +2,9 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Slack;
+namespace NaokiTsuchiya\AgentBridge\Slack;
 
 use Closure;
-use NaokiTsuchiya\AgentBridge\Slack\SocketModeConnectionInterface;
-use NaokiTsuchiya\AgentBridge\Slack\SocketModeConnectorInterface;
-use NaokiTsuchiya\AgentBridge\Slack\SocketModeException;
 use Override;
 
 use function array_shift;

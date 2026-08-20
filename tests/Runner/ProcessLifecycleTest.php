@@ -2,25 +2,18 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Runner;
+namespace NaokiTsuchiya\AgentBridge\Runner;
 
 use InvalidArgumentException;
 use NaokiTsuchiya\AgentBridge\Event\AgentError;
 use NaokiTsuchiya\AgentBridge\Event\AgentEvent;
 use NaokiTsuchiya\AgentBridge\Event\ClaudeCliEventParser;
 use NaokiTsuchiya\AgentBridge\Event\TurnCompleted;
-use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliCommand;
-use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliSettings;
-use NaokiTsuchiya\AgentBridge\Runner\LifecycleSettings;
-use NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner;
-use NaokiTsuchiya\AgentBridge\Runner\ProcessPool;
-use NaokiTsuchiya\AgentBridge\Runner\ProcessRecipe;
-use NaokiTsuchiya\AgentBridge\Runner\TurnLocks;
-use NaokiTsuchiya\AgentBridge\Tests\Support\ChildProcesses;
-use NaokiTsuchiya\AgentBridge\Tests\Support\ClaudeBinary;
-use NaokiTsuchiya\AgentBridge\Tests\Support\Coro;
-use NaokiTsuchiya\AgentBridge\Tests\Support\Json;
-use NaokiTsuchiya\AgentBridge\Tests\Support\Parallel;
+use NaokiTsuchiya\AgentBridge\Support\ChildProcesses;
+use NaokiTsuchiya\AgentBridge\Support\ClaudeBinary;
+use NaokiTsuchiya\AgentBridge\Support\Coro;
+use NaokiTsuchiya\AgentBridge\Support\Json;
+use NaokiTsuchiya\AgentBridge\Support\Parallel;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadDerivation;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
 use Override;

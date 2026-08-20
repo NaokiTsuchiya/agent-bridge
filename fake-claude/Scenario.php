@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NaokiTsuchiya\AgentBridge\FakeClaude;
 
-use NaokiTsuchiya\AgentBridge\Tests\Support\Json;
+use NaokiTsuchiya\AgentBridge\Support\Json;
 
 use function file_get_contents;
 use function is_array;

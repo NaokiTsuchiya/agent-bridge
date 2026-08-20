@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Cli;
+namespace NaokiTsuchiya\AgentBridge\Cli;
 
-use NaokiTsuchiya\AgentBridge\Tests\Di\CompiledServe;
+use NaokiTsuchiya\AgentBridge\Di\CompiledServe;
 use NaokiTsuchiya\RayDiContext\Exception\InvalidAppMeta;
 use Override;
 

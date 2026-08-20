@@ -2,11 +2,10 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Di;
+namespace NaokiTsuchiya\AgentBridge\Di;
 
-use NaokiTsuchiya\AgentBridge\Di\ServeContext;
-use NaokiTsuchiya\AgentBridge\Tests\Support\Json;
-use NaokiTsuchiya\AgentBridge\Tests\Support\TempDir;
+use NaokiTsuchiya\AgentBridge\Support\Json;
+use NaokiTsuchiya\AgentBridge\Support\TempDir;
 use NaokiTsuchiya\RayDiContext\BakedPathGuard;
 use NaokiTsuchiya\RayDiContext\CompileRunner;
 use Override;

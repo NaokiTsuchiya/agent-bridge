@@ -2,12 +2,9 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Di;
+namespace NaokiTsuchiya\AgentBridge\Di;
 
-use NaokiTsuchiya\AgentBridge\Di\Boot;
-use NaokiTsuchiya\AgentBridge\Di\BootException;
-use NaokiTsuchiya\AgentBridge\Di\ServeContext;
-use NaokiTsuchiya\AgentBridge\Tests\Support\TempDir;
+use NaokiTsuchiya\AgentBridge\Support\TempDir;
 use NaokiTsuchiya\RayDiContext\AppMeta;
 use NaokiTsuchiya\RayDiContext\CompiledWarmableInjector;
 use NaokiTsuchiya\RayDiContext\Exception\CompileDirUnavailable;

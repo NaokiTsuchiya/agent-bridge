@@ -2,12 +2,10 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Di;
+namespace NaokiTsuchiya\AgentBridge\Di;
 
 use Be\Framework\Module\BeModule;
 use NaokiTsuchiya\AgentBridge\AgentBridge;
-use NaokiTsuchiya\AgentBridge\Di\AppModule;
-use NaokiTsuchiya\AgentBridge\Di\ServeContext;
 use NaokiTsuchiya\RayDiContext\AbstractContext;
 use NaokiTsuchiya\RayDiContext\CompiledContextInterface;
 use Override;

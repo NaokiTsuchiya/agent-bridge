@@ -2,9 +2,8 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Di;
+namespace NaokiTsuchiya\AgentBridge\Di;
 
-use NaokiTsuchiya\AgentBridge\Di\BaseRepositoryProvider;
 use Override;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

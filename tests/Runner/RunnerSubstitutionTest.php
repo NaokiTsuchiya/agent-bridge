@@ -2,17 +2,12 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Runner;
+namespace NaokiTsuchiya\AgentBridge\Runner;
 
 use NaokiTsuchiya\AgentBridge\Chat\ChatEgress;
+use NaokiTsuchiya\AgentBridge\Di\CompiledServe;
 use NaokiTsuchiya\AgentBridge\Di\ServeContext;
-use NaokiTsuchiya\AgentBridge\Runner\AgentRunner;
-use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliSettings;
-use NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner;
-use NaokiTsuchiya\AgentBridge\Runner\SpawnCliRunner;
-use NaokiTsuchiya\AgentBridge\Runner\WorkingDirectoryResolver;
-use NaokiTsuchiya\AgentBridge\Tests\Di\CompiledServe;
-use NaokiTsuchiya\AgentBridge\Tests\Di\SpawnRunnerModule;
+use NaokiTsuchiya\AgentBridge\Di\SpawnRunnerModule;
 use NaokiTsuchiya\RayDiContext\Exception\CompileDirUnavailable;
 use NaokiTsuchiya\RayDiContext\Exception\InvalidAppMeta;
 use NaokiTsuchiya\RayDiContext\InjectorBuilder;

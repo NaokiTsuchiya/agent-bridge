@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Cli;
+namespace NaokiTsuchiya\AgentBridge\Cli;
 
 use Be\Framework\BecomingInterface;
 use NaokiTsuchiya\AgentBridge\Pipeline\IncomingMessage;

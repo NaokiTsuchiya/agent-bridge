@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Runner;
+namespace NaokiTsuchiya\AgentBridge\Runner;
 
 use NaokiTsuchiya\AgentBridge\Event\AgentEvent;
 use NaokiTsuchiya\AgentBridge\Event\TextDelta;

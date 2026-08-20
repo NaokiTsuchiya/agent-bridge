@@ -2,15 +2,11 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Slack;
+namespace NaokiTsuchiya\AgentBridge\Slack;
 
 use InvalidArgumentException;
 use NaokiTsuchiya\AgentBridge\Pipeline\IncomingMessage;
-use NaokiTsuchiya\AgentBridge\Slack\SlackIdentity;
-use NaokiTsuchiya\AgentBridge\Slack\SlackIngress;
-use NaokiTsuchiya\AgentBridge\Slack\SlackServer;
-use NaokiTsuchiya\AgentBridge\Slack\ThreadChannels;
-use NaokiTsuchiya\AgentBridge\Tests\Support\Coro;
+use NaokiTsuchiya\AgentBridge\Support\Coro;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;

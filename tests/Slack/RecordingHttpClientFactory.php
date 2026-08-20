@@ -2,10 +2,8 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Slack;
+namespace NaokiTsuchiya\AgentBridge\Slack;
 
-use NaokiTsuchiya\AgentBridge\Slack\HttpClientFactoryInterface;
-use NaokiTsuchiya\AgentBridge\Slack\SocketModeException;
 use Override;
 use Swoole\Coroutine\Http\Client;
 

@@ -2,15 +2,10 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Pipeline;
+namespace NaokiTsuchiya\AgentBridge\Pipeline;
 
 use Be\Framework\Attribute\Be;
 use BEAR\Resource\ResourceInterface;
-use NaokiTsuchiya\AgentBridge\Pipeline\AnsweringTurn;
-use NaokiTsuchiya\AgentBridge\Pipeline\CompletedTurn;
-use NaokiTsuchiya\AgentBridge\Pipeline\FailedTurn;
-use NaokiTsuchiya\AgentBridge\Pipeline\IncomingMessage;
-use NaokiTsuchiya\AgentBridge\Pipeline\ResolvedThread;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

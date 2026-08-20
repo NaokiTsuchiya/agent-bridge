@@ -2,13 +2,10 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Runner;
+namespace NaokiTsuchiya\AgentBridge\Runner;
 
 use InvalidArgumentException;
-use NaokiTsuchiya\AgentBridge\Runner\Turn;
-use NaokiTsuchiya\AgentBridge\Runner\TurnFailure;
-use NaokiTsuchiya\AgentBridge\Runner\TurnLocks;
-use NaokiTsuchiya\AgentBridge\Tests\Support\ChildProcesses;
+use NaokiTsuchiya\AgentBridge\Support\ChildProcesses;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

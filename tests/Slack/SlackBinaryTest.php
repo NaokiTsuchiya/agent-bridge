@@ -2,17 +2,11 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Slack;
+namespace NaokiTsuchiya\AgentBridge\Slack;
 
 use NaokiTsuchiya\AgentBridge\Di\SlackContext;
-use NaokiTsuchiya\AgentBridge\Slack\SlackApiClientProvider;
-use NaokiTsuchiya\AgentBridge\Slack\SlackApiEndpointProvider;
-use NaokiTsuchiya\AgentBridge\Slack\SlackAppToken;
-use NaokiTsuchiya\AgentBridge\Slack\SlackAppTokenFactory;
-use NaokiTsuchiya\AgentBridge\Slack\SlackBotToken;
-use NaokiTsuchiya\AgentBridge\Slack\SlackIdentityProvider;
-use NaokiTsuchiya\AgentBridge\Tests\Support\CliProcess;
-use NaokiTsuchiya\AgentBridge\Tests\Support\TempDir;
+use NaokiTsuchiya\AgentBridge\Support\CliProcess;
+use NaokiTsuchiya\AgentBridge\Support\TempDir;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

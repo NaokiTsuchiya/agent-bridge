@@ -2,12 +2,10 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Runner;
+namespace NaokiTsuchiya\AgentBridge\Runner;
 
+use NaokiTsuchiya\AgentBridge\Di\CompiledServe;
 use NaokiTsuchiya\AgentBridge\Di\ServeContext;
-use NaokiTsuchiya\AgentBridge\Runner\CloseGraceSeconds;
-use NaokiTsuchiya\AgentBridge\Runner\TurnSeconds;
-use NaokiTsuchiya\AgentBridge\Tests\Di\CompiledServe;
 use NaokiTsuchiya\RayDiContext\Exception\CompileDirUnavailable;
 use NaokiTsuchiya\RayDiContext\Exception\InvalidAppMeta;
 use NaokiTsuchiya\RayDiContext\InjectorBuilder;

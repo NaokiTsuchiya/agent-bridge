@@ -2,19 +2,12 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Slack;
+namespace NaokiTsuchiya\AgentBridge\Slack;
 
 use Be\Framework\Module\BeModule;
 use InvalidArgumentException;
 use NaokiTsuchiya\AgentBridge\AgentBridge;
 use NaokiTsuchiya\AgentBridge\Di\SlackModule;
-use NaokiTsuchiya\AgentBridge\Slack\RetryingSlackApiClient;
-use NaokiTsuchiya\AgentBridge\Slack\SlackApiClient;
-use NaokiTsuchiya\AgentBridge\Slack\SlackApiClientProvider;
-use NaokiTsuchiya\AgentBridge\Slack\SlackApiEndpoint;
-use NaokiTsuchiya\AgentBridge\Slack\SlackBotToken;
-use NaokiTsuchiya\AgentBridge\Slack\SlackException;
-use NaokiTsuchiya\AgentBridge\Slack\StreamingSettings;
 use Override;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;

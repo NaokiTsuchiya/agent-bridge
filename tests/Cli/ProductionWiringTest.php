@@ -2,13 +2,11 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Cli;
+namespace NaokiTsuchiya\AgentBridge\Cli;
 
 use NaokiTsuchiya\AgentBridge\AgentBridge;
 use NaokiTsuchiya\AgentBridge\Chat\ChatEgress;
-use NaokiTsuchiya\AgentBridge\Cli\CliCommand;
-use NaokiTsuchiya\AgentBridge\Cli\Conversation;
-use NaokiTsuchiya\AgentBridge\Cli\StandardOutputEgress;
+use NaokiTsuchiya\AgentBridge\Di\CompiledServe;
 use NaokiTsuchiya\AgentBridge\Di\ServeContext;
 use NaokiTsuchiya\AgentBridge\Pipeline\AnsweringTurn;
 use NaokiTsuchiya\AgentBridge\Pipeline\CompletedTurn;
@@ -18,7 +16,6 @@ use NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner;
 use NaokiTsuchiya\AgentBridge\Runner\ProcessRecipe;
 use NaokiTsuchiya\AgentBridge\Runner\WorkingDirectoryResolver;
 use NaokiTsuchiya\AgentBridge\Runner\WorktreeWorkingDirectory;
-use NaokiTsuchiya\AgentBridge\Tests\Di\CompiledServe;
 use NaokiTsuchiya\AgentBridge\Worktree\WorktreeManager;
 use NaokiTsuchiya\RayDiContext\Exception\CompileDirUnavailable;
 use NaokiTsuchiya\RayDiContext\Exception\InvalidAppMeta;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace NaokiTsuchiya\AgentBridge\Tests\Support;
+namespace NaokiTsuchiya\AgentBridge\Support;
 
 use function dirname;
 use function getenv;
