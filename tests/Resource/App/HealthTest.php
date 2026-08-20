@@ -9,11 +9,18 @@ use BEAR\Resource\ResourceObject;
 use InvalidArgumentException;
 use NaokiTsuchiya\AgentBridge\AgentBridge;
 use NaokiTsuchiya\AgentBridge\Di\ServeContext;
+use NaokiTsuchiya\AgentBridge\Event\ClaudeCliEventParser;
 use NaokiTsuchiya\AgentBridge\Resource\App\Health;
 use NaokiTsuchiya\AgentBridge\Runner\AgentRunner;
+use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliCommand;
 use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliSettings;
+use NaokiTsuchiya\AgentBridge\Runner\LifecycleSettings;
 use NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner;
+use NaokiTsuchiya\AgentBridge\Runner\ProcessPool;
+use NaokiTsuchiya\AgentBridge\Runner\ProcessRecipe;
+use NaokiTsuchiya\AgentBridge\Runner\TurnLocks;
 use NaokiTsuchiya\AgentBridge\Tests\Di\CompiledServe;
+use NaokiTsuchiya\AgentBridge\Tests\Di\SpawnServeContext;
 use NaokiTsuchiya\AgentBridge\Tests\Pipeline\StubAgentRunner;
 use NaokiTsuchiya\AgentBridge\Tests\Runner\Events;
 use NaokiTsuchiya\AgentBridge\Tests\Runner\FakeCliRunnerTestCase;
@@ -149,14 +156,21 @@ final class HealthTest extends FakeCliRunnerTestCase
 
     /**
      * With the spawn runner, the health resource always reports 0 processes.
+     *
+     * @throws CompileDirUnavailable
+     * @throws InvalidAppMeta
      */
     #[Test]
     public function answersZeroWithSpawnRunner(): void
     {
-        $health = new Health(new StubAgentRunner([]));
-        $health->onGet();
+        $meta = CompiledServe::spawnMeta();
+        $injector = (new InjectorBuilder())(new SpawnServeContext($meta), $meta);
+        $resource = $injector->getInstance(ResourceInterface::class);
 
-        self::assertSame(['status' => 'ok', 'package' => AgentBridge::PACKAGE, 'processes' => 0], $health->body);
+        $response = $resource->uri('app://self/health')();
+
+        self::assertInstanceOf(ResourceObject::class, $response);
+        self::assertSame(['status' => 'ok', 'package' => AgentBridge::PACKAGE, 'processes' => 0], $response->body);
     }
 
     /**
@@ -194,9 +208,15 @@ final class HealthTest extends FakeCliRunnerTestCase
     /** @return PersistentCliRunner a resident runner pointed at the fake binary */
     private function persistentRunner(): PersistentCliRunner
     {
+        $limits = new LifecycleSettings();
+        $settings = new ClaudeCliSettings(binary: ClaudeBinary::fake(), closeGraceSeconds: 2.0);
+
         return new PersistentCliRunner(
-            new FixedWorkingDirectory($this->cwd),
-            new ClaudeCliSettings(binary: ClaudeBinary::fake(), closeGraceSeconds: 2.0),
+            new ProcessRecipe(new FixedWorkingDirectory($this->cwd), new ClaudeCliCommand($settings)),
+            new ClaudeCliEventParser(),
+            new TurnLocks(),
+            new ProcessPool($limits, $settings->closeGraceSeconds),
+            $limits->turnSeconds,
         );
     }
 }

@@ -458,6 +458,17 @@ final class SpawnCliRunnerTest extends FakeCliRunnerTestCase
     }
 
     /**
+     * Nothing is held between turns, so the answer is always zero.
+     */
+    #[Test]
+    public function liveProcessesAlwaysAnswersZero(): void
+    {
+        $runner = $this->runner();
+
+        self::assertSame(0, $runner->liveProcesses());
+    }
+
+    /**
      * One thread answers one turn at a time, whoever asks.
      *
      * @throws InvalidArgumentException
