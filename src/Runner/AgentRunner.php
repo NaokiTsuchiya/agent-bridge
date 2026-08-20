@@ -38,4 +38,13 @@ interface AgentRunner
      * is released here is machinery, not the conversation.
      */
     public function close(ThreadId $thread): void;
+
+    /**
+     * Answers how many child processes are being held right now.
+     *
+     * An execution layer that keeps no processes between turns answers 0.
+     *
+     * @return int at most the configured limit
+     */
+    public function liveProcesses(): int;
 }

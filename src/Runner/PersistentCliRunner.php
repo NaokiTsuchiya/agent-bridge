@@ -132,6 +132,7 @@ final class PersistentCliRunner implements AgentRunner
     }
 
     /** @return int how many child processes are being held right now, at most the configured limit */
+    #[Override]
     public function liveProcesses(): int
     {
         return $this->pool->count();

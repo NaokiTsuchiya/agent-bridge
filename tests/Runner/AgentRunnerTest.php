@@ -90,6 +90,23 @@ final class AgentRunnerTest extends TestCase
     }
 
     /**
+     * `liveProcesses()` takes no parameters and answers an integer.
+     *
+     * @throws ReflectionException
+     */
+    #[Test]
+    public function liveProcessesTakesNoParametersAndReturnsInt(): void
+    {
+        $parameters = self::parametersOf('liveProcesses');
+
+        self::assertSame([], $parameters);
+
+        $returnType = new ReflectionMethod(AgentRunner::class, 'liveProcesses')->getReturnType();
+        self::assertInstanceOf(ReflectionNamedType::class, $returnType);
+        self::assertSame('int', $returnType->getName());
+    }
+
+    /**
      * No parameter of either method is a place on disk.
      *
      * @throws ReflectionException

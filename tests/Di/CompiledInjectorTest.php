@@ -182,7 +182,7 @@ final class CompiledInjectorTest extends TestCase
 
         $health = $resource->uri('app://self/health')();
 
-        self::assertSame(['status' => 'ok', 'package' => AgentBridge::PACKAGE], $health->body);
+        self::assertSame(['status' => 'ok', 'package' => AgentBridge::PACKAGE, 'processes' => 0], $health->body);
     }
 
     /**

@@ -40,4 +40,15 @@ final class StubAgentRunner implements AgentRunner
     {
         $this->closed[] = $thread->value;
     }
+
+    /**
+     * {@inheritDoc}
+     *
+     * Nothing is kept between turns, so the answer is always zero.
+     */
+    #[Override]
+    public function liveProcesses(): int
+    {
+        return 0;
+    }
 }
