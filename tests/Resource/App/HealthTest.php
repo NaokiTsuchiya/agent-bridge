@@ -8,7 +8,6 @@ use BEAR\Resource\Module\ResourceModule;
 use BEAR\Resource\Module\ResourceObjectModule;
 use BEAR\Resource\ResourceInterface;
 use BEAR\Resource\ResourceObject;
-use InvalidArgumentException;
 use NaokiTsuchiya\AgentBridge\AgentBridge;
 use NaokiTsuchiya\AgentBridge\Di\CompiledServe;
 use NaokiTsuchiya\AgentBridge\Di\ServeContext;
@@ -173,19 +172,6 @@ final class HealthTest extends FakeCliRunnerTestCase
 
         self::assertInstanceOf(ResourceObject::class, $response);
         self::assertSame(['status' => 'ok', 'package' => AgentBridge::PACKAGE, 'processes' => 0], $response->body);
-    }
-
-    /**
-     * @return ThreadId a thread whose session is seeded in the fake's store
-     *
-     * @throws InvalidArgumentException
-     */
-    private function thread(string $id): ThreadId
-    {
-        $thread = new ThreadId($id);
-        $this->seedSession($thread);
-
-        return $thread;
     }
 
     /**

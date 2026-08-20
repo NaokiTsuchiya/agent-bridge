@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NaokiTsuchiya\AgentBridge\Runner;
 
+use InvalidArgumentException;
 use NaokiTsuchiya\AgentBridge\FakeClaude\FakeHome;
 use NaokiTsuchiya\AgentBridge\FakeClaude\SessionStore;
 use NaokiTsuchiya\AgentBridge\Support\Json;
@@ -13,12 +14,15 @@ use NaokiTsuchiya\AgentBridge\Thread\ThreadId;
 use Override;
 use PHPUnit\Framework\TestCase;
 use Swoole\Runtime;
+use Throwable;
 
 use function chmod;
 use function count;
 use function file_get_contents;
 use function file_put_contents;
+use function in_array;
 use function json_encode;
+use function posix_kill;
 use function putenv;
 use function realpath;
 
@@ -155,5 +159,86 @@ abstract class FakeCliRunnerTestCase extends TestCase
         self::assertIsString($contents, "Could not read {$path}.");
 
         return $contents;
+    }
+
+    /**
+     * @return ThreadId a thread whose session is already in place, so that `--resume` finds it
+     *
+     * @throws InvalidArgumentException
+     */
+    protected function thread(string $id): ThreadId
+    {
+        $thread = new ThreadId($id);
+        $this->seedSession($thread);
+
+        return $thread;
+    }
+
+    /**
+     * Closes every thread, so that the pool empties and the idle watch can end with it.
+     *
+     * @param list<ThreadId> $threads
+     */
+    protected function closeAll(AgentRunner $runner, array $threads): void
+    {
+        foreach ($threads as $thread) {
+            $runner->close($thread);
+        }
+    }
+
+    /** @return int the pid of the last process started for this thread's session */
+    protected function pidFor(ThreadId $thread): int
+    {
+        $session = ThreadDerivation::sessionId($thread);
+        $records = $this->records();
+        $pid = null;
+        foreach ($records->starts() as $index => $start) {
+            $mine = in_array($session, $records->argumentsOf($index), strict: true);
+            if (!$mine) {
+                continue;
+            }
+
+            $pid = Json::integer($start, 'pid');
+        }
+
+        self::assertIsInt($pid, "No process was recorded for {$thread->value}.");
+
+        return $pid;
+    }
+
+    /**
+     * @param list<TurnSpan> $spans
+     *
+     * @return TurnSpan the one at that position, asserted to be there
+     */
+    protected static function span(array $spans, int $index): TurnSpan
+    {
+        $span = $spans[$index] ?? null;
+        self::assertInstanceOf(TurnSpan::class, $span, "No turn was recorded at position {$index}.");
+
+        return $span;
+    }
+
+    /**
+     * Raises what a coroutine caught, from where a throw is reported as a failure.
+     *
+     * @param list<Throwable> $failures
+     *
+     * @throws Throwable
+     */
+    protected static function rethrow(array $failures): void
+    {
+        $failure = $failures[0] ?? null;
+        if ($failure === null) {
+            return;
+        }
+
+        throw $failure;
+    }
+
+    /** @return bool whether the process is still there, defunct or otherwise */
+    protected static function alive(int $pid): bool
+    {
+        return posix_kill($pid, signal: 0);
     }
 }
