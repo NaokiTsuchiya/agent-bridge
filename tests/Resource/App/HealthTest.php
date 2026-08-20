@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace NaokiTsuchiya\AgentBridge\Tests\Resource\App;
 
+use BEAR\Resource\Module\ResourceModule;
+use BEAR\Resource\Module\ResourceObjectModule;
 use BEAR\Resource\ResourceInterface;
 use BEAR\Resource\ResourceObject;
 use InvalidArgumentException;
@@ -33,6 +35,8 @@ use NaokiTsuchiya\RayDiContext\Exception\InvalidAppMeta;
 use NaokiTsuchiya\RayDiContext\InjectorBuilder;
 use Override;
 use PHPUnit\Framework\Attributes\Test;
+use Ray\Di\AbstractModule;
+use Ray\Di\Injector;
 use Throwable;
 
 final class HealthTest extends FakeCliRunnerTestCase
@@ -50,12 +54,11 @@ final class HealthTest extends FakeCliRunnerTestCase
     #[Test]
     public function answersZeroWhenNoProcessesRunning(): void
     {
-        $runner = new StubAgentRunner([]);
-        $health = new Health($runner);
+        $resource = $this->resource(new StubAgentRunner([]));
 
-        $health->onGet();
+        $response = $resource->get('app://self/health');
 
-        self::assertSame(['status' => 'ok', 'package' => AgentBridge::PACKAGE, 'processes' => 0], $health->body);
+        self::assertSame(['status' => 'ok', 'package' => AgentBridge::PACKAGE, 'processes' => 0], $response->body);
     }
 
     /**
@@ -83,10 +86,10 @@ final class HealthTest extends FakeCliRunnerTestCase
             }
         };
 
-        $health = new Health($runner);
+        $resource = $this->resource($runner);
+        $response = $resource->get('app://self/health');
 
-        $health->onGet();
-        self::assertSame(['status' => 'ok', 'package' => AgentBridge::PACKAGE, 'processes' => 3], $health->body);
+        self::assertSame(['status' => 'ok', 'package' => AgentBridge::PACKAGE, 'processes' => 3], $response->body);
     }
 
     /**
@@ -114,14 +117,14 @@ final class HealthTest extends FakeCliRunnerTestCase
             }
         };
 
-        $health = new Health($runner);
+        $resource = $this->resource($runner);
 
-        $health->onGet();
-        self::assertSame(['status' => 'ok', 'package' => AgentBridge::PACKAGE, 'processes' => 0], $health->body);
+        $first = $resource->get('app://self/health');
+        self::assertSame(['status' => 'ok', 'package' => AgentBridge::PACKAGE, 'processes' => 0], $first->body);
 
         $runner->count = 2;
-        $health->onGet();
-        self::assertSame(['status' => 'ok', 'package' => AgentBridge::PACKAGE, 'processes' => 2], $health->body);
+        $second = $resource->get('app://self/health');
+        self::assertSame(['status' => 'ok', 'package' => AgentBridge::PACKAGE, 'processes' => 2], $second->body);
     }
 
     /**
@@ -133,24 +136,24 @@ final class HealthTest extends FakeCliRunnerTestCase
     public function observesResidentProcessLifecycle(): void
     {
         $runner = $this->persistentRunner();
-        $health = new Health($runner);
+        $resource = $this->resource($runner);
         $thread = $this->thread('slack:1800000001.000100');
 
-        Coro::run(static function () use ($runner, $health, $thread): void {
+        Coro::run(static function () use ($runner, $resource, $thread): void {
             // Before turn: 0 processes
-            $health->onGet();
-            self::assertSame(['status' => 'ok', 'package' => AgentBridge::PACKAGE, 'processes' => 0], $health->body);
+            $response = $resource->get('app://self/health');
+            self::assertSame(['status' => 'ok', 'package' => AgentBridge::PACKAGE, 'processes' => 0], $response->body);
 
             // Send prompt: process starts and remains alive in pool after turn
             Events::collect($runner->send($thread, 'hello'));
 
-            $health->onGet();
-            self::assertSame(['status' => 'ok', 'package' => AgentBridge::PACKAGE, 'processes' => 1], $health->body);
+            $response = $resource->get('app://self/health');
+            self::assertSame(['status' => 'ok', 'package' => AgentBridge::PACKAGE, 'processes' => 1], $response->body);
 
             // Close thread: process ends, count drops back to 0
             $runner->close($thread);
-            $health->onGet();
-            self::assertSame(['status' => 'ok', 'package' => AgentBridge::PACKAGE, 'processes' => 0], $health->body);
+            $response = $resource->get('app://self/health');
+            self::assertSame(['status' => 'ok', 'package' => AgentBridge::PACKAGE, 'processes' => 0], $response->body);
         });
     }
 
@@ -167,7 +170,7 @@ final class HealthTest extends FakeCliRunnerTestCase
         $injector = (new InjectorBuilder())(new SpawnServeContext($meta), $meta);
         $resource = $injector->getInstance(ResourceInterface::class);
 
-        $response = $resource->uri('app://self/health')();
+        $response = $resource->get('app://self/health');
 
         self::assertInstanceOf(ResourceObject::class, $response);
         self::assertSame(['status' => 'ok', 'package' => AgentBridge::PACKAGE, 'processes' => 0], $response->body);
@@ -199,7 +202,7 @@ final class HealthTest extends FakeCliRunnerTestCase
         $injector = (new InjectorBuilder())(new ServeContext($meta), $meta);
         $resource = $injector->getInstance(ResourceInterface::class);
 
-        $response = $resource->uri('app://self/health')();
+        $response = $resource->get('app://self/health');
 
         self::assertInstanceOf(ResourceObject::class, $response);
         self::assertSame(['status' => 'ok', 'package' => AgentBridge::PACKAGE, 'processes' => 0], $response->body);
@@ -218,5 +221,25 @@ final class HealthTest extends FakeCliRunnerTestCase
             new ProcessPool($limits, $settings->closeGraceSeconds),
             $limits->turnSeconds,
         );
+    }
+
+    /** @return ResourceInterface a resource client bound to the given runner */
+    private function resource(AgentRunner $runner): ResourceInterface
+    {
+        $module = new class($runner) extends AbstractModule {
+            public function __construct(
+                private AgentRunner $runner,
+            ) {}
+
+            #[Override]
+            protected function configure(): void
+            {
+                $this->bind(AgentRunner::class)->toInstance($this->runner);
+                $this->install(new ResourceModule(AgentBridge::APP_NAME));
+                $this->install(new ResourceObjectModule([Health::class]));
+            }
+        };
+
+        return new Injector($module)->getInstance(ResourceInterface::class);
     }
 }
