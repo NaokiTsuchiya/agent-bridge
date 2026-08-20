@@ -41,33 +41,27 @@ use const SWOOLE_HOOK_STREAM_FUNCTION;
  */
 final class PersistentCliRunner implements AgentRunner
 {
-    /** The processes, and the rules by which they are reclaimed. */
-    private ProcessPool $pool;
-
-    /** One mutex per thread, held for as long as that thread's turn lasts. */
-    private TurnLocks $locks;
-
-    /** How the binary is asked to run, and how a turn is written to one that is running. */
-    private ClaudeCliCommand $command;
-
     /** @var array<string, Turn> the turn each thread is in the middle of, by thread id */
     private array $turns = [];
 
-    /** How long a turn may go without reaching its completion event. */
-    private float $turnSeconds;
-
     /**
-     * @param WorkingDirectoryResolver $directories where each thread's process is started
-     * @param ClaudeCliSettings        $settings    which binary to run, and with which permissions
-     * @param ClaudeCliEventParser     $parser      turns the binary's output into events
-     * @param LifecycleSettings        $limits      how long a process may live and how many there
-     *                                              may be
+     * @param ProcessRecipe        $recipe      where each thread's process is started, and with
+     *                                          what arguments
+     * @param ClaudeCliEventParser $parser      turns the binary's output into events
+     * @param TurnLocks            $locks       one mutex per thread, held for as long as that
+     *                                          thread's turn lasts
+     * @param ProcessPool          $pool        the processes, and the rules by which they are
+     *                                          reclaimed
+     * @param float                $turnSeconds how long a turn may go without reaching its
+     *                                          completion event
      */
     public function __construct(
-        private WorkingDirectoryResolver $directories,
-        ClaudeCliSettings $settings = new ClaudeCliSettings(),
-        private ClaudeCliEventParser $parser = new ClaudeCliEventParser(),
-        LifecycleSettings $limits = new LifecycleSettings(),
+        private ProcessRecipe $recipe,
+        private ClaudeCliEventParser $parser,
+        private TurnLocks $locks,
+        private ProcessPool $pool,
+        #[TurnSeconds]
+        private float $turnSeconds,
     ) {
         // Without these hooks `proc_open` and its pipes block the whole event loop instead of the
         // one coroutine waiting on them. `Swoole\Process` is not an option: starting one inside
@@ -82,11 +76,6 @@ final class PersistentCliRunner implements AgentRunner
         // same sleeper ran at 0.203s. Threads are meant to run at the same time, so this is not
         // an optimization.
         Runtime::setHookFlags(Runtime::getHookFlags() | SWOOLE_HOOK_PROC | SWOOLE_HOOK_STREAM_FUNCTION);
-
-        $this->pool = new ProcessPool($limits, $settings->closeGraceSeconds);
-        $this->locks = new TurnLocks();
-        $this->command = new ClaudeCliCommand($settings);
-        $this->turnSeconds = $limits->turnSeconds;
     }
 
     /** @return iterable<AgentEvent> */
@@ -206,9 +195,6 @@ final class PersistentCliRunner implements AgentRunner
     /** @return AgentProcess|null null when the binary could not be started */
     private function launch(ThreadId $thread, HistoryStart $start): ?AgentProcess
     {
-        $command = $this->command->arguments($thread, $start);
-        $cwd = $this->directories->resolve($thread);
-
-        return $this->pool->admit($thread, static fn(): ?AgentProcess => AgentProcess::start($command, $cwd, $start));
+        return $this->pool->admit($thread, fn(): ?AgentProcess => $this->recipe->start($thread, $start));
     }
 }

@@ -5,10 +5,16 @@ declare(strict_types=1);
 namespace NaokiTsuchiya\AgentBridge\Tests\Integration;
 
 use InvalidArgumentException;
+use NaokiTsuchiya\AgentBridge\Event\ClaudeCliEventParser;
 use NaokiTsuchiya\AgentBridge\Event\TextDelta;
 use NaokiTsuchiya\AgentBridge\Event\TurnCompleted;
+use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliCommand;
 use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliSettings;
+use NaokiTsuchiya\AgentBridge\Runner\LifecycleSettings;
 use NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner;
+use NaokiTsuchiya\AgentBridge\Runner\ProcessPool;
+use NaokiTsuchiya\AgentBridge\Runner\ProcessRecipe;
+use NaokiTsuchiya\AgentBridge\Runner\TurnLocks;
 use NaokiTsuchiya\AgentBridge\Tests\Runner\FixedWorkingDirectory;
 use NaokiTsuchiya\AgentBridge\Tests\Support\ClaudeBinary;
 use NaokiTsuchiya\AgentBridge\Tests\Support\Coro;
@@ -67,12 +73,16 @@ final class PersistentCliRunnerSmokeTest extends TestCase
     #[Test]
     public function answersOneTurnOnAFreshThread(): void
     {
+        $settings = new ClaudeCliSettings(binary: ClaudeBinary::fromEnvironment());
+        $limits = new LifecycleSettings();
         $runner = new PersistentCliRunner(
-            new FixedWorkingDirectory($this->cwd),
-            new ClaudeCliSettings(binary: ClaudeBinary::fromEnvironment()),
+            new ProcessRecipe(new FixedWorkingDirectory($this->cwd), new ClaudeCliCommand($settings)),
+            new ClaudeCliEventParser(),
+            new TurnLocks(),
+            new ProcessPool($limits, $settings->closeGraceSeconds),
+            $limits->turnSeconds,
         );
         $thread = new ThreadId('smoke:' . uniqid());
-
         Coro::run(static function () use ($runner, $thread): void {
             $text = '';
             $completed = 0;

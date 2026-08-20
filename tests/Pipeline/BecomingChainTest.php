@@ -8,6 +8,7 @@ use Be\Framework\BecomingInterface;
 use Be\Framework\Module\BeModule;
 use InvalidArgumentException;
 use NaokiTsuchiya\AgentBridge\AgentBridge;
+use NaokiTsuchiya\AgentBridge\Event\ClaudeCliEventParser;
 use NaokiTsuchiya\AgentBridge\Event\TextDelta;
 use NaokiTsuchiya\AgentBridge\Event\ToolCompleted;
 use NaokiTsuchiya\AgentBridge\Event\TurnCompleted;
@@ -16,8 +17,13 @@ use NaokiTsuchiya\AgentBridge\Pipeline\FailedTurn;
 use NaokiTsuchiya\AgentBridge\Pipeline\IncomingMessage;
 use NaokiTsuchiya\AgentBridge\Pipeline\Turn;
 use NaokiTsuchiya\AgentBridge\Runner\AgentRunner;
+use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliCommand;
 use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliSettings;
+use NaokiTsuchiya\AgentBridge\Runner\LifecycleSettings;
 use NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner;
+use NaokiTsuchiya\AgentBridge\Runner\ProcessPool;
+use NaokiTsuchiya\AgentBridge\Runner\ProcessRecipe;
+use NaokiTsuchiya\AgentBridge\Runner\TurnLocks;
 use NaokiTsuchiya\AgentBridge\Runner\WorktreeWorkingDirectory;
 use NaokiTsuchiya\AgentBridge\Tests\Chat\RecordingChatEgress;
 use NaokiTsuchiya\AgentBridge\Tests\Runner\FakeCliRecords;
@@ -493,9 +499,15 @@ final class BecomingChainTest extends TestCase
     private function cliRunner(string $binary): PersistentCliRunner
     {
         $worktrees = PipelineModule::worktreesOf($this->repository);
+        $settings = new ClaudeCliSettings(binary: $binary, closeGraceSeconds: 2.0);
+        $limits = new LifecycleSettings();
+
         return new PersistentCliRunner(
-            new WorktreeWorkingDirectory($worktrees),
-            new ClaudeCliSettings(binary: $binary, closeGraceSeconds: 2.0),
+            new ProcessRecipe(new WorktreeWorkingDirectory($worktrees), new ClaudeCliCommand($settings)),
+            new ClaudeCliEventParser(),
+            new TurnLocks(),
+            new ProcessPool($limits, $settings->closeGraceSeconds),
+            $limits->turnSeconds,
         );
     }
 

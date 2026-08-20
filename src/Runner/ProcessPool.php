@@ -43,6 +43,7 @@ final class ProcessPool
      */
     public function __construct(
         private LifecycleSettings $limits,
+        #[CloseGraceSeconds]
         float $closeGraceSeconds,
     ) {
         $this->table = new ProcessTable();

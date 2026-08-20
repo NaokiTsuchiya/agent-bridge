@@ -7,10 +7,16 @@ namespace NaokiTsuchiya\AgentBridge\Tests\Runner;
 use Closure;
 use InvalidArgumentException;
 use NaokiTsuchiya\AgentBridge\Event\AgentError;
+use NaokiTsuchiya\AgentBridge\Event\ClaudeCliEventParser;
 use NaokiTsuchiya\AgentBridge\Event\TextDelta;
 use NaokiTsuchiya\AgentBridge\Event\TurnCompleted;
+use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliCommand;
 use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliSettings;
+use NaokiTsuchiya\AgentBridge\Runner\LifecycleSettings;
 use NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner;
+use NaokiTsuchiya\AgentBridge\Runner\ProcessPool;
+use NaokiTsuchiya\AgentBridge\Runner\ProcessRecipe;
+use NaokiTsuchiya\AgentBridge\Runner\TurnLocks;
 use NaokiTsuchiya\AgentBridge\Tests\Support\ClaudeBinary;
 use NaokiTsuchiya\AgentBridge\Tests\Support\Coro;
 use NaokiTsuchiya\AgentBridge\Tests\Support\Json;
@@ -519,13 +525,19 @@ final class PersistentCliRunnerTest extends FakeCliRunnerTestCase
         float $grace = 2.0,
         ?FixedWorkingDirectory $directories = null,
     ): PersistentCliRunner {
+        $settings = new ClaudeCliSettings(
+            binary: $binary ?? ClaudeBinary::fake(),
+            allowedTools: $tools ?? ClaudeCliSettings::READ_ONLY_TOOLS,
+            closeGraceSeconds: $grace,
+        );
+        $limits = new LifecycleSettings();
+
         return new PersistentCliRunner(
-            $directories ?? new FixedWorkingDirectory($this->cwd),
-            new ClaudeCliSettings(
-                binary: $binary ?? ClaudeBinary::fake(),
-                allowedTools: $tools ?? ClaudeCliSettings::READ_ONLY_TOOLS,
-                closeGraceSeconds: $grace,
-            ),
+            new ProcessRecipe($directories ?? new FixedWorkingDirectory($this->cwd), new ClaudeCliCommand($settings)),
+            new ClaudeCliEventParser(),
+            new TurnLocks(),
+            new ProcessPool($limits, $settings->closeGraceSeconds),
+            $limits->turnSeconds,
         );
     }
 }

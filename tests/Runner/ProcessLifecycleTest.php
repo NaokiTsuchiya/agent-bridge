@@ -7,10 +7,15 @@ namespace NaokiTsuchiya\AgentBridge\Tests\Runner;
 use InvalidArgumentException;
 use NaokiTsuchiya\AgentBridge\Event\AgentError;
 use NaokiTsuchiya\AgentBridge\Event\AgentEvent;
+use NaokiTsuchiya\AgentBridge\Event\ClaudeCliEventParser;
 use NaokiTsuchiya\AgentBridge\Event\TurnCompleted;
+use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliCommand;
 use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliSettings;
 use NaokiTsuchiya\AgentBridge\Runner\LifecycleSettings;
 use NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner;
+use NaokiTsuchiya\AgentBridge\Runner\ProcessPool;
+use NaokiTsuchiya\AgentBridge\Runner\ProcessRecipe;
+use NaokiTsuchiya\AgentBridge\Runner\TurnLocks;
 use NaokiTsuchiya\AgentBridge\Tests\Support\ChildProcesses;
 use NaokiTsuchiya\AgentBridge\Tests\Support\ClaudeBinary;
 use NaokiTsuchiya\AgentBridge\Tests\Support\Coro;
@@ -859,10 +864,15 @@ final class ProcessLifecycleTest extends FakeCliRunnerTestCase
         ?string $binary = null,
         float $grace = 2.0,
     ): PersistentCliRunner {
+        $actualLimits = $limits ?? new LifecycleSettings();
+        $settings = new ClaudeCliSettings(binary: $binary ?? ClaudeBinary::fake(), closeGraceSeconds: $grace);
+
         return new PersistentCliRunner(
-            new FixedWorkingDirectory($this->cwd),
-            new ClaudeCliSettings(binary: $binary ?? ClaudeBinary::fake(), closeGraceSeconds: $grace),
-            limits: $limits ?? new LifecycleSettings(),
+            new ProcessRecipe(new FixedWorkingDirectory($this->cwd), new ClaudeCliCommand($settings)),
+            new ClaudeCliEventParser(),
+            new TurnLocks(),
+            new ProcessPool($actualLimits, $settings->closeGraceSeconds),
+            $actualLimits->turnSeconds,
         );
     }
 

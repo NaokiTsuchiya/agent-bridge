@@ -11,6 +11,8 @@ use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliCommand;
 use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliSettings;
 use NaokiTsuchiya\AgentBridge\Runner\LifecycleSettings;
 use NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner;
+use NaokiTsuchiya\AgentBridge\Runner\ProcessPool;
+use NaokiTsuchiya\AgentBridge\Runner\ProcessRecipe;
 use NaokiTsuchiya\AgentBridge\Runner\SpawnCliRunner;
 use NaokiTsuchiya\AgentBridge\Runner\TurnLocks;
 use NaokiTsuchiya\AgentBridge\Tests\Support\ChildProcesses;
@@ -101,11 +103,14 @@ final class LaunchFailureTest extends TestCase
         $binary = $this->binary;
 
         Coro::run(static function () use ($thread, $cwd, $binary): void {
+            $settings = new ClaudeCliSettings(binary: $binary, closeGraceSeconds: 0.2);
+            $limits = new LifecycleSettings(idleSeconds: 900.0, turnSeconds: 5.0, maxProcesses: 2);
             $runner = new PersistentCliRunner(
-                new HookOffBeforeLaunch($cwd, failFrom: 1),
-                new ClaudeCliSettings(binary: $binary, closeGraceSeconds: 0.2),
+                new ProcessRecipe(new HookOffBeforeLaunch($cwd, failFrom: 1), new ClaudeCliCommand($settings)),
                 new ClaudeCliEventParser(),
-                new LifecycleSettings(idleSeconds: 900.0, turnSeconds: 5.0, maxProcesses: 2),
+                new TurnLocks(),
+                new ProcessPool($limits, $settings->closeGraceSeconds),
+                $limits->turnSeconds,
             );
 
             $events = [];
@@ -173,11 +178,14 @@ final class LaunchFailureTest extends TestCase
         $binary = $this->binary;
 
         Coro::run(static function () use ($thread, $cwd, $binary): void {
+            $settings = new ClaudeCliSettings(binary: $binary, closeGraceSeconds: 0.2);
+            $limits = new LifecycleSettings(idleSeconds: 900.0, turnSeconds: 5.0, maxProcesses: 2);
             $runner = new PersistentCliRunner(
-                new HookOffBeforeLaunch($cwd, failFrom: 2),
-                new ClaudeCliSettings(binary: $binary, closeGraceSeconds: 0.2),
+                new ProcessRecipe(new HookOffBeforeLaunch($cwd, failFrom: 2), new ClaudeCliCommand($settings)),
                 new ClaudeCliEventParser(),
-                new LifecycleSettings(idleSeconds: 900.0, turnSeconds: 5.0, maxProcesses: 2),
+                new TurnLocks(),
+                new ProcessPool($limits, $settings->closeGraceSeconds),
+                $limits->turnSeconds,
             );
 
             $events = [];

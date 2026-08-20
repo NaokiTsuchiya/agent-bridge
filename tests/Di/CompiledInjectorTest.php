@@ -13,6 +13,7 @@ use NaokiTsuchiya\AgentBridge\Di\ServeContext;
 use NaokiTsuchiya\AgentBridge\Runner\AgentRunner;
 use NaokiTsuchiya\AgentBridge\Runner\LifecycleSettings;
 use NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner;
+use NaokiTsuchiya\AgentBridge\Runner\ProcessPool;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadIdFactory;
 use NaokiTsuchiya\AgentBridge\Worktree\WorktreeManager;
 use NaokiTsuchiya\RayDiContext\Exception\CompileDirUnavailable;
@@ -74,6 +75,20 @@ final class CompiledInjectorTest extends TestCase
         $runner = self::injector()->getInstance(AgentRunner::class);
 
         self::assertInstanceOf(PersistentCliRunner::class, $runner);
+    }
+
+    /**
+     * The process pool is bound in AppModule and configured with lifecycle and grace settings.
+     *
+     * @throws CompileDirUnavailable
+     * @throws InvalidAppMeta
+     */
+    #[Test]
+    public function resolvesProcessPool(): void
+    {
+        $pool = self::injector()->getInstance(ProcessPool::class);
+
+        self::assertInstanceOf(ProcessPool::class, $pool);
     }
 
     /**

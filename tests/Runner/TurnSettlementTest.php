@@ -8,9 +8,13 @@ use InvalidArgumentException;
 use NaokiTsuchiya\AgentBridge\Event\AgentError;
 use NaokiTsuchiya\AgentBridge\Event\ClaudeCliEventParser;
 use NaokiTsuchiya\AgentBridge\Event\TurnCompleted;
+use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliCommand;
 use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliSettings;
 use NaokiTsuchiya\AgentBridge\Runner\LifecycleSettings;
 use NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner;
+use NaokiTsuchiya\AgentBridge\Runner\ProcessPool;
+use NaokiTsuchiya\AgentBridge\Runner\ProcessRecipe;
+use NaokiTsuchiya\AgentBridge\Runner\TurnLocks;
 use NaokiTsuchiya\AgentBridge\Tests\Support\ChildProcesses;
 use NaokiTsuchiya\AgentBridge\Tests\Support\Coro;
 use NaokiTsuchiya\AgentBridge\Tests\Support\TempDir;
@@ -110,11 +114,14 @@ final class TurnSettlementTest extends TestCase
         $thread = new ThreadId('slack:settle.died');
 
         Coro::run(static function () use ($script, $cwd, $thread, $pidFile): void {
+            $settings = new ClaudeCliSettings(binary: $script, closeGraceSeconds: 0.2);
+            $limits = new LifecycleSettings(idleSeconds: 900.0, turnSeconds: 5.0, maxProcesses: 2);
             $runner = new PersistentCliRunner(
-                new FixedWorkingDirectory($cwd),
-                new ClaudeCliSettings(binary: $script, closeGraceSeconds: 0.2),
+                new ProcessRecipe(new FixedWorkingDirectory($cwd), new ClaudeCliCommand($settings)),
                 new ClaudeCliEventParser(),
-                new LifecycleSettings(idleSeconds: 900.0, turnSeconds: 5.0, maxProcesses: 2),
+                new TurnLocks(),
+                new ProcessPool($limits, $settings->closeGraceSeconds),
+                $limits->turnSeconds,
             );
 
             $events = $runner->send($thread, 'hello');
@@ -174,11 +181,14 @@ final class TurnSettlementTest extends TestCase
         $thread = new ThreadId('slack:settle.race');
 
         Coro::run(static function () use ($script, $cwd, $thread): void {
+            $settings = new ClaudeCliSettings(binary: $script, closeGraceSeconds: 0.05);
+            $limits = new LifecycleSettings(idleSeconds: 900.0, turnSeconds: 0.4, maxProcesses: 2);
             $runner = new PersistentCliRunner(
-                new FixedWorkingDirectory($cwd),
-                new ClaudeCliSettings(binary: $script, closeGraceSeconds: 0.05),
+                new ProcessRecipe(new FixedWorkingDirectory($cwd), new ClaudeCliCommand($settings)),
                 new ClaudeCliEventParser(),
-                new LifecycleSettings(idleSeconds: 900.0, turnSeconds: 0.4, maxProcesses: 2),
+                new TurnLocks(),
+                new ProcessPool($limits, $settings->closeGraceSeconds),
+                $limits->turnSeconds,
             );
 
             $channel = new Channel(2);
