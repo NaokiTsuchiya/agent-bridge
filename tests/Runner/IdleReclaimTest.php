@@ -15,9 +15,6 @@ use PHPUnit\Framework\Attributes\Test;
 use Swoole\Coroutine;
 use Throwable;
 
-use function chmod;
-use function file_put_contents;
-
 /**
  * Idle process reclamation: unused processes are reclaimed when their idle span passes, but busy
  * turns and turns starting during a reclaim are left alone.
@@ -222,19 +219,6 @@ final class IdleReclaimTest extends FakeCliRunnerTestCase
      */
     private function lingeringBinary(): string
     {
-        $path = "{$this->home}/lingering-claude";
-        file_put_contents($path, <<<'SH'
-            #!/bin/sh
-            turn=0
-            while IFS= read -r line; do
-              turn=$((turn + 1))
-              if [ "$turn" -gt 1 ]; then sleep 4; fi
-              printf '{"type":"result","subtype":"success","is_error":false,"session_id":"x","result":"ok"}\n'
-            done
-            sleep 5
-            SH);
-        chmod($path, permissions: 0o755);
-
-        return $path;
+        return __DIR__ . '/fixtures/lingering-claude';
     }
 }

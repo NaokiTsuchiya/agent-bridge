@@ -1,0 +1,8 @@
+#!/bin/sh
+turn=0
+while IFS= read -r line; do
+  turn=$((turn + 1))
+  if [ "$turn" -gt 1 ]; then sleep 4; fi
+  printf '{"type":"result","subtype":"success","is_error":false,"session_id":"x","result":"ok"}\n'
+done
+sleep 5
