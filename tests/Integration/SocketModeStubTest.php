@@ -100,13 +100,16 @@ final class SocketModeStubTest extends TestCase
             static function () use ($port, $logger, &$payload): void {
                 $connector = new SwooleSocketModeConnector(
                     new SlackAppToken('xapp-1-A01234567-0123456789012-stubtest'),
-                    new SwooleHttpClientFactory(),
+                    new SwooleHttpClientFactory(60.0),
                     apiHost: '127.0.0.1',
                     apiPort: $port,
                 );
                 $envelopes = new Channel(16);
-                $router = new FrameRouter($envelopes, new EnvelopeLog(), $logger);
-                $delay = new ReconnectDelay(new Backoff(new MtRandomSource()), new CoroutineSleeper());
+                $router = new FrameRouter($envelopes, new EnvelopeLog(1000), $logger, handoffTimeout: 0.001);
+                $delay = new ReconnectDelay(
+                    new Backoff(new MtRandomSource(), base: 1.0, max: 30.0, jitterRatio: 0.5),
+                    new CoroutineSleeper(),
+                );
                 $client = new SocketModeClient(
                     $connector,
                     $router,

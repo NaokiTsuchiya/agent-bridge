@@ -31,7 +31,8 @@ final class FrameRouter
         private Channel $envelopes,
         private EnvelopeLog $seen,
         private SlackLoggerInterface $logger,
-        private float $handoffTimeout = 0.001,
+        #[FrameHandoffTimeout]
+        private float $handoffTimeout,
     ) {}
 
     /**

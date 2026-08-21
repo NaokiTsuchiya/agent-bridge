@@ -219,7 +219,7 @@ final class SlackApiStubTest extends TestCase
                 $sleeper = new RecordingSleeper();
                 $transport = new SwooleSlackApiClient(
                     new SlackBotToken(self::TOKEN),
-                    new SwooleHttpClientFactory(),
+                    new SwooleHttpClientFactory(60.0),
                     apiHost: '127.0.0.1',
                     apiPort: $port,
                 );
@@ -264,7 +264,7 @@ final class SlackApiStubTest extends TestCase
     {
         $transport = new SwooleSlackApiClient(
             new SlackBotToken(self::TOKEN),
-            new SwooleHttpClientFactory(),
+            new SwooleHttpClientFactory(60.0),
             apiHost: '127.0.0.1',
             apiPort: $port,
         );

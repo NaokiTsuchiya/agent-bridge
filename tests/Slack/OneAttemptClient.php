@@ -43,9 +43,13 @@ final class OneAttemptClient
 
         $this->client = new SocketModeClient(
             $this->connector,
-            new FrameRouter($envelopes, self::log(), $logger),
-            new ReconnectDelay(new Backoff(new FixedRandomSource()), $this->sleeper),
+            new FrameRouter($envelopes, self::log(), $logger, handoffTimeout: 0.001),
+            new ReconnectDelay(
+                new Backoff(new FixedRandomSource(), base: 1.0, max: 30.0, jitterRatio: 0.5),
+                $this->sleeper,
+            ),
             $logger,
+            silenceTimeout: 60.0,
         );
     }
 
@@ -53,7 +57,7 @@ final class OneAttemptClient
     private static function log(): EnvelopeLog
     {
         try {
-            return new EnvelopeLog();
+            return new EnvelopeLog(1000);
         } catch (InvalidArgumentException $impossible) {
             // Only an unusable capacity is refused, and none is named here; caught rather than
             // declared so that no case has to carry the tag.

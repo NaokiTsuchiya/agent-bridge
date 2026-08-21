@@ -21,7 +21,8 @@ final class SwooleHttpClientFactory implements HttpClientFactoryInterface
      *                       keepalives, and the recv loop passes its own deadline to each receive
      */
     public function __construct(
-        private float $timeout = 60.0,
+        #[HttpClientTimeout]
+        private float $timeout,
     ) {}
 
     /** @throws SocketModeException */

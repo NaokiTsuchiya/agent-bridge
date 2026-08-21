@@ -110,6 +110,6 @@ final class BackoffTest extends TestCase
     /** The subject with the jitter switched off, so that the ladder itself is what is asserted on. */
     private static function backoff(): Backoff
     {
-        return new Backoff(new FixedRandomSource(), base: 2.0, max: 32.0);
+        return new Backoff(new FixedRandomSource(), base: 2.0, max: 32.0, jitterRatio: 0.5);
     }
 }
