@@ -28,11 +28,11 @@ use NaokiTsuchiya\AgentBridge\Runner\TurnSeconds;
 use NaokiTsuchiya\AgentBridge\Runner\WorkingDirectoryResolver;
 use NaokiTsuchiya\AgentBridge\Runner\WorktreeWorkingDirectory;
 use NaokiTsuchiya\AgentBridge\Thread\ThreadIdFactory;
+use NaokiTsuchiya\AgentBridge\Worktree\BaseRepository;
 use NaokiTsuchiya\AgentBridge\Worktree\WorktreeManager;
 use Override;
 use Ray\Di\AbstractModule;
 use Ray\Di\Scope;
-use ReflectionException;
 
 /**
  * Everything this application binds, independent of which context installs it.
@@ -54,25 +54,13 @@ final class AppModule extends AbstractModule
      */
     private const array RESOURCES = [Health::class];
 
-    /** The binding name the repository path is published under, since a `string` cannot be one. */
-    private const string BASE_REPOSITORY = 'base_repository';
-
-    /**
-     * {@inheritDoc}
-     *
-     * @throws ReflectionException When toConstructor() is given a class it cannot reflect on, which
-     *         the class named right there is not.
-     */
+    /** {@inheritDoc} */
     #[Override]
     protected function configure(): void
     {
-        $this->bind('')->annotatedWith(self::BASE_REPOSITORY)->toProvider(BaseRepositoryProvider::class);
+        $this->bind('')->annotatedWith(BaseRepository::class)->toProvider(BaseRepositoryProvider::class);
         $this->bind(GitInterface::class)->to(Git::class);
-        // toConstructor rather than an attribute on the parameter: the manager is plain PHP and
-        // stays that way, so nothing outside this file knows the binding name above.
-        $this->bind(WorktreeManager::class)->toConstructor(WorktreeManager::class, [
-            'baseRepository' => self::BASE_REPOSITORY,
-        ]);
+        $this->bind(WorktreeManager::class);
         $this->bind(WorkingDirectoryResolver::class)->to(WorktreeWorkingDirectory::class);
         // Asked for while a turn is being answered, so an application that left it out fails in
         // the middle of somebody's message rather than at boot. The command line front end is the

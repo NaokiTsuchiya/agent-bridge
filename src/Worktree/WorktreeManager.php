@@ -27,6 +27,7 @@ final class WorktreeManager
 
     /** The repository the worktrees are cut from; which one it is stays the caller's decision. */
     public function __construct(
+        #[BaseRepository]
         private string $baseRepository,
         private GitInterface $git,
     ) {}

@@ -68,10 +68,11 @@ run(static function (): void {
     });
 
     new SocketModeClient(
-        new SwooleSocketModeConnector(SlackAppTokenFactory::fromEnvironment(), new SwooleHttpClientFactory()),
-        new FrameRouter($envelopes, new EnvelopeLog(), $logger),
-        new ReconnectDelay(new Backoff(new MtRandomSource()), new CoroutineSleeper()),
+        new SwooleSocketModeConnector(SlackAppTokenFactory::fromEnvironment(), new SwooleHttpClientFactory(60.0)),
+        new FrameRouter($envelopes, new EnvelopeLog(1000), $logger, handoffTimeout: 0.001),
+        new ReconnectDelay(new Backoff(new MtRandomSource(), base: 1.0, max: 30.0, jitterRatio: 0.5), new CoroutineSleeper()),
         $logger,
+        silenceTimeout: 60.0,
     )->run();
 });
 ```

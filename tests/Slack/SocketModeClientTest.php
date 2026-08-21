@@ -280,7 +280,7 @@ final class SocketModeClientTest extends TestCase
         $connection = new FakeSocketModeConnection();
         $logger = new RecordingLogger();
         $unencodable = "\xB1\x31";
-        $router = new FrameRouter(new Channel(1), new EnvelopeLog(), $logger);
+        $router = new FrameRouter(new Channel(1), new EnvelopeLog(1000), $logger, handoffTimeout: 0.001);
 
         self::assertTrue(
             new ReflectionMethod($router, 'event')->invoke($router, ['envelope_id' => $unencodable], $connection),
@@ -354,9 +354,9 @@ final class SocketModeClientTest extends TestCase
             }
 
             try {
-                $seen = new EnvelopeLog();
+                $seen = new EnvelopeLog(1000);
             } catch (InvalidArgumentException $exception) {
-                // The capacity is the class' own default, so this cannot happen. It is caught
+                // 1000 is a usable capacity, so this cannot happen. It is caught
                 // rather than let out because an exception leaving a coroutine kills the
                 // process, which would take the test output with it.
                 $logger->log($exception->getMessage());
@@ -366,9 +366,14 @@ final class SocketModeClientTest extends TestCase
 
             $client = new SocketModeClient(
                 $connector,
-                new FrameRouter($channel, $seen, $logger),
+                new FrameRouter($channel, $seen, $logger, handoffTimeout: 0.001),
                 new ReconnectDelay(
-                    new Backoff(new FixedRandomSource(), base: self::BASE_DELAY, max: self::MAX_DELAY),
+                    new Backoff(
+                        new FixedRandomSource(),
+                        base: self::BASE_DELAY,
+                        max: self::MAX_DELAY,
+                        jitterRatio: 0.5,
+                    ),
                     $sleeper,
                 ),
                 $logger,

@@ -60,6 +60,7 @@ final class SpawnCliRunner implements AgentRunner
         private ClaudeCliCommand $command,
         private ClaudeCliEventParser $parser,
         private TurnLocks $locks,
+        #[TurnSeconds]
         private float $turnSeconds,
     ) {
         // The same two hooks {@see PersistentCliRunner} turns on, and for the same reasons: without

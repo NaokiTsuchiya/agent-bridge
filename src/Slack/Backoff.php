@@ -25,9 +25,12 @@ final class Backoff
      */
     public function __construct(
         private RandomSourceInterface $random,
-        private float $base = 1.0,
-        private float $max = 30.0,
-        private float $jitterRatio = 0.5,
+        #[BackoffBase]
+        private float $base,
+        #[BackoffMax]
+        private float $max,
+        #[BackoffJitterRatio]
+        private float $jitterRatio,
     ) {}
 
     /**

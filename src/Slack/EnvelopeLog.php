@@ -29,7 +29,8 @@ final class EnvelopeLog
 
     /** @throws InvalidArgumentException when the capacity cannot hold anything */
     public function __construct(
-        private int $capacity = 1000,
+        #[EnvelopeCapacity]
+        private int $capacity,
     ) {
         if ($capacity < 1) {
             throw new InvalidArgumentException("An envelope log has to remember at least one id, got {$capacity}.");

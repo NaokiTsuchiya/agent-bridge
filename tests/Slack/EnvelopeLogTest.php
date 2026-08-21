@@ -24,7 +24,7 @@ final class EnvelopeLogTest extends TestCase
     #[Test]
     public function answersTrueForAnIdItHasNotSeen(): void
     {
-        self::assertTrue(new EnvelopeLog()->remember('ev-1'));
+        self::assertTrue(new EnvelopeLog(1000)->remember('ev-1'));
     }
 
     /**
@@ -35,7 +35,7 @@ final class EnvelopeLogTest extends TestCase
     #[Test]
     public function answersFalseTheSecondTime(): void
     {
-        $log = new EnvelopeLog();
+        $log = new EnvelopeLog(1000);
         $log->remember('ev-1');
 
         self::assertFalse($log->remember('ev-1'));

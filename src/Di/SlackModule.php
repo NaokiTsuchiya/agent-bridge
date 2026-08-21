@@ -6,12 +6,20 @@ namespace NaokiTsuchiya\AgentBridge\Di;
 
 use NaokiTsuchiya\AgentBridge\Chat\ChatEgress;
 use NaokiTsuchiya\AgentBridge\Slack\Backoff;
+use NaokiTsuchiya\AgentBridge\Slack\BackoffBase;
+use NaokiTsuchiya\AgentBridge\Slack\BackoffJitterRatio;
+use NaokiTsuchiya\AgentBridge\Slack\BackoffMax;
+use NaokiTsuchiya\AgentBridge\Slack\BackoffSettings;
 use NaokiTsuchiya\AgentBridge\Slack\ClockInterface;
+use NaokiTsuchiya\AgentBridge\Slack\ConnectionSettings;
 use NaokiTsuchiya\AgentBridge\Slack\CoroutineSleeper;
+use NaokiTsuchiya\AgentBridge\Slack\EnvelopeCapacity;
 use NaokiTsuchiya\AgentBridge\Slack\EnvelopeChannelProvider;
 use NaokiTsuchiya\AgentBridge\Slack\EnvelopeLog;
+use NaokiTsuchiya\AgentBridge\Slack\FrameHandoffTimeout;
 use NaokiTsuchiya\AgentBridge\Slack\FrameRouter;
 use NaokiTsuchiya\AgentBridge\Slack\HttpClientFactoryInterface;
+use NaokiTsuchiya\AgentBridge\Slack\HttpClientTimeout;
 use NaokiTsuchiya\AgentBridge\Slack\MtRandomSource;
 use NaokiTsuchiya\AgentBridge\Slack\RandomSourceInterface;
 use NaokiTsuchiya\AgentBridge\Slack\ReconnectDelay;
@@ -29,6 +37,7 @@ use NaokiTsuchiya\AgentBridge\Slack\SleeperInterface;
 use NaokiTsuchiya\AgentBridge\Slack\SocketModeClient;
 use NaokiTsuchiya\AgentBridge\Slack\SocketModeConnectorInterface;
 use NaokiTsuchiya\AgentBridge\Slack\SocketModeConnectorProvider;
+use NaokiTsuchiya\AgentBridge\Slack\SocketSilenceTimeout;
 use NaokiTsuchiya\AgentBridge\Slack\StderrSlackLogger;
 use NaokiTsuchiya\AgentBridge\Slack\StreamingSettings;
 use NaokiTsuchiya\AgentBridge\Slack\SwooleHttpClientFactory;
@@ -80,6 +89,18 @@ final class SlackModule extends AbstractModule
         // How fast a reply may be sent, and what tells it how much time has gone by. Both are here
         // rather than inside the front end so that a deployment can move the pace without a change.
         $this->bind(StreamingSettings::class);
+        // How a Socket Mode connection is kept alive; one settings object per group of related
+        // values, and one qualifier per scalar the parts below ask for by name because Ray.Di
+        // cannot ask for a `float`/`int` by type alone.
+        $this->bind(BackoffSettings::class);
+        $this->bind(ConnectionSettings::class);
+        $this->bind('')->annotatedWith(BackoffBase::class)->toProvider(BackoffBaseProvider::class);
+        $this->bind('')->annotatedWith(BackoffMax::class)->toProvider(BackoffMaxProvider::class);
+        $this->bind('')->annotatedWith(BackoffJitterRatio::class)->toProvider(BackoffJitterRatioProvider::class);
+        $this->bind('')->annotatedWith(EnvelopeCapacity::class)->toProvider(EnvelopeCapacityProvider::class);
+        $this->bind('')->annotatedWith(FrameHandoffTimeout::class)->toProvider(FrameHandoffTimeoutProvider::class);
+        $this->bind('')->annotatedWith(SocketSilenceTimeout::class)->toProvider(SocketSilenceTimeoutProvider::class);
+        $this->bind('')->annotatedWith(HttpClientTimeout::class)->toProvider(HttpClientTimeoutProvider::class);
         $this->bind(ClockInterface::class)->to(SystemClock::class);
         // Bound although nothing in this file names them as a parameter: a compiled injector
         // answers only for what was bound when it was compiled, and these are what the server is

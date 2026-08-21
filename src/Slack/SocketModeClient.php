@@ -24,7 +24,8 @@ final class SocketModeClient
         private FrameRouter $router,
         private ReconnectDelay $delay,
         private SlackLoggerInterface $logger,
-        private float $silenceTimeout = 60.0,
+        #[SocketSilenceTimeout]
+        private float $silenceTimeout,
     ) {}
 
     /** Runs until {@see stop()}. Losing a connection is not an error here, only a reason to wait. */

@@ -113,8 +113,8 @@ final class RunnerSubstitutionTest extends TestCase
      * Read off the source because that is the claim: one implementation named, and none of the
      * parts a runner is built from — a module that had to re-declare the resolver, the settings or
      * the front end would mean the execution layer is not the seam it is meant to be. The turn
-     * allowance is the one thing it declares besides the runner, because Ray.Di cannot be asked for
-     * a `float` by type.
+     * timeout is not declared here either: `SpawnCliRunner` asks for it with the same `#[TurnSeconds]`
+     * attribute {@see PersistentCliRunner} does, so it resolves from what `AppModule` already bound.
      *
      * @throws ReflectionException
      */
