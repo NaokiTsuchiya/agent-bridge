@@ -8,9 +8,6 @@ use NaokiTsuchiya\AgentBridge\Support\ClaudeBinary;
 use NaokiTsuchiya\AgentBridge\Support\TempDir;
 use Override;
 
-use function file_put_contents;
-use function json_encode;
-
 /**
  * The contract, run against the fake — the side that runs in CI.
  *
@@ -50,22 +47,5 @@ final class FakeClaudeCliContractTest extends ClaudeCliContractTestCase
     protected function environment(): array
     {
         return ['FAKE_CLAUDE_HOME' => $this->home];
-    }
-
-    /**
-     * Forces the turn to call a tool: the fake never decides to on its own, unlike a real model.
-     *
-     * @return array<string, string>
-     */
-    #[Override]
-    protected function toolEnvironment(): array
-    {
-        $path = "{$this->home}/tool-scenario.json";
-        $json = json_encode([
-            'default' => ['tool' => ['name' => 'Bash', 'id' => 'toolu_contract', 'result' => 'hello']],
-        ]);
-        file_put_contents($path, $json === false ? '{}' : $json);
-
-        return ['FAKE_CLAUDE_SCENARIO' => $path];
     }
 }

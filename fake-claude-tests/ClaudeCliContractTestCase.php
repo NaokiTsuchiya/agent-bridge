@@ -15,8 +15,10 @@ use PHPUnit\Framework\TestCase;
 use function array_filter;
 use function array_slice;
 use function count;
+use function file_put_contents;
 use function implode;
 use function is_array;
+use function json_encode;
 
 /**
  * The behaviour the fake promises to share with the real `claude`, asserted against both.
@@ -192,10 +194,28 @@ abstract class ClaudeCliContractTestCase extends TestCase
         self::assertSame($started, self::toolResultIds($process));
     }
 
-    /** @return array<string, string> extra environment needed to make the next turn call a tool */
+    /**
+     * Forces the turn to call a tool via a scenario file.
+     *
+     * Real `claude` never reads `FAKE_CLAUDE_SCENARIO`, so this is harmless when the binary under
+     * contract genuinely is the real CLI — there the prompt in
+     * {@see aToolCallStartsAndCompletesWithTheSameId} does the forcing instead. It is required
+     * whenever the binary is the fake, which is not only {@see FakeClaudeCliContractTest}'s own
+     * choice but also what CI points {@see \NaokiTsuchiya\AgentBridge\Integration\RealClaudeCliContractTest}
+     * at (`AGENT_BRIDGE_CLAUDE_BIN`), so the default has to hold for both subclasses rather than
+     * being an override only the fake side supplies.
+     *
+     * @return array<string, string>
+     */
     protected function toolEnvironment(): array
     {
-        return [];
+        $path = "{$this->cwd}/tool-scenario.json";
+        $json = json_encode([
+            'default' => ['tool' => ['name' => 'Bash', 'id' => 'toolu_contract', 'result' => 'hello']],
+        ]);
+        file_put_contents($path, $json === false ? '{}' : $json);
+
+        return ['FAKE_CLAUDE_SCENARIO' => $path];
     }
 
     /**
