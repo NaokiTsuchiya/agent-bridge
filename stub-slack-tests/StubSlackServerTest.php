@@ -15,12 +15,15 @@ use Throwable;
 use function json_decode;
 use function json_encode;
 
+use const SWOOLE_WEBSOCKET_OPCODE_PONG;
+
 /**
  * Drives {@see StubSlackServer} directly with a raw coroutine HTTP client — no production Socket
  * Mode code involved. That round trip is {@see \NaokiTsuchiya\AgentBridge\Integration\SocketModeStubTest}'s
  * job; this is the stub answering for itself.
  *
  * @internal
+ * @mago-expect lint:too-many-methods
  */
 final class StubSlackServerTest extends TestCase
 {
@@ -30,7 +33,7 @@ final class StubSlackServerTest extends TestCase
     /** An events_api frame carrying the envelope a caller's ack is expected to name. */
     private const string EVENT = '{"type":"events_api","envelope_id":"ev-1","payload":{"event":{"type":"app_mention"}}}';
 
-    /** Nothing in these three tests cares what happens to an ack; the sink is a no-op. */
+    /** Nothing in the default path cares what happens to an ack; the sink is a no-op. */
     private static function ignoringAcks(): StubSlackScenario
     {
         return new StubSlackScenario(self::HELLO, self::EVENT);
@@ -77,6 +80,29 @@ final class StubSlackServerTest extends TestCase
         );
 
         self::assertSame('{"envelope_id":"ev-1"}', $captured);
+    }
+
+    /**
+     * A pong step is only useful if the stub can actually read the control frame the peer sent.
+     *
+     * @throws Throwable
+     */
+    #[Test]
+    public function recordsThePongItAskedFor(): void
+    {
+        Coro::run(self::pongScenario(...));
+    }
+
+    /**
+     * A reconnect scenario needs the stub to actively close the socket rather than just stop
+     * sending.
+     *
+     * @throws Throwable
+     */
+    #[Test]
+    public function sendsACloseFrameWhenTheScenarioRequestsIt(): void
+    {
+        Coro::run(self::closeScenario(...));
     }
 
     /** @throws StubSlackException|Client\Exception|\Swoole\Exception */
@@ -165,5 +191,76 @@ final class StubSlackServerTest extends TestCase
         Coroutine::sleep(0.1);
         $client->close();
         $server->shutdown();
+    }
+
+    /** @throws StubSlackException|Client\Exception|\Swoole\Exception */
+    private static function pongScenario(): void
+    {
+        $observed = [];
+        $port = FreePort::acquire();
+        $server = new StubSlackServer(
+            '127.0.0.1',
+            $port,
+            SelfSignedCertificate::generate(),
+            new StubSlackScenario(self::HELLO, self::EVENT, [[
+                StubSlackScenario::SEND_HELLO,
+                StubSlackScenario::EXPECT_PONG,
+            ]]),
+            static function (string $_ack): void {},
+            new StubSlackApi(),
+            static function (string $event) use (&$observed): void {
+                $observed[] = $event;
+            },
+        );
+
+        Coroutine::create($server->start(...));
+
+        $client = new Client('127.0.0.1', $port, ssl: true);
+        $upgraded = $client->upgrade('/socket-mode');
+        $first = $client->recv(5.0);
+        self::assertTrue($upgraded, $client->errMsg);
+        self::assertInstanceOf(Frame::class, $first);
+        self::assertSame(self::HELLO, $first->data);
+        self::assertTrue($client->push('', SWOOLE_WEBSOCKET_OPCODE_PONG), $client->errMsg);
+        Coroutine::sleep(0.1);
+        $client->close();
+        $server->shutdown();
+
+        self::assertSame(['UPGRADE 1', 'PONG'], $observed);
+    }
+
+    /** @throws StubSlackException|Client\Exception|\Swoole\Exception */
+    private static function closeScenario(): void
+    {
+        $observed = [];
+        $port = FreePort::acquire();
+        $server = new StubSlackServer(
+            '127.0.0.1',
+            $port,
+            SelfSignedCertificate::generate(),
+            new StubSlackScenario(self::HELLO, self::EVENT, [[
+                StubSlackScenario::SEND_HELLO,
+                StubSlackScenario::CLOSE,
+            ]]),
+            static function (string $_ack): void {},
+            new StubSlackApi(),
+            static function (string $event) use (&$observed): void {
+                $observed[] = $event;
+            },
+        );
+
+        Coroutine::create($server->start(...));
+
+        $client = new Client('127.0.0.1', $port, ssl: true);
+        $upgraded = $client->upgrade('/socket-mode');
+        $first = $client->recv(5.0);
+        Coroutine::sleep(0.1);
+        $client->close();
+        $server->shutdown();
+
+        self::assertTrue($upgraded, $client->errMsg);
+        self::assertInstanceOf(Frame::class, $first);
+        self::assertSame(self::HELLO, $first->data);
+        self::assertSame(['UPGRADE 1', 'CLOSE'], $observed);
     }
 }
