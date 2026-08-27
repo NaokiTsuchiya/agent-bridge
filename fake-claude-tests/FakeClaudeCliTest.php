@@ -447,6 +447,25 @@ final class FakeClaudeCliTest extends TestCase
         self::assertStringContainsString('"tool_use"', implode("\n", $process->lines()));
         self::assertStringContainsString('toolu_42', implode("\n", $process->lines()));
         self::assertContains('user', $process->eventTypes(), 'A tool call is answered by a tool_result line.');
+        self::assertFalse(
+            Json::flag($this->toolResultBlock($process, 'toolu_42'), 'is_error'),
+            'A tool call without is_error defaults to having gone well.',
+        );
+    }
+
+    /** A tool call can be told to have failed, independent of the turn's own outcome. */
+    #[Test]
+    public function aScenarioCanMakeAToolCallFail(): void
+    {
+        $scenario = $this->scenario([
+            'turns' => [
+                '1' => ['tool' => ['name' => 'Bash', 'id' => 'toolu_9', 'result' => 'boom', 'is_error' => true]],
+            ],
+        ]);
+        $process = $this->oneShot(['--session-id', Uuid::random()], 'PING', $scenario);
+        self::assertSame(0, $process->waitForExit(30.0), $process->stderr());
+
+        self::assertTrue(Json::flag($this->toolResultBlock($process, 'toolu_9'), 'is_error'));
     }
 
     /** The error path of a turn is reachable on demand. */
@@ -607,6 +626,24 @@ final class FakeClaudeCliTest extends TestCase
             }
 
             return $line;
+        }
+
+        return [];
+    }
+
+    /** @return array<array-key, mixed> the tool_result block carrying $id, or empty when absent */
+    private function toolResultBlock(CliProcess $process, string $id): array
+    {
+        foreach ($process->decodedLines() as $line) {
+            if (Json::text($line, 'type') !== 'user') {
+                continue;
+            }
+
+            foreach (array_filter(Json::node(Json::node($line, 'message'), 'content'), is_array(...)) as $block) {
+                if (Json::text($block, 'tool_use_id') === $id) {
+                    return $block;
+                }
+            }
         }
 
         return [];

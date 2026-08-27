@@ -5,12 +5,11 @@ declare(strict_types=1);
 namespace NaokiTsuchiya\AgentBridge\Event;
 
 /**
- * No producer emits this yet, on purpose.
+ * Produced by {@see ClaudeCliEventParser} from a `user` line whose content carries a tool_result.
  *
- * The wire form that carries a tool result was not yet measured when the type was defined,
- * so {@see ClaudeCliEventParser} never returns one; mapping it is issue #5's job, together
- * with the fake CLI that has to reproduce the same wire form. Until then a consumer's
- * `match` arm for this class is unreachable — that is expected, not a defect.
+ * `is_error: true` maps to `success: false`; an outcome that cannot be read (the key missing or
+ * not a boolean) also maps to `success: false` — the same rule {@see ClaudeCliEventParser} applies
+ * to a turn's own outcome, so that an unreadable result is never upgraded to one that went well.
  */
 final readonly class ToolCompleted implements AgentEvent
 {

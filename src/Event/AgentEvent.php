@@ -14,8 +14,6 @@ namespace NaokiTsuchiya\AgentBridge\Event;
  * ({@see \NaokiTsuchiya\AgentBridge\Pipeline\AnsweringTurn}), so adding a sixth implementation
  * breaks consumers loudly rather than silently dropping its events.
  *
- * `ToolCompleted` has no producer yet; see its own docblock.
- *
  * @api
  */
 interface AgentEvent {}

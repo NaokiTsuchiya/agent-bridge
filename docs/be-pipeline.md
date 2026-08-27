@@ -43,7 +43,7 @@ $turn = $becoming(new IncomingMessage('cli', 'my-experiment', 'what does this re
 
 `ThreadWorkspace` は「この PoC が ThreadId から導出するもの」の全部であり、3 つが常に同じスレッドのものであることを型で担保する (session だけ別スレッドのもの、という状態を作れない)。段階の受け渡しもこれ 1 つ + 本文で済むので、`AnsweringTurn` のコンストラクタは `#[Input]` 2 つ + `#[Inject]` 2 つになる。
 
-`AnsweringTurn` は `AgentRunner` のイベントを `StreamHandle` へ流す。本文 (`TextDelta`) はそのまま append し、ツール開始 (`ToolStarted`) は本文と混ざらないよう `> 名前` の 1 行として別に append する。`ToolCompleted` は producer がまだ無く、何もしない。
+`AnsweringTurn` は `AgentRunner` のイベントを `StreamHandle` へ流す。本文 (`TextDelta`) はそのまま append し、ツール開始 (`ToolStarted`) とツール完了 (`ToolCompleted`) は本文と混ざらないよう `> 名前` / `> 呼び出し id done|failed` の1行として別に append する (`AnsweringTurn::TOOL_DONE` / `TOOL_FAILED`)。
 
 ### エラー系も最終型で受け取る
 
