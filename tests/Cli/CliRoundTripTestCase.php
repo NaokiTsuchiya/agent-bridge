@@ -157,7 +157,7 @@ abstract class CliRoundTripTestCase extends TestCase
             $l,
             '> ',
         )));
-        self::assertSame(['> Grep'], $announcements);
+        self::assertSame(['> Grep', '> t1 done'], $announcements);
         $body = array_values(array_filter($run->lines, static fn(string $l): bool => !str_starts_with($l, '> ')));
         self::assertSame(['fake reply to: look something up'], $body);
     }

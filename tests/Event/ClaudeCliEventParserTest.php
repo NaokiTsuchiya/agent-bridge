@@ -211,7 +211,7 @@ final class ClaudeCliEventParserTest extends TestCase
     /** Line types the parser does not translate, each taken from the captured turn. */
     #[DataProvider('observedLinesThatCarryNoEvent')]
     #[Test]
-    public function lineTypesOutsideTheThreeHandledOnesYieldNothing(string $marker): void
+    public function lineTypesOutsideTheFourHandledOnesYieldNothing(string $marker): void
     {
         self::assertSame([], self::parse(self::observedLine($marker)));
     }
@@ -226,9 +226,6 @@ final class ClaudeCliEventParserTest extends TestCase
         yield 'system/hook_started' => ['"subtype":"hook_started"'];
         yield 'system/hook_response' => ['"subtype":"hook_response"'];
         yield 'rate_limit_event' => ['"type":"rate_limit_event"'];
-        // The line that carries a tool result. Issue #5 turns it into a ToolCompleted; until the
-        // fake CLI reproduces it, it is one of the ignored types.
-        yield 'user with a tool_result' => ['"type":"tool_result"'];
     }
 
     /** Whatever else lands on the stream, a single line can never take the session down. */
@@ -268,6 +265,91 @@ final class ClaudeCliEventParserTest extends TestCase
         ));
     }
 
+    /** A tool_result carrying an explicit `is_error: false` is the only shape that succeeds. */
+    #[Test]
+    public function userLineWithASuccessfulToolResultYieldsToolCompletedSuccessTrue(): void
+    {
+        self::assertSame(
+            ['tool ok:toolu_01VjzN7p8DfsYF7jjfwxSkV4'],
+            self::parse(self::observedLine('"type":"tool_result"')),
+        );
+    }
+
+    /** `is_error: true` on a tool_result is a failed call, the same way a failed turn is. */
+    #[Test]
+    public function userLineWithAFailedToolResultYieldsToolCompletedSuccessFalse(): void
+    {
+        self::assertSame(['tool failed:toolu_1'], self::parse(
+            '{"type":"user","message":{"content":['
+            . '{"tool_use_id":"toolu_1","type":"tool_result","content":"boom","is_error":true}]}}',
+        ));
+    }
+
+    /**
+     * A tool_result that cannot be read in full is still a failure, never upgraded to a success —
+     * the same rule {@see resultLinesThatCannotBeReadInFull} pins for a turn's own outcome.
+     */
+    #[DataProvider('toolResultsThatCannotBeReadInFull')]
+    #[Test]
+    public function toolResultsThatCannotBeReadInFullStillYieldAFailedToolCompleted(
+        string $line,
+        string $expected,
+    ): void {
+        self::assertSame([$expected], self::parse($line));
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function toolResultsThatCannotBeReadInFull(): iterable
+    {
+        yield 'no is_error' => [
+            '{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_1"}]}}',
+            'tool failed:toolu_1',
+        ];
+        yield 'is_error is the string false' => [
+            '{"type":"user","message":{"content":['
+                . '{"type":"tool_result","tool_use_id":"toolu_1","is_error":"false"}]}}',
+            'tool failed:toolu_1',
+        ];
+    }
+
+    /** The wire form allows several tool_result blocks in one user line, same as tool_use blocks do. */
+    #[Test]
+    public function aUserLineWithTwoToolResultsYieldsTwoToolCompleted(): void
+    {
+        self::assertSame(['tool ok:toolu_1', 'tool failed:toolu_2'], self::parse(
+            '{"type":"user","message":{"content":['
+            . '{"tool_use_id":"toolu_1","type":"tool_result","is_error":false},'
+            . '{"tool_use_id":"toolu_2","type":"tool_result","is_error":true}]}}',
+        ));
+    }
+
+    /** A tool_result missing either half of its identity is unusable, and must not abort the stream. */
+    #[DataProvider('malformedUserLines')]
+    #[Test]
+    public function malformedUserLinesYieldNothingWithoutThrowing(string $line): void
+    {
+        self::assertSame([], self::parse($line));
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function malformedUserLines(): iterable
+    {
+        yield 'no message' => ['{"type":"user"}'];
+        yield 'message is not an object' => ['{"type":"user","message":"hi"}'];
+        yield 'no content' => ['{"type":"user","message":{"role":"user"}}'];
+        yield 'content is not an array' => ['{"type":"user","message":{"content":"hi"}}'];
+        yield 'block is not an object' => ['{"type":"user","message":{"content":["tool_result"]}}'];
+        yield 'content block is plain text, not a tool result' => [
+            '{"type":"user","message":{"content":[{"type":"text","text":"hi"}]}}',
+        ];
+        yield 'tool_result without a tool_use_id' => [
+            '{"type":"user","message":{"content":[{"type":"tool_result","is_error":false}]}}',
+        ];
+        yield 'tool_result with a non-string tool_use_id' => [
+            '{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":7,"is_error":false}]}}',
+        ];
+    }
+
     /** A whole captured turn, which also pins the order the events come out in. */
     #[Test]
     public function parsingTheWholeCapturedTurnYieldsTheExpectedEventSequence(): void
@@ -284,6 +366,7 @@ final class ClaudeCliEventParserTest extends TestCase
         self::assertSame(
             [
                 'tool started:Bash:toolu_01VjzN7p8DfsYF7jjfwxSkV4',
+                'tool ok:toolu_01VjzN7p8DfsYF7jjfwxSkV4',
                 'text:h',
                 'text:i',
                 'turn ok:4c880ba7-f788-4501-9ef5-54f486e1a165',

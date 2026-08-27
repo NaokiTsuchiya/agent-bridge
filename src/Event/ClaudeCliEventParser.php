@@ -20,7 +20,9 @@ use function json_decode;
  * known event yields zero events instead of an exception, so that a single odd line cannot take
  * down a long-running session.
  *
- * Two events are deliberately never produced here — see {@see ToolCompleted} and {@see AgentError}.
+ * One event is deliberately never produced here — see {@see AgentError}.
+ *
+ * @mago-expect lint:cyclomatic-complexity
  */
 final class ClaudeCliEventParser
 {
@@ -36,6 +38,7 @@ final class ClaudeCliEventParser
         return match (Json::text($decoded, 'type')) {
             'stream_event' => $this->textDeltas($decoded),
             'assistant' => $this->toolStarts($decoded),
+            'user' => $this->toolCompletions($decoded),
             'result' => [$this->turnCompleted($decoded)],
             default => [],
         };
@@ -74,6 +77,28 @@ final class ClaudeCliEventParser
             }
 
             $events[] = new ToolStarted($name, $id);
+        }
+
+        return $events;
+    }
+
+    /**
+     * @param array<array-key, mixed> $line
+     *
+     * @return list<AgentEvent>
+     */
+    private function toolCompletions(array $line): array
+    {
+        $events = [];
+        foreach (self::nodes(self::node($line, 'message'), 'content') as $block) {
+            $id = Json::text($block, 'tool_use_id');
+            if (Json::text($block, 'type') !== 'tool_result' || $id === null) {
+                continue;
+            }
+
+            // Same rule as turnCompleted(): only an explicit `is_error: false` counts as success.
+            $isError = self::flag($block, 'is_error');
+            $events[] = new ToolCompleted($id, $isError !== null && !$isError);
         }
 
         return $events;

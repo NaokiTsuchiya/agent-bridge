@@ -12,5 +12,6 @@ final readonly class ToolDirective
         public string $name,
         public string $id,
         public string $result,
+        public bool $isError = false,
     ) {}
 }

@@ -101,7 +101,7 @@ turns.jsonl                        ターンの開始/終了 1 件につき 1 �
 | キー | 型 | 効果 |
 |---|---|---|
 | `text` | string | 応答本文を固定する |
-| `tool` | `{name, id, result}` | `tool_use` の `assistant` 行と、対応する `tool_result` の `user` 行を出す |
+| `tool` | `{name, id, result, is_error}` | `tool_use` の `assistant` 行と、対応する `tool_result` の `user` 行を出す。`tool.is_error` (既定 `false`) はその `tool_result` 自身の成否で、ターン全体の `is_error` (次の行) とは独立に効く |
 | `is_error` | bool | `result` を `is_error: true` / `subtype: error_during_execution` にする |
 | `delay_ms` | int | 応答前に待つ (スロットル・タイムアウトの検証) |
 | `crash` | int / bool | `result` を出さずにその終了コードで異常終了する (プロセス復帰の検証) |

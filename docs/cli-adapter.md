@@ -59,7 +59,7 @@ ls .worktrees/          # cli-my-experiment
 
 応答と状態を分けてあるのは、**標準出力をそのままパイプできるようにするため**。`cmd > answer.txt` に状態表示が混ざらない。
 
-ツール完了行が**ツール名ではなく呼び出し id を名乗る**のは、`ToolCompleted` が `id` と `success` しか持たないため。開始と対応付けるにはパイプラインが実行中の呼び出し表を持つことになり、ターンが呼び出しの途中で終わるとその表が残る。`tests/Pipeline/BecomingChainTest.php` がこの形を固定している (`ToolCompleted` の生産者はまだ無いので、スタブの実行層から流している)。
+ツール完了行が**ツール名ではなく呼び出し id を名乗る**のは、`ToolCompleted` が `id` と `success` しか持たないため。開始と対応付けるにはパイプラインが実行中の呼び出し表を持つことになり、ターンが呼び出しの途中で終わるとその表が残る。`tests/Pipeline/BecomingChainTest.php` がこの形を固定している (`ToolCompleted` は `Event\ClaudeCliEventParser` が tool_result を含む `user` 行から生成する。このテストはパイプラインの消費側を producer から独立に固定するため、スタブの実行層から流している)。
 
 ## 5. exit code
 

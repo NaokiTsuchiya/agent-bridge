@@ -13,9 +13,10 @@ use Override;
  * An execution layer that answers with a fixed list of events, and remembers what it was let go of.
  *
  * The fake CLI covers everything the real one can produce, which is why the rest of the suite runs
- * against it. This exists for the one event nothing produces yet — {@see \NaokiTsuchiya\AgentBridge\Event\ToolCompleted}
- * — so that how the pipeline treats it is pinned before a producer appears, and for the callers
- * whose job is to let a thread go rather than to answer it.
+ * against it. This exists for {@see \NaokiTsuchiya\AgentBridge\Event\ToolCompleted} — so that how
+ * the pipeline treats it is pinned independently of its producer
+ * ({@see \NaokiTsuchiya\AgentBridge\Event\ClaudeCliEventParser}) — and for the callers whose job is
+ * to let a thread go rather than to answer it.
  */
 final class StubAgentRunner implements AgentRunner
 {

@@ -61,6 +61,7 @@ final readonly class TurnDirective
             Json::text($tool, 'name') ?? 'Bash',
             Json::text($tool, 'id') ?? 'toolu_fake',
             Json::text($tool, 'result') ?? '',
+            Json::flag($tool, 'is_error') === true,
         );
     }
 

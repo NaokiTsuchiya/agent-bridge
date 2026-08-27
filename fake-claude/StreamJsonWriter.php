@@ -98,7 +98,7 @@ final readonly class StreamJsonWriter
                     'tool_use_id' => $tool->id,
                     'type' => 'tool_result',
                     'content' => $tool->result,
-                    'is_error' => false,
+                    'is_error' => $tool->isError,
                 ]],
             ],
             'session_id' => $this->sessionId,

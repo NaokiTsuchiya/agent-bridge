@@ -301,7 +301,8 @@ final class BecomingChainTest extends TestCase
      * The end of a tool call is announced the way its start was, and stays out of the answer.
      *
      * It names the call rather than the tool because that is all {@see ToolCompleted} carries.
-     * Nothing produces the event yet, so it is handed over by a stand-in execution layer rather
+     * This pins the pipeline's consumption of the event independently of its producer
+     * ({@see ClaudeCliEventParser}), so it is handed over by a stand-in execution layer rather
      * than by the fake CLI.
      *
      * @param bool   $success how the call went

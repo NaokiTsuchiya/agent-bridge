@@ -12,9 +12,11 @@ use Override;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
+use function array_filter;
 use function array_slice;
 use function count;
 use function implode;
+use function is_array;
 
 /**
  * The behaviour the fake promises to share with the real `claude`, asserted against both.
@@ -34,6 +36,8 @@ use function implode;
  *
  * @internal
  *
+ * @mago-expect lint:cyclomatic-complexity
+ * @mago-expect lint:kan-defect
  * @mago-expect lint:too-many-methods
  */
 abstract class ClaudeCliContractTestCase extends TestCase
@@ -166,10 +170,48 @@ abstract class ClaudeCliContractTestCase extends TestCase
         self::assertSame(0, $process->waitForExit(60.0), $process->stderr());
     }
 
-    /** @param list<string> $arguments the session flags this run needs */
-    protected function oneShot(array $arguments, string $prompt): CliProcess
+    /**
+     * A tool call is announced by an id, and the same id closes it — the wire shape
+     * {@see \NaokiTsuchiya\AgentBridge\Event\ClaudeCliEventParser} depends on to pair the two.
+     *
+     * Assertions stay at "the ids line up", not at which tool was called or what it returned:
+     * a language model may pick a different tool than asked, which the fake never does.
+     */
+    #[Test]
+    public function aToolCallStartsAndCompletesWithTheSameId(): void
     {
-        $process = $this->start([...$arguments, '-p', '--output-format', 'stream-json', '--verbose', $prompt]);
+        $process = $this->oneShot(
+            ['--session-id', Uuid::random(), '--allowedTools', 'Bash'],
+            'Use the Bash tool to run `echo hello`, then reply with the single word DONE.',
+            $this->toolEnvironment(),
+        );
+
+        self::assertSame(0, $process->waitForExit(180.0), $process->stderr());
+        $started = self::toolUseIds($process);
+        self::assertNotEmpty($started, "No tool_use block appeared: {$process->stderr()}");
+        self::assertSame($started, self::toolResultIds($process));
+    }
+
+    /** @return array<string, string> extra environment needed to make the next turn call a tool */
+    protected function toolEnvironment(): array
+    {
+        return [];
+    }
+
+    /**
+     * @param list<string>          $arguments       the session flags this run needs
+     * @param array<string, string> $extraEnvironment
+     */
+    protected function oneShot(array $arguments, string $prompt, array $extraEnvironment = []): CliProcess
+    {
+        $process = $this->start([
+            ...$arguments,
+            '-p',
+            '--output-format',
+            'stream-json',
+            '--verbose',
+            $prompt,
+        ], $extraEnvironment);
         // Closed at once: the real CLI waits three seconds for a prompt on stdin it will not get,
         // and says so on stderr, which would drown the message a test is looking for.
         $process->closeStdin();
@@ -191,10 +233,17 @@ abstract class ClaudeCliContractTestCase extends TestCase
         ]);
     }
 
-    /** @param list<string> $arguments the full argument list after the binary */
-    private function start(array $arguments): CliProcess
+    /**
+     * @param list<string>          $arguments       the full argument list after the binary
+     * @param array<string, string> $extraEnvironment
+     */
+    private function start(array $arguments, array $extraEnvironment = []): CliProcess
     {
-        $process = CliProcess::start([...$this->binary(), ...$arguments], $this->cwd, $this->environment());
+        $process = CliProcess::start(
+            [...$this->binary(), ...$arguments],
+            $this->cwd,
+            [...$this->environment(), ...$extraEnvironment],
+        );
         $this->started[] = $process;
 
         return $process;
@@ -239,5 +288,55 @@ abstract class ClaudeCliContractTestCase extends TestCase
         }
 
         return implode("\n", array_slice($lines, $firstResult + 1));
+    }
+
+    /** @return list<string> every tool_use id announced in an assistant line, in the order seen */
+    private static function toolUseIds(CliProcess $process): array
+    {
+        $ids = [];
+        foreach ($process->decodedLines() as $line) {
+            if (Json::text($line, 'type') !== 'assistant') {
+                continue;
+            }
+
+            $blocks = array_filter(Json::node(Json::node($line, 'message'), 'content'), is_array(...));
+            foreach ($blocks as $block) {
+                if (Json::text($block, 'type') !== 'tool_use') {
+                    continue;
+                }
+
+                $id = Json::text($block, 'id');
+                if ($id !== null) {
+                    $ids[] = $id;
+                }
+            }
+        }
+
+        return $ids;
+    }
+
+    /** @return list<string> every tool_use_id carried by a tool_result block, in the order seen */
+    private static function toolResultIds(CliProcess $process): array
+    {
+        $ids = [];
+        foreach ($process->decodedLines() as $line) {
+            if (Json::text($line, 'type') !== 'user') {
+                continue;
+            }
+
+            $blocks = array_filter(Json::node(Json::node($line, 'message'), 'content'), is_array(...));
+            foreach ($blocks as $block) {
+                if (Json::text($block, 'type') !== 'tool_result') {
+                    continue;
+                }
+
+                $id = Json::text($block, 'tool_use_id');
+                if ($id !== null) {
+                    $ids[] = $id;
+                }
+            }
+        }
+
+        return $ids;
     }
 }
