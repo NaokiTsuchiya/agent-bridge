@@ -42,6 +42,7 @@
     "scripts": {
         "test": [
             "@test:unit",
+            "@test:endurance",
             "@test:fake-claude",
             "@test:stub-slack",
             "@test:integration"
@@ -52,10 +53,11 @@
         ],
         "compile:serve": "@php vendor/bin/ray-di-compile bootstrap.php \"$PWD\" serve",
         "compile:slack": "@php vendor/bin/ray-di-compile bootstrap.php \"$PWD\" slack",
-        "test:unit": "phpunit --testsuite agent-bridge --exclude-group integration --testdox",
+        "test:unit": "phpunit --testsuite agent-bridge --exclude-group integration --exclude-group endurance --testdox",
         "test:fake-claude": "phpunit --testsuite fake-claude --testdox",
         "test:stub-slack": "phpunit --testsuite stub-slack --testdox",
         "test:integration": "phpunit --group integration --testdox",
+        "test:endurance": "phpunit --group endurance --testdox",
         "test:coverage": "phpunit --coverage-clover=var/coverage/clover.xml --coverage-text --testdox",
         "lint": "mago lint",
         "analyze": "mago analyze",

@@ -17,18 +17,24 @@ namespace NaokiTsuchiya\AgentBridge\Runner;
 final readonly class LifecycleSettings
 {
     /**
-     * @param float $idleSeconds  how long a process with no turn to run is kept before it is
-     *                            reclaimed. Reclaiming costs nothing but a restart: Claude Code
-     *                            keeps the transcript, so the next turn resumes what was there
-     * @param float $turnSeconds  how long a turn may go without reaching its completion event
-     *                            before the child is killed and the turn ends in an error. Long
-     *                            on purpose — a turn that runs tools legitimately takes minutes
-     * @param int   $maxProcesses how many children may exist at once. Reaching it reclaims the
-     *                            one used least recently, skipping any that is running a turn
+     * @param float $idleSeconds             how long a process with no turn to run is kept before
+     *                                       it is reclaimed. Reclaiming costs nothing but a
+     *                                       restart: Claude Code keeps the transcript, so the next
+     *                                       turn resumes what was there
+     * @param float $turnSeconds             how long a turn may go without reaching its completion
+     *                                       event before the child is killed and the turn ends in
+     *                                       an error. Long on purpose — a turn that runs tools
+     *                                       legitimately takes minutes
+     * @param int   $maxProcesses            how many children may exist at once. Reaching it
+     *                                       reclaims the one used least recently, skipping any
+     *                                       that is running a turn
+     * @param float $terminationGraceSeconds how long a terminated child is waited on before it is
+     *                                       left to the system
      */
     public function __construct(
         public float $idleSeconds = 900.0,
         public float $turnSeconds = 1_800.0,
         public int $maxProcesses = 8,
+        public float $terminationGraceSeconds = 2.0,
     ) {}
 }

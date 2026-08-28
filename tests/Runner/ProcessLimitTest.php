@@ -217,7 +217,10 @@ final class ProcessLimitTest extends FakeCliRunnerTestCase
             new ProcessRecipe(new FixedWorkingDirectory($this->cwd), new ClaudeCliCommand($settings)),
             new ClaudeCliEventParser(),
             new TurnLocks(),
-            new ProcessPool($actualLimits, $settings->closeGraceSeconds),
+            new ProcessPool(
+                $actualLimits,
+                new ProcessRelease($settings->closeGraceSeconds, terminationGraceSeconds: 0.05),
+            ),
             $actualLimits->turnSeconds,
         );
     }

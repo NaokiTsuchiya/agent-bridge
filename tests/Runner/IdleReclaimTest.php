@@ -135,6 +135,19 @@ final class IdleReclaimTest extends FakeCliRunnerTestCase
      * for: the moment the count drops to one is the moment the watch is inside letting go of the
      * second-to-last process, with the last one already on its list.
      *
+     * **The four timings below are a system, not four independent knobs.** Writing R for one
+     * reclaim (`grace`, since the binary never takes the hint), S for the stagger between sends
+     * and D for the fixture's sleep on turns after the first, two orderings have to hold or this
+     * case passes while asserting nothing:
+     *
+     * - **R > 2S.** The watch wakes on the first deadline and spends R letting that one go, so it
+     *   only sees the third process as unused — and puts it on the list a mistake would act on —
+     *   if the third deadline has passed by then. Break it and a list-keeping watch behaves
+     *   exactly like a re-asking one.
+     * - **D > 2R.** A mistaken reclaim reaches the third process about 2R after its turn began;
+     *   the turn has to still be running then, or the answer arrives first and the kill costs
+     *   nothing observable. Break it and dropping the busy check goes undetected.
+     *
      * @throws InvalidArgumentException
      * @throws Throwable
      */
@@ -142,9 +155,9 @@ final class IdleReclaimTest extends FakeCliRunnerTestCase
     public function keepsATurnThatBeginsWhileTheWatchIsReclaiming(): void
     {
         $runner = $this->runner(
-            new LifecycleSettings(idleSeconds: 0.6, turnSeconds: 20.0, maxProcesses: 4),
+            new LifecycleSettings(idleSeconds: 0.3, turnSeconds: 20.0, maxProcesses: 4),
             binary: $this->lingeringBinary(),
-            grace: 1.5,
+            grace: 0.3,
         );
         $first = $this->thread('slack:1800000022.000100');
         $second = $this->thread('slack:1800000022.000200');
@@ -153,10 +166,11 @@ final class IdleReclaimTest extends FakeCliRunnerTestCase
         Coro::run(static function () use ($runner, $first, $second, $third): void {
             Events::collect($runner->send($first, 'hello'));
             // Staggered so that the first deadline to pass is on its own, and the watch is still
-            // inside letting that one go when the other two fall out of use.
-            Coroutine::sleep(0.2);
+            // inside letting that one go when the other two fall out of use. S = 0.1, against
+            // R = 0.3: the R > 2S ordering above.
+            Coroutine::sleep(0.1);
             Events::collect($runner->send($second, 'hello'));
-            Coroutine::sleep(0.2);
+            Coroutine::sleep(0.1);
             Events::collect($runner->send($third, 'hello'));
 
             self::assertSame(3, $runner->liveProcesses());
@@ -202,7 +216,10 @@ final class IdleReclaimTest extends FakeCliRunnerTestCase
             new ProcessRecipe(new FixedWorkingDirectory($this->cwd), new ClaudeCliCommand($settings)),
             new ClaudeCliEventParser(),
             new TurnLocks(),
-            new ProcessPool($actualLimits, $settings->closeGraceSeconds),
+            new ProcessPool(
+                $actualLimits,
+                new ProcessRelease($settings->closeGraceSeconds, terminationGraceSeconds: 0.05),
+            ),
             $actualLimits->turnSeconds,
         );
     }
@@ -214,6 +231,9 @@ final class IdleReclaimTest extends FakeCliRunnerTestCase
      * end of input, so letting go of it takes the whole grace rather than a moment, and every turn
      * after the first outlasts that grace — so a turn reclaimed by mistake is killed in the middle
      * rather than quietly finishing anyway, which is what makes the mistake visible at all.
+     *
+     * Its two sleeps are the D and the lingering span of the ordering above: 1.2s on later turns
+     * against R = 0.3, and 2s after end of input, which only has to outlast one grace.
      *
      * @return string the path to the binary
      */

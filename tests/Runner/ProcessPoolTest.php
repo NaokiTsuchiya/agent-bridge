@@ -56,7 +56,10 @@ final class ProcessPoolTest extends TestCase
         $thread = new ThreadId('slack:pool.dead');
 
         Coro::run(static function () use ($thread): void {
-            $pool = new ProcessPool(new LifecycleSettings(idleSeconds: 900.0, turnSeconds: 5.0, maxProcesses: 2), 1.0);
+            $pool = new ProcessPool(
+                new LifecycleSettings(idleSeconds: 900.0, turnSeconds: 5.0, maxProcesses: 2),
+                new ProcessRelease(1.0, terminationGraceSeconds: 0.05),
+            );
 
             $process = AgentProcess::start(['/bin/echo', 'finished'], '', HistoryStart::Beginning);
             self::assertNotNull($process);
@@ -86,7 +89,10 @@ final class ProcessPoolTest extends TestCase
         $thread = new ThreadId('slack:pool.none');
 
         Coro::run(static function () use ($thread): void {
-            $pool = new ProcessPool(new LifecycleSettings(idleSeconds: 900.0, turnSeconds: 5.0, maxProcesses: 2), 1.0);
+            $pool = new ProcessPool(
+                new LifecycleSettings(idleSeconds: 900.0, turnSeconds: 5.0, maxProcesses: 2),
+                new ProcessRelease(1.0, terminationGraceSeconds: 0.05),
+            );
 
             $admitted = $pool->admit($thread, static fn(): null => null);
 
@@ -108,7 +114,10 @@ final class ProcessPoolTest extends TestCase
         $thread = new ThreadId('slack:pool.unknown');
 
         Coro::run(static function () use ($thread): void {
-            $pool = new ProcessPool(new LifecycleSettings(idleSeconds: 900.0, turnSeconds: 5.0, maxProcesses: 2), 1.0);
+            $pool = new ProcessPool(
+                new LifecycleSettings(idleSeconds: 900.0, turnSeconds: 5.0, maxProcesses: 2),
+                new ProcessRelease(1.0, terminationGraceSeconds: 0.05),
+            );
 
             $pool->beginTurn($thread);
 
@@ -129,7 +138,10 @@ final class ProcessPoolTest extends TestCase
         $thread = new ThreadId('slack:pool.unknown');
 
         Coro::run(static function () use ($thread): void {
-            $pool = new ProcessPool(new LifecycleSettings(idleSeconds: 900.0, turnSeconds: 5.0, maxProcesses: 2), 1.0);
+            $pool = new ProcessPool(
+                new LifecycleSettings(idleSeconds: 900.0, turnSeconds: 5.0, maxProcesses: 2),
+                new ProcessRelease(1.0, terminationGraceSeconds: 0.05),
+            );
 
             $pool->discard($thread);
 

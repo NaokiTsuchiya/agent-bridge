@@ -23,6 +23,8 @@ use NaokiTsuchiya\AgentBridge\Runner\LifecycleSettings;
 use NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner;
 use NaokiTsuchiya\AgentBridge\Runner\ProcessPool;
 use NaokiTsuchiya\AgentBridge\Runner\ProcessRecipe;
+use NaokiTsuchiya\AgentBridge\Runner\ProcessRelease;
+use NaokiTsuchiya\AgentBridge\Runner\TerminationGraceSeconds;
 use NaokiTsuchiya\AgentBridge\Runner\TurnLocks;
 use NaokiTsuchiya\AgentBridge\Runner\TurnSeconds;
 use NaokiTsuchiya\AgentBridge\Runner\WorkingDirectoryResolver;
@@ -77,12 +79,17 @@ final class AppModule extends AbstractModule
         $this->bind(LifecycleSettings::class);
         $this->bind('')->annotatedWith(TurnSeconds::class)->toProvider(TurnSecondsProvider::class);
         $this->bind('')->annotatedWith(CloseGraceSeconds::class)->toProvider(CloseGraceSecondsProvider::class);
+        $this
+            ->bind('')
+            ->annotatedWith(TerminationGraceSeconds::class)
+            ->toProvider(TerminationGraceSecondsProvider::class);
         // The parts an execution layer is assembled from, rather than ones it builds for itself.
         // Bound here and not where a runner is chosen, because they are the same parts whichever
         // runner that is, and a compiled injector answers only for what was bound.
         $this->bind(ClaudeCliEventParser::class);
         $this->bind(ClaudeCliCommand::class);
         $this->bind(ProcessRecipe::class);
+        $this->bind(ProcessRelease::class);
         $this->bind(TurnLocks::class);
         $this->bind(ProcessPool::class);
         // Singleton because the runner is the pool: a second one would hold its own children and

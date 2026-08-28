@@ -26,9 +26,6 @@ final class ProcessPool
     /** Which process belongs to which thread, and when each was last used. */
     private ProcessTable $table;
 
-    /** How a process is ended once it has been taken out of the table. */
-    private ProcessRelease $release;
-
     /** Gives up processes that have gone unused, on a coroutine of its own. */
     private IdleWatch $watch;
 
@@ -36,18 +33,15 @@ final class ProcessPool
     private Channel $roomWake;
 
     /**
-     * @param LifecycleSettings $limits            how long a process may sit idle and how many
-     *                                             there may be
-     * @param float             $closeGraceSeconds how long a process is given to end on its own
-     *                                             after its input is closed, before it is killed
+     * @param LifecycleSettings $limits  how long a process may sit idle and how many there may be
+     * @param ProcessRelease    $release how a process is ended once it has been taken out of the
+     *                                   table
      */
     public function __construct(
         private LifecycleSettings $limits,
-        #[CloseGraceSeconds]
-        float $closeGraceSeconds,
+        private ProcessRelease $release,
     ) {
         $this->table = new ProcessTable();
-        $this->release = new ProcessRelease($closeGraceSeconds);
         $this->roomWake = new Channel(1);
         $this->watch = new IdleWatch($this->table, $this->release, $limits->idleSeconds, function (): void {
             $this->freed();

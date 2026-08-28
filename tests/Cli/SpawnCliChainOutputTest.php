@@ -9,6 +9,7 @@ use NaokiTsuchiya\AgentBridge\Runner\AgentRunner;
 use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliCommand;
 use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliSettings;
 use NaokiTsuchiya\AgentBridge\Runner\LifecycleSettings;
+use NaokiTsuchiya\AgentBridge\Runner\ProcessRelease;
 use NaokiTsuchiya\AgentBridge\Runner\SpawnCliRunner;
 use NaokiTsuchiya\AgentBridge\Runner\TurnLocks;
 use NaokiTsuchiya\AgentBridge\Runner\WorkingDirectoryResolver;
@@ -27,6 +28,7 @@ final class SpawnCliChainOutputTest extends CliChainOutputTestCase
             new ClaudeCliCommand(new ClaudeCliSettings(binary: ClaudeBinary::fake())),
             new ClaudeCliEventParser(),
             new TurnLocks(),
+            new ProcessRelease(closeGraceSeconds: 0.05, terminationGraceSeconds: 0.05),
             new LifecycleSettings()->turnSeconds,
         );
     }

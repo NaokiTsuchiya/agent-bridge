@@ -10,6 +10,7 @@ use NaokiTsuchiya\AgentBridge\Support\ChildProcesses;
 use NaokiTsuchiya\AgentBridge\Support\ClaudeBinary;
 use NaokiTsuchiya\AgentBridge\Support\Coro;
 use Override;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use Swoole\Coroutine;
 use Throwable;
@@ -20,8 +21,13 @@ use function memory_get_usage;
  * Endurance and child process cleanup: process counts and memory remain bounded over hundreds of
  * turns, and all children (crashed, hung, closed, or reclaimed) are reaped.
  *
+ * Grouped away from the unit run because the cost is the point: two hundred turns are two hundred
+ * real `proc_open`s, and no parameter here can be lowered without lowering what is asserted. The
+ * group still runs under `composer test:coverage`, which is what CI measures with.
+ *
  * @internal
  */
+#[Group('endurance')]
 final class ProcessEnduranceTest extends FakeCliRunnerTestCase
 {
     /** @return string names this case's temp directories, so a stray one is easy to place */
@@ -130,7 +136,10 @@ final class ProcessEnduranceTest extends FakeCliRunnerTestCase
             new ProcessRecipe(new FixedWorkingDirectory($this->cwd), new ClaudeCliCommand($settings)),
             new ClaudeCliEventParser(),
             new TurnLocks(),
-            new ProcessPool($actualLimits, $settings->closeGraceSeconds),
+            new ProcessPool(
+                $actualLimits,
+                new ProcessRelease($settings->closeGraceSeconds, terminationGraceSeconds: 0.05),
+            ),
             $actualLimits->turnSeconds,
         );
     }
