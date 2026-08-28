@@ -13,24 +13,26 @@ namespace NaokiTsuchiya\AgentBridge\Runner;
  * stranger, and a child nobody collects stays in the process table as a defunct entry.
  *
  * Both ways yield while they wait. A process that came from {@see ProcessPool} must be taken out
- * of {@see ProcessTable} first, which is why {@see stop()} stays an instance method reached only
- * through the pool's own {@see ProcessRelease} — but {@see kill()} touches nothing of the pool's,
- * so it is `static` and {@see SpawnCliRunner}, whose processes never go into a `ProcessTable` at
- * all, calls it directly.
+ * of {@see ProcessTable} before {@see stop()} is called on it; {@see kill()} touches nothing of
+ * the pool's, which is why {@see SpawnCliRunner} — whose processes never go into a `ProcessTable`
+ * at all — can hold one of these and call it.
  *
  * @api
  */
 final readonly class ProcessRelease
 {
-    /** How long a terminated child is given to disappear before it is left to the system. */
-    private const float TERMINATION_GRACE = 2.0;
-
     /**
-     * @param float $closeGraceSeconds how long a child is given to end by itself once its input
-     *                                 is closed. A turn in flight is what makes this take time
+     * @param float $closeGraceSeconds       how long a child is given to end by itself once its
+     *                                       input is closed. A turn in flight is what makes this
+     *                                       take time
+     * @param float $terminationGraceSeconds how long a terminated child is waited on before it is
+     *                                       left to the system
      */
     public function __construct(
+        #[CloseGraceSeconds]
         private float $closeGraceSeconds,
+        #[TerminationGraceSeconds]
+        private float $terminationGraceSeconds,
     ) {}
 
     /** Asks the child to finish and stop, killing it only if it will not. */
@@ -41,7 +43,7 @@ final readonly class ProcessRelease
         $process->closeInput();
         $ended = $process->awaitExit($this->closeGraceSeconds);
         if (!$ended) {
-            self::kill($process);
+            $this->kill($process);
 
             return;
         }
@@ -50,10 +52,10 @@ final readonly class ProcessRelease
     }
 
     /** Ends the child where it stands, for when waiting on it is what went wrong. */
-    public static function kill(AgentProcess $process): void
+    public function kill(AgentProcess $process): void
     {
         $process->terminate();
-        $process->awaitExit(self::TERMINATION_GRACE);
+        $process->awaitExit($this->terminationGraceSeconds);
         $process->release();
     }
 }

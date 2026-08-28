@@ -60,7 +60,10 @@ final class TurnEventsTest extends TestCase
         $thread = new ThreadId('slack:turn.restart.fail');
 
         Coro::run(static function () use ($thread): void {
-            $pool = new ProcessPool(new LifecycleSettings(idleSeconds: 900.0, turnSeconds: 5.0, maxProcesses: 2), 1.0);
+            $pool = new ProcessPool(
+                new LifecycleSettings(idleSeconds: 900.0, turnSeconds: 5.0, maxProcesses: 2),
+                new ProcessRelease(1.0, terminationGraceSeconds: 0.05),
+            );
             $turn = new Turn($thread, 2.0);
 
             $shortProcess = AgentProcess::start(['/usr/bin/true'], '', HistoryStart::Continuing);

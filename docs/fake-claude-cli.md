@@ -148,8 +148,11 @@ fake-claude 群 (`FakeClaudeCliContractTest`) は**この変数を見ない**。
 ### 回し方
 
 ```bash
-composer test:unit         # 実行層のテスト。ログイン済み Claude Code は不要
+composer test:unit         # 実行層のテスト。ログイン済み Claude Code は不要 (endurance 群は含まない)
 composer test:fake-claude  # フェイク自身のテストと、契約テストのフェイク側
+
+# 数百ターンの耐久 (ProcessEnduranceTest)。実 proc_open を 200 回払うので unit から外してある
+composer test:endurance
 
 # 実 claude に対して契約を確かめる (ログインと課金が要る。約 35 秒)
 composer test:integration
@@ -161,6 +164,6 @@ AGENT_BRIDGE_CLAUDE_BIN="$PWD/fake-claude/bin/claude" composer test:integration
 AGENT_BRIDGE_CLAUDE_BIN="$PWD/fake-claude/bin/claude" composer test:coverage
 ```
 
-CI (`.github/workflows/ci.yml`) は unit 群・fake-claude 群・integration 群を **1 つの step でまとめて** (`composer test:coverage`) 回しており、**integration 群はフェイクに対して**動く (`AGENT_BRIDGE_CLAUDE_BIN` にフェイクのパスを渡す step)。実 `claude` に対する実行は課金とログインが要るので CI では行わない — **手元で定期的に回すもの**で、落ちたらフェイクを実 CLI に合わせて直す (2 章の原則)。
+CI (`.github/workflows/ci.yml`) は unit 群・endurance 群・fake-claude 群・integration 群を **1 つの step でまとめて** (`composer test:coverage`) 回しており、**integration 群はフェイクに対して**動く (`AGENT_BRIDGE_CLAUDE_BIN` にフェイクのパスを渡す step)。`test:coverage` はグループフィルタを持たないので、`test:unit` から外した endurance 群もここでは走る (カバレッジ 100% ゲートの分母が変わらない)。実 `claude` に対する実行は課金とログインが要るので CI では行わない — **手元で定期的に回すもの**で、落ちたらフェイクを実 CLI に合わせて直す (2 章の原則)。
 
 カバレッジはその 1 回の実行で matrix の両方 (PHP 8.4 / 8.5) が測る。Codecov へのアップロードだけを片方 (8.5) に閉じている — 両方の leg から上げると同じ数字が二重に計上されるため。

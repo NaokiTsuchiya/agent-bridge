@@ -543,6 +543,7 @@ final class SpawnCliRunnerTest extends FakeCliRunnerTestCase
             )),
             new ClaudeCliEventParser(),
             new TurnLocks(),
+            new ProcessRelease(closeGraceSeconds: 0.05, terminationGraceSeconds: 0.05),
             $turnSeconds,
         );
     }

@@ -39,6 +39,8 @@ use const SWOOLE_HOOK_STREAM_FUNCTION;
  * Only usable from inside a coroutine: a thread's turn is serialized with a channel
  * ({@see TurnLocks}), which is also what keeps two turns out of one worktree.
  *
+ * @mago-expect lint:excessive-parameter-list
+ *
  * @api
  */
 final class SpawnCliRunner implements AgentRunner
@@ -49,6 +51,8 @@ final class SpawnCliRunner implements AgentRunner
      * @param ClaudeCliEventParser     $parser      turns the binary's output into events
      * @param TurnLocks                $locks       one mutex per thread, held for as long as that
      *                                              thread's turn lasts
+     * @param ProcessRelease           $release     how the turn's process is ended once the turn
+     *                                              is over
      * @param float                    $turnSeconds how long a turn may go without reaching its
      *                                              completion event. The value itself rather than
      *                                              the settings it is written in: the rest of
@@ -60,6 +64,7 @@ final class SpawnCliRunner implements AgentRunner
         private ClaudeCliCommand $command,
         private ClaudeCliEventParser $parser,
         private TurnLocks $locks,
+        private ProcessRelease $release,
         #[TurnSeconds]
         private float $turnSeconds,
     ) {
@@ -163,7 +168,7 @@ final class SpawnCliRunner implements AgentRunner
             // Asked to stop rather than waited on: its input reached its end before the turn began,
             // so a child still here is not one that is about to finish reading — it is one that is
             // not leaving.
-            ProcessRelease::kill($process);
+            $this->release->kill($process);
         }
 
         return $events->getReturn();

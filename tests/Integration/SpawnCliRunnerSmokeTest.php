@@ -12,6 +12,7 @@ use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliCommand;
 use NaokiTsuchiya\AgentBridge\Runner\ClaudeCliSettings;
 use NaokiTsuchiya\AgentBridge\Runner\FixedWorkingDirectory;
 use NaokiTsuchiya\AgentBridge\Runner\LifecycleSettings;
+use NaokiTsuchiya\AgentBridge\Runner\ProcessRelease;
 use NaokiTsuchiya\AgentBridge\Runner\SpawnCliRunner;
 use NaokiTsuchiya\AgentBridge\Runner\TurnLocks;
 use NaokiTsuchiya\AgentBridge\Support\ClaudeBinary;
@@ -76,6 +77,7 @@ final class SpawnCliRunnerSmokeTest extends TestCase
             new ClaudeCliCommand(new ClaudeCliSettings(binary: ClaudeBinary::fromEnvironment())),
             new ClaudeCliEventParser(),
             new TurnLocks(),
+            new ProcessRelease(closeGraceSeconds: 0.05, terminationGraceSeconds: 0.05),
             new LifecycleSettings()->turnSeconds,
         );
         $thread = new ThreadId('smoke:' . uniqid());

@@ -113,7 +113,10 @@ final class TurnSettlementTest extends TestCase
                 new ProcessRecipe(new FixedWorkingDirectory($cwd), new ClaudeCliCommand($settings)),
                 new ClaudeCliEventParser(),
                 new TurnLocks(),
-                new ProcessPool($limits, $settings->closeGraceSeconds),
+                new ProcessPool(
+                    $limits,
+                    new ProcessRelease($settings->closeGraceSeconds, terminationGraceSeconds: 0.05),
+                ),
                 $limits->turnSeconds,
             );
 
@@ -180,7 +183,10 @@ final class TurnSettlementTest extends TestCase
                 new ProcessRecipe(new FixedWorkingDirectory($cwd), new ClaudeCliCommand($settings)),
                 new ClaudeCliEventParser(),
                 new TurnLocks(),
-                new ProcessPool($limits, $settings->closeGraceSeconds),
+                new ProcessPool(
+                    $limits,
+                    new ProcessRelease($settings->closeGraceSeconds, terminationGraceSeconds: 0.05),
+                ),
                 $limits->turnSeconds,
             );
 

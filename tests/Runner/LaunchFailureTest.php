@@ -101,7 +101,10 @@ final class LaunchFailureTest extends TestCase
                 new ProcessRecipe(new HookOffBeforeLaunch($cwd, failFrom: 1), new ClaudeCliCommand($settings)),
                 new ClaudeCliEventParser(),
                 new TurnLocks(),
-                new ProcessPool($limits, $settings->closeGraceSeconds),
+                new ProcessPool(
+                    $limits,
+                    new ProcessRelease($settings->closeGraceSeconds, terminationGraceSeconds: 0.05),
+                ),
                 $limits->turnSeconds,
             );
 
@@ -139,6 +142,7 @@ final class LaunchFailureTest extends TestCase
                 new ClaudeCliCommand(new ClaudeCliSettings(binary: $binary)),
                 new ClaudeCliEventParser(),
                 new TurnLocks(),
+                new ProcessRelease(closeGraceSeconds: 0.05, terminationGraceSeconds: 0.05),
                 5.0,
             );
 
@@ -176,7 +180,10 @@ final class LaunchFailureTest extends TestCase
                 new ProcessRecipe(new HookOffBeforeLaunch($cwd, failFrom: 2), new ClaudeCliCommand($settings)),
                 new ClaudeCliEventParser(),
                 new TurnLocks(),
-                new ProcessPool($limits, $settings->closeGraceSeconds),
+                new ProcessPool(
+                    $limits,
+                    new ProcessRelease($settings->closeGraceSeconds, terminationGraceSeconds: 0.05),
+                ),
                 $limits->turnSeconds,
             );
 

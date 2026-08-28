@@ -15,6 +15,7 @@ use NaokiTsuchiya\AgentBridge\Runner\LifecycleSettings;
 use NaokiTsuchiya\AgentBridge\Runner\PersistentCliRunner;
 use NaokiTsuchiya\AgentBridge\Runner\ProcessPool;
 use NaokiTsuchiya\AgentBridge\Runner\ProcessRecipe;
+use NaokiTsuchiya\AgentBridge\Runner\ProcessRelease;
 use NaokiTsuchiya\AgentBridge\Runner\TurnLocks;
 use NaokiTsuchiya\AgentBridge\Support\ClaudeBinary;
 use NaokiTsuchiya\AgentBridge\Support\Coro;
@@ -79,7 +80,7 @@ final class PersistentCliRunnerSmokeTest extends TestCase
             new ProcessRecipe(new FixedWorkingDirectory($this->cwd), new ClaudeCliCommand($settings)),
             new ClaudeCliEventParser(),
             new TurnLocks(),
-            new ProcessPool($limits, $settings->closeGraceSeconds),
+            new ProcessPool($limits, new ProcessRelease($settings->closeGraceSeconds, terminationGraceSeconds: 0.05)),
             $limits->turnSeconds,
         );
         $thread = new ThreadId('smoke:' . uniqid());

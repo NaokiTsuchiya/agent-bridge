@@ -529,7 +529,7 @@ final class PersistentCliRunnerTest extends FakeCliRunnerTestCase
             new ProcessRecipe($directories ?? new FixedWorkingDirectory($this->cwd), new ClaudeCliCommand($settings)),
             new ClaudeCliEventParser(),
             new TurnLocks(),
-            new ProcessPool($limits, $settings->closeGraceSeconds),
+            new ProcessPool($limits, new ProcessRelease($settings->closeGraceSeconds, terminationGraceSeconds: 0.05)),
             $limits->turnSeconds,
         );
     }
