@@ -41,8 +41,8 @@ use const PHP_BINARY;
 
 /**
  * Socket Mode's receive path, over a real TLS socket to a real separate process — the one thing
- * `tests/Slack/` cannot show, and `docs/slack-socket-mode.md`'s manual runbook used to be the only
- * way to see at all (steps 4 and 5 there).
+ * `tests/Slack/` cannot show, and what `docs/slack-socket-mode.md` still leaves to manual checks is
+ * now only the real-workspace, long-running half of steps 4 to 6 there.
  *
  * Every production class between the app token and the delivered payload runs unmodified: only
  * `SwooleSocketModeConnector`'s `apiHost`/`apiPort` point at the stub instead of `slack.com`.
@@ -53,11 +53,23 @@ final class SocketModeStubTest extends TestCase
     /** How long the child is given to print its readiness line. */
     private const float READY_TIMEOUT = 5.0;
 
-    /** How long the ack line is given to appear on the child's stdout once sent. */
-    private const float ACK_TIMEOUT = 2.0;
+    /** How long a stub observation line is given to appear once the client should have caused it. */
+    private const float LINE_TIMEOUT = 2.0;
 
     /** Short enough that {@see SocketModeClient::stop()} ends the run deterministically and fast. */
     private const float SILENCE_TIMEOUT = 0.5;
+
+    /** The baseline stub script: hello, one event, one ack. */
+    private const string MODE_ACK = 'ack';
+
+    /** The keepalive script: ping and event on one live connection. */
+    private const string MODE_PING = 'ping';
+
+    /** The reconnect script: one forced close before the successful connection. */
+    private const string MODE_RECONNECT = 'reconnect';
+
+    /** @var array<string, mixed> The one payload every stub mode eventually delivers. */
+    private const array EXPECTED_PAYLOAD = ['event' => ['type' => 'app_mention', 'text' => 'ping']];
 
     /** The stub-slack child process this case started, so `tearDown()` always ends it. */
     private ?CliProcess $process = null;
@@ -79,19 +91,94 @@ final class SocketModeStubTest extends TestCase
     #[Test]
     public function receivesAndAcknowledgesAnEventOverARealTlsSocket(): void
     {
-        $root = dirname(__DIR__, levels: 2);
         $port = FreePort::acquire();
-
-        $process = CliProcess::start([PHP_BINARY, "{$root}/stub-slack/bin/stub-slack", (string) $port], $root);
-        $this->process = $process;
-        self::assertNotNull(
-            $this->waitForLine($process, 'READY', self::READY_TIMEOUT),
-            "stub-slack did not report ready: {$process->stderr()}",
-        );
-
+        $process = $this->startStub($port);
         $logger = new RecordingLogger();
+        /** @var array<string, mixed>|false|null $payload */
         $payload = null;
 
+        self::runClient($port, $logger, $payload);
+
+        self::assertContains('connected', $logger->lines, 'The hello frame was not logged as read.');
+        self::assertSame(self::EXPECTED_PAYLOAD, $payload);
+        self::assertAcked($process);
+        $this->assertStubStopped($process);
+    }
+
+    /**
+     * A keepalive ping matters only if the peer answers it and stays connected long enough to read
+     * the next real frame on that same socket.
+     *
+     * @throws Throwable
+     * @throws StubSlackException
+     */
+    #[Test]
+    public function answersTheStubPingWithAPongWithoutFallingOffTheConnection(): void
+    {
+        $port = FreePort::acquire();
+        $process = $this->startStub($port, self::MODE_PING);
+        $logger = new RecordingLogger();
+        /** @var array<string, mixed>|false|null $payload */
+        $payload = null;
+
+        self::runClient($port, $logger, $payload);
+
+        self::assertContains('connected', $logger->lines, 'The hello frame was not logged as read.');
+        self::assertSame(self::EXPECTED_PAYLOAD, $payload);
+        self::assertNotContains(
+            'nothing arrived within ' . self::SILENCE_TIMEOUT . 's; reconnecting',
+            $logger->lines,
+            'The keepalive exchange was treated as silence.',
+        );
+        self::assertNotNull(
+            self::waitForLine($process, 'PONG', self::LINE_TIMEOUT),
+            "no pong line arrived: {$process->stderr()}",
+        );
+        self::assertAcked($process);
+        $this->assertStubStopped($process);
+    }
+
+    /**
+     * A server-side close is only a harmless routine refresh if the next `apps.connections.open`
+     * and upgrade really happen.
+     *
+     * @throws Throwable
+     * @throws StubSlackException
+     */
+    #[Test]
+    public function reconnectsAfterTheStubClosesTheSocket(): void
+    {
+        $port = FreePort::acquire();
+        $process = $this->startStub($port, self::MODE_RECONNECT);
+        $logger = new RecordingLogger();
+        /** @var array<string, mixed>|false|null $payload */
+        $payload = null;
+
+        self::runClient($port, $logger, $payload);
+
+        self::assertContains('connected', $logger->lines, 'No connection ever reached the hello frame.');
+        self::assertSame(self::EXPECTED_PAYLOAD, $payload);
+        self::assertNotNull(
+            self::waitForLine($process, 'OPEN 2', self::LINE_TIMEOUT),
+            "the second open never arrived: {$process->stderr()}",
+        );
+        self::assertNotNull(
+            self::waitForLine($process, 'UPGRADE 2', self::LINE_TIMEOUT),
+            "the second upgrade never arrived: {$process->stderr()}",
+        );
+        self::assertAcked($process);
+        $this->assertStubStopped($process);
+    }
+
+    /**
+     * @param array<string, mixed>|false|null $payload the one events_api payload the client hands to
+     *                                                 the test channel, or `false` when nothing arrived
+     *
+     * @throws InvalidArgumentException when the literal app token below is malformed
+     * @throws Throwable everything the client loop or the connector can raise
+     */
+    private static function runClient(int $port, RecordingLogger $logger, array|false|null &$payload): void
+    {
         Coro::run(
             /**
              * @throws InvalidArgumentException when the literal app token below is malformed
@@ -129,23 +216,50 @@ final class SocketModeStubTest extends TestCase
                 $finished->pop(5.0);
             },
         );
+    }
 
-        self::assertContains('connected', $logger->lines, 'The hello frame was not logged as read.');
-        self::assertSame(['event' => ['type' => 'app_mention', 'text' => 'ping']], $payload);
+    /**
+     * @throws StubSlackException
+     */
+    private function startStub(int $port, string $mode = self::MODE_ACK): CliProcess
+    {
+        $root = dirname(__DIR__, levels: 2);
+        $command = [PHP_BINARY, "{$root}/stub-slack/bin/stub-slack", (string) $port];
 
-        $ackLine = $this->waitForLine($process, 'ACK ', self::ACK_TIMEOUT);
+        if ($mode !== self::MODE_ACK) {
+            $command[] = $mode;
+        }
+
+        $process = CliProcess::start($command, $root);
+        $this->process = $process;
+        self::assertNotNull(
+            self::waitForLine($process, 'READY', self::READY_TIMEOUT),
+            "stub-slack did not report ready: {$process->stderr()}",
+        );
+
+        return $process;
+    }
+
+    /** Confirms that the stub saw the one acknowledgement frame its scenario expects. */
+    private static function assertAcked(CliProcess $process): void
+    {
+        $ackLine = self::waitForLine($process, 'ACK ', self::LINE_TIMEOUT);
         self::assertNotNull($ackLine, "no ack line arrived: {$process->stderr()}");
         $ack = Json::decode(substr($ackLine, strlen('ACK ')));
         self::assertNotNull($ack);
         self::assertSame('stub-envelope-1', Json::text($ack, 'envelope_id'));
+    }
 
+    /** Stops the child process and proves no stub-slack zombie survived this case. */
+    private function assertStubStopped(CliProcess $process): void
+    {
         $process->stop();
         $this->process = null;
         self::assertSame([], ChildProcesses::all(), 'stub-slack outlived the test.');
     }
 
     /** Polls the child's stdout, draining both pipes each time, until a line starts with `$prefix`. */
-    private function waitForLine(CliProcess $process, string $prefix, float $timeout): ?string
+    private static function waitForLine(CliProcess $process, string $prefix, float $timeout): ?string
     {
         $deadline = microtime(as_float: true) + $timeout;
         $now = microtime(as_float: true);

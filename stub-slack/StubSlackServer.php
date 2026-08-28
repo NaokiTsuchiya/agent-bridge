@@ -15,16 +15,23 @@ use function is_array;
 use function json_decode;
 use function json_encode;
 
+use const SWOOLE_WEBSOCKET_OPCODE_CLOSE;
+use const SWOOLE_WEBSOCKET_OPCODE_PING;
+use const SWOOLE_WEBSOCKET_OPCODE_PONG;
+use const SWOOLE_WEBSOCKET_OPCODE_TEXT;
+
 /**
  * A TLS `apps.connections.open` + Socket Mode WebSocket, standing in for Slack.
  *
- * Everything Slack-shaped is a constructor argument (the scenario, the ack sink) rather than a
- * decision this class makes, so that its own tests can drive it directly and the CLI entrypoint
- * (`stub-slack/StubSlackCli.php`) can drive the exact same class over a real child process — the
- * only thing that differs between the two is what `$onAck` does with the ack it is handed.
+ * Everything Slack-shaped is a constructor argument (the scenario, the ack sink, the observation
+ * sink) rather than a decision this class makes, so that its own tests can drive it directly and
+ * the CLI entrypoint (`stub-slack/StubSlackCli.php`) can drive the exact same class over a real
+ * child process.
  *
  * Must be constructed and run from inside a coroutine (`Swoole\Coroutine\run()`): both binding and
  * the accept loop that `start()` runs need the scheduler.
+ *
+ * @mago-expect lint:too-many-methods
  */
 final class StubSlackServer
 {
@@ -34,14 +41,21 @@ final class StubSlackServer
     /** Where the URL from `OPEN_PATH` points the client back to upgrade on. */
     private const string SOCKET_MODE_PATH = '/socket-mode';
 
-    /** How long a connection is given to send its ack before this stub gives up on it. */
-    private const float ACK_TIMEOUT = 5.0;
+    /** How long a connection is given to answer an expected inbound frame before this stub gives up. */
+    private const float RECEIVE_TIMEOUT = 5.0;
 
     /** The coroutine HTTP+WebSocket server this class wires the scenario onto. */
     private readonly Server $server;
 
+    /** How many times `apps.connections.open` has been called on this stub. */
+    private int $connectionsOpen = 0;
+
+    /** How many upgraded WebSocket connections this stub has accepted. */
+    private int $upgrades = 0;
+
     /**
-     * @param Closure(string): void $onAck the raw ack frame's text, once one arrives
+     * @param Closure(string): void $onAck              the raw ack frame's text, once one arrives
+     * @param null|Closure(string): void $onObservation a line-oriented observer for upgrade/open/pong/close events
      *
      * @throws Exception when the TLS listener cannot be bound
      *
@@ -54,11 +68,13 @@ final class StubSlackServer
         private readonly StubSlackScenario $scenario,
         private readonly Closure $onAck,
         private readonly StubSlackApi $api,
+        private readonly ?Closure $onObservation = null,
     ) {
         $this->server = new Server($host, $port, ssl: true);
         $this->server->set([
             'ssl_cert_file' => $certificate->certFile,
             'ssl_key_file' => $certificate->keyFile,
+            'open_websocket_pong_frame' => true,
         ]);
         $this->server->handle(self::OPEN_PATH, $this->connectionsOpen(...));
         $this->server->handle(self::SOCKET_MODE_PATH, $this->socketMode(...));
@@ -94,6 +110,8 @@ final class StubSlackServer
      */
     private function connectionsOpen(Request $_request, Response $response): void
     {
+        $this->connectionsOpen++;
+        $this->observe("OPEN {$this->connectionsOpen}");
         $body = json_encode([
             'ok' => true,
             'url' => "wss://{$this->server->host}:{$this->server->port}" . self::SOCKET_MODE_PATH,
@@ -104,7 +122,7 @@ final class StubSlackServer
         $response->end($body === false ? '' : $body);
     }
 
-    /** Sends the two canned frames, then waits for the one ack they are owed. */
+    /** Runs the configured connection script for this upgraded socket. */
     private function socketMode(Request $_request, Response $response): void
     {
         $upgraded = $response->upgrade();
@@ -113,18 +131,81 @@ final class StubSlackServer
             return;
         }
 
-        $response->push($this->scenario->helloFrame);
-        $response->push($this->scenario->eventsFrame);
+        $this->upgrades++;
+        $this->observe("UPGRADE {$this->upgrades}");
 
-        $ack = $response->recv(self::ACK_TIMEOUT);
+        foreach ($this->scenario->stepsFor($this->upgrades) as $step) {
+            $keepGoing = $this->runStep($response, $step);
 
-        // A closed connection answers `recv()` with `''`, not `false` — no frame ever arrived
-        // either way, so anything that is not a real `Frame` is treated the same: nothing to ack.
-        if (!$ack instanceof Frame) {
+            if (!$keepGoing) {
+                return;
+            }
+        }
+    }
+
+    /** Emits a line-oriented observation when a caller asked for one. */
+    private function observe(string $event): void
+    {
+        if (!$this->onObservation instanceof Closure) {
             return;
         }
 
-        ($this->onAck)($ack->data);
+        ($this->onObservation)($event);
+    }
+
+    /**
+     * Executes one step of the accepted connection script.
+     *
+     * @return bool false only when the connection script should stop immediately
+     */
+    private function runStep(Response $response, string $step): bool
+    {
+        return match ($step) {
+            StubSlackScenario::SEND_HELLO => $response->push($this->scenario->helloFrame),
+            StubSlackScenario::SEND_EVENT => $response->push($this->scenario->eventsFrame),
+            StubSlackScenario::SEND_PING => $response->push('', SWOOLE_WEBSOCKET_OPCODE_PING),
+            StubSlackScenario::EXPECT_ACK => $this->captureAck($response),
+            StubSlackScenario::EXPECT_PONG => $this->capturePong($response),
+            StubSlackScenario::CLOSE => $this->closeConnection($response),
+            default => throw new StubSlackException("Unknown connection step: {$step}"),
+        };
+    }
+
+    /** Waits for the text acknowledgement frame and hands it to the injected sink. */
+    private function captureAck(Response $response): bool
+    {
+        $frame = $response->recv(self::RECEIVE_TIMEOUT);
+
+        if (!$frame instanceof Frame || $frame->opcode !== SWOOLE_WEBSOCKET_OPCODE_TEXT) {
+            return false;
+        }
+
+        ($this->onAck)($frame->data);
+
+        return true;
+    }
+
+    /** Waits for the peer's pong frame and records that it arrived. */
+    private function capturePong(Response $response): bool
+    {
+        $frame = $response->recv(self::RECEIVE_TIMEOUT);
+
+        if (!$frame instanceof Frame || $frame->opcode !== SWOOLE_WEBSOCKET_OPCODE_PONG) {
+            return false;
+        }
+
+        $this->observe('PONG');
+
+        return true;
+    }
+
+    /** Sends a close frame and ends this connection script. */
+    private function closeConnection(Response $response): bool
+    {
+        $this->observe('CLOSE');
+        $response->push('', SWOOLE_WEBSOCKET_OPCODE_CLOSE);
+
+        return false;
     }
 
     /**

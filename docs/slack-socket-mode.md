@@ -1,6 +1,6 @@
 # Slack Socket Mode — 手動スモークテスト
 
-このリポジトリの Socket Mode クライアントは、実 WebSocket と実トークンを要求しない範囲まで自動テストで覆ってある (`tests/Slack/`)。**元々覆えなかったのは 3 つの I/O** — `apps.connections.open` の HTTP 呼び出し、WSS への upgrade、フレームの送受信そのもの — だったが、このうち `apps.connections.open` への到達・upgrade・ack 到達の 3 つは、TLS 対応のスタブ (`stub-slack/`) を使った integration テスト (`tests/Integration/SocketModeStubTest.php`、`composer test:integration`) が自動で確認するようになった。**残るのは keepalive の pong と、実ワークスペース相手の再接続・実トークンでの疎通** — この手順書はそれを人間が 1 回確かめるためのものである。
+このリポジトリの Socket Mode クライアントは、実 WebSocket と実トークンを要求しない範囲まで自動テストで覆ってある (`tests/Slack/`)。**元々覆えなかったのは 3 つの I/O** — `apps.connections.open` の HTTP 呼び出し、WSS への upgrade、フレームの送受信そのもの — だったが、このうち `apps.connections.open` への到達、upgrade、ack 到達、keepalive の ping/pong、スタブ相手の再接続までは、TLS 対応のスタブ (`stub-slack/`) を使った integration テスト (`tests/Integration/SocketModeStubTest.php`、`composer test:integration`) が自動で確認するようになった。**残るのは、実ワークスペース・実トークンでの疎通と、実ネットワーク相手で長時間動かしたときの keepalive / 再接続の実挙動** — この手順書はそれを人間が 1 回確かめるためのものである。
 
 自動判定の対象外。CI では回さない。Slack アプリを作り直したとき、Slack 側の仕様が変わったとき、`src/Slack/SwooleSocketModeConnector.php` か `src/Slack/SwooleSocketModeConnection.php` を触ったときに、この手順を人手で通す。
 
@@ -119,6 +119,6 @@ php /tmp/socket-mode-smoke.php
 |---|---|---|
 | 4 | 実 Slack へ正しいメソッド・ヘッダで到達しているか、実トークンで拒否されないか | `apps.connections.open` への到達と、返った URL での upgrade (スタブ相手) |
 | 5 | 実ワークスペースで、送った ack を Slack が受け取っているか (再送が来ないことでしか分からない) | ack がスタブ側に届いたことそのもの (スタブ側の記録で確認) |
-| 6 | keepalive の ping に pong を返せているか、切断後に張り直せるか | 触れていない — 実ネットワーク相手の長時間の挙動なので、この手順書でしか確かめられない |
+| 6 | 実ワークスペース相手で、何時間か動かしたときの keepalive と再接続が安定しているか | keepalive の ping に pong を返せていることと、サーバ起因 close の後に張り直せること (スタブ相手) |
 
-応答本文の解釈 (`ConnectionOpenResponse`)、URL の分解 (`WebsocketEndpoint`)、受信結果の分類 (`ReceivedFrame`)、フレームの分岐・ack・重複排除・バックオフ (`FrameRouter` / `SocketModeClient` / `EnvelopeLog` / `Backoff`) は、いずれも `tests/Slack/` が実接続なしで覆っている。`apps.connections.open` への到達・upgrade・ack 到達は `tests/Integration/SocketModeStubTest.php` がスタブ相手に実 TLS ソケットで覆っている。**この手順書で人が見る必要が残るのは、実ワークスペース・実トークンでの疎通と、keepalive・長時間再接続の実挙動だけである。**
+応答本文の解釈 (`ConnectionOpenResponse`)、URL の分解 (`WebsocketEndpoint`)、受信結果の分類 (`ReceivedFrame`)、フレームの分岐・ack・重複排除・バックオフ (`FrameRouter` / `SocketModeClient` / `EnvelopeLog` / `Backoff`) は、いずれも `tests/Slack/` が実接続なしで覆っている。`apps.connections.open` への到達、upgrade、ack 到達、keepalive の ping/pong、サーバ起因 close 後の再接続は `tests/Integration/SocketModeStubTest.php` がスタブ相手に実 TLS ソケットで覆っている。**この手順書で人が見る必要が残るのは、実ワークスペース・実トークンでの疎通と、実ネットワーク相手で長時間動かしたときの keepalive / 再接続の実挙動だけである。**
